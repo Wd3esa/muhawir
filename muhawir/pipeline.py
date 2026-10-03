@@ -115,24 +115,52 @@ def _feedback(rejected: list, incomplete: bool = False) -> str:
 
 # where the model starts a conclusion of its own after a sentence that rests on the passage
 MIN_TRIMMED_WORDS = 4  # fewest words a sentence keeps when its conclusion is cut off
-_CONCLUSION_STARTS = (
-    ("وهذا",), ("وذلك",), ("فهذا",), ("فذلك",), ("فدل",),
-    ("ما", "يدل"), ("ما", "يعني"), ("ما", "يؤكد"), ("ما", "يبين"), ("ما", "يثبت"), ("ما", "يوضح"), ("ما", "يظهر"),
-    ("مما", "يدل"), ("مما", "يعني"), ("اي", "ان"),
-)
+_INFERRING = ("يدل", "يعني", "يؤكد", "يبين", "يثبت", "يوضح", "يظهر", "يفيد", "يوحي", "يشير", "يبرهن")
+# explicit marks of an inference («…، مما يؤكد أن…», «…، وهذا يدل على…», «…، وبالتالي…»): the project's rule is
+# that Muhawir draws no conclusion of its own, so everything from such a mark on is removed from every sentence
+_INFERENCE_STARTS = tuple(tuple(normalize(w) for w in seq) for seq in (
+    [(lead, verb) for lead in ("ما", "مما", "وهذا", "فهذا", "وذلك", "فذلك", "هذا", "ذلك") for verb in _INFERRING]
+    + [("وبالتالي",), ("فبالتالي",), ("وعليه",), ("ومن", "ثم"), ("إذن",), ("فإذن",), ("فدل",)]))
+# a wider set, used to rescue a sentence the second reading rejected: its first part may still be sound
+_CONCLUSION_STARTS = _INFERENCE_STARTS + tuple(tuple(normalize(w) for w in seq) for seq in (
+    ("وهذا",), ("وذلك",), ("فهذا",), ("فذلك",), ("أي", "أن")))
 
 
-def _without_conclusion(claim):
-    """The sentence up to the point where it starts a conclusion of its own («…، وهذا يدل على…», «…، أي أن…»),
-    as a new claim with the same sources; None if there is no such point or too little would be left."""
+def _cut_at(claim, starts):
+    """The sentence up to the first of `starts` (after at least MIN_TRIMMED_WORDS words), as a new claim with the
+    same sources; None if there is no such point or the part before it would end inside a quotation."""
     raw = claim.text.split()
     plain = [normalize(w) for w in raw]
     for k in range(MIN_TRIMMED_WORDS, len(raw)):
-        if any(tuple(plain[k:k + len(seq)]) == seq for seq in _CONCLUSION_STARTS):
+        if any(tuple(plain[k:k + len(seq)]) == seq for seq in starts):
             head = " ".join(raw[:k]).rstrip(" ،,؛:")
             if head.count("«") == head.count("»"):
                 return type(claim)(head + ".", claim.passage_ids, claim.school)
     return None
+
+
+def _resolve_ids(claim, allowed: set[str]):
+    """An id the model wrote without its last part («t4:2:255:4947» for «t4:2:255:4947:1») is the one offered id
+    it begins; an id that begins several offered ids, or none, is left for the checks to reject."""
+    fixed = []
+    for pid in claim.passage_ids:
+        if pid not in allowed:
+            matches = [a for a in allowed if a.startswith(pid + ":")]
+            pid = matches[0] if len(matches) == 1 else pid
+        fixed.append(pid)
+    ids = tuple(dict.fromkeys(fixed))
+    return claim if ids == claim.passage_ids else type(claim)(claim.text, ids, claim.school)
+
+
+def _without_inference(claim):
+    """The claim without an explicit inference of the model's own at its end; the claim itself if it has none."""
+    return _cut_at(claim, _INFERENCE_STARTS) or claim
+
+
+def _without_conclusion(claim):
+    """The sentence up to the point where it starts a conclusion of its own, wider than `_without_inference`
+    («…، وهذا قول…», «…، أي أن…»); None if there is no such point or too little would be left."""
+    return _cut_at(claim, _CONCLUSION_STARTS)
 
 
 # words that turn an everyday example into a comparison with a religious matter («هذا يشبه الزكاة»)
@@ -206,6 +234,13 @@ class Muhawir:
         if DEBUG:
             res.why = reason[:500] + (f" | reply began: {reply_start}" if reply_start else "")
         return res
+
+    def _tidy(self, draft: list, allowed: set[str]) -> list:
+        """Before any check: ids the model wrote without their last part are resolved, and an explicit
+        inference of its own at the end of a sentence is cut off (model drafts only)."""
+        if self.generator.name == "extractive":
+            return draft
+        return [_without_inference(_resolve_ids(c, allowed)) for c in draft]
 
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = ""):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
@@ -307,7 +342,7 @@ class Muhawir:
         if hasattr(self.generator, "last_note"):
             self.generator.last_note = self.generator.last_raw = ""
             self.generator.last_as_list = False
-        draft = self.generator.generate(question, passages, style, lang, personal=personal, **extra)
+        draft = self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed)
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
@@ -325,7 +360,7 @@ class Muhawir:
             rewritten = True
             redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
                                               **extra)
-            second = self._checked(redraft, corpus, allowed, passages, question) if redraft else None
+            second = self._checked(self._tidy(redraft, allowed), corpus, allowed, passages, question) if redraft else None
             if second is not None and len(second[0]) > len(kept):
                 kept, rejected = second
 

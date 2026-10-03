@@ -460,3 +460,48 @@ def test_verify_drops_a_sentence_with_another_kind_of_ruling_and_says_why():
                             corpus, {"p"})
     assert [c.text for c in kept] == ["تجب الزكاة في الذهب والفضة."]
     assert rejected[0].reason.startswith("ruling word not in the cited passage")
+
+
+# --- no conclusions of its own, resolved ids --------------------------------------------------------
+
+def test_an_explicit_inference_at_the_end_of_a_sentence_is_cut_off_whatever_the_checks_say():
+    from muhawir.pipeline import _without_inference
+    cases = {
+        "روى أنس بن مالك أن النبي ضحك ثم نزلت عليه سورة الكوثر، ما يدل على أن الوحي نزل استجابة لظرف.":
+            "روى أنس بن مالك أن النبي ضحك ثم نزلت عليه سورة الكوثر.",
+        "التفسير يوضح أن الله هو القادر على الخلق، مما يؤكد أنه ليس مخلوقًا بل هو من يخلق.":
+            "التفسير يوضح أن الله هو القادر على الخلق.",
+        "القرآن يطرح سؤالًا في سورة النحل عن الخلق، وبالتالي لا يُنسب إليه الخلق نفسه.":
+            "القرآن يطرح سؤالًا في سورة النحل عن الخلق.",
+        "ذكر الحديث أن للأبوين لكل منهما السدس، وهذا يؤكد أن حصة المرأة نصف حصة الرجل.":
+            "ذكر الحديث أن للأبوين لكل منهما السدس.",
+    }
+    for text, expected in cases.items():
+        assert _without_inference(Claim(text, ("a",), "")).text == expected
+    plain = Claim("ذكر الطبري أن هذا الأمر واجب على كل مسلم بالغ عاقل.", ("a",))
+    assert _without_inference(plain) is plain  # «هذا الأمر» is not an inference
+    gloss = Claim("الحول، أي سنة كاملة تمر على المال عند صاحبه.", ("a",))
+    assert _without_inference(gloss) is gloss  # a gloss («أي أن…») is only cut when the second reading rejected the sentence
+
+
+def test_an_id_written_without_its_last_part_is_resolved_to_the_one_offered_id():
+    from muhawir.pipeline import _resolve_ids
+    allowed = {"t4:2:255:4947:1", "t4:2:255:4948:1", "q:2:255"}
+    assert _resolve_ids(Claim("جملة.", ("t4:2:255:4947",)), allowed).passage_ids == ("t4:2:255:4947:1",)
+    assert _resolve_ids(Claim("جملة.", ("t4:2:255",)), allowed).passage_ids == ("t4:2:255",)  # begins two ids: left alone
+    assert _resolve_ids(Claim("جملة.", ("x:9",)), allowed).passage_ids == ("x:9",)           # begins none: left alone
+    claim = Claim("جملة.", ("q:2:255",))
+    assert _resolve_ids(claim, allowed) is claim
+
+
+def test_the_answer_shown_has_no_inference_tail_even_when_the_checks_accepted_the_sentence():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [
+            {"text": "تحتاج النخلة إلى ماء كثير في الصيف، وهذا يدل على عدل الله.", "passage_ids": ["test-a:1"]}]}, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
