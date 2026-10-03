@@ -634,7 +634,9 @@ class Muhawir:
             note = t["ruling_note"]
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
-            return Response(REFERRED, message, claims, cards, synthetic, note, views)
+            # the message already says this is no ruling on the case and to ask a qualified body:
+            # the ruling notice would repeat it, so it is shown once only
+            return Response(REFERRED, message, claims, cards, synthetic, "" if note == t["ruling_note"] else note, views)
         # «I did not understand»: a short human line first, said by the system, with no religious content
         res = Response(ANSWERED, t["reexplain_lead"] if previous else "", claims, cards, synthetic, note, views)
         if DEBUG and (dropped or written.retried):

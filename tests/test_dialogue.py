@@ -8,7 +8,7 @@ import pytest
 from muhawir import generate, pipeline, store
 from muhawir.corpus import load_corpus, parse_corpus
 from muhawir.generate import ModelGenerator, _has_evidence
-from muhawir.pipeline import ABSTAINED, ANSWERED, TRANSLATED, Muhawir, _strip_ids
+from muhawir.pipeline import ABSTAINED, ANSWERED, REFERRED, TRANSLATED, Muhawir, _strip_ids
 from muhawir.store import SqliteCorpus, SqliteRetriever, build_db
 from muhawir.verify import Claim, is_named
 from muhawir.corpus import Passage
@@ -162,6 +162,16 @@ def _kind_model(kind):
 def test_a_ruling_answer_carries_a_fixed_notice_that_it_is_not_a_fatwa():
     assert "ليس فتوى" in _kind_model("ruling").ask(QUESTION).note
     assert _kind_model("what").ask(QUESTION).note == ""
+
+
+def test_a_personal_case_says_to_ask_a_specialist_once_not_twice():
+    # the report: the referral message said it, and the ruling notice under the views said it again
+    res = _kind_model("ruling").ask("هل يلزمني أن أسقي النخلة في الصيف؟")
+    assert res.status == REFERRED and res.claims
+    assert res.note == ""
+    assert (res.message + " " + res.note).count("مختص") == 1
+    assert "ليست حكمًا في حالتك" in res.message
+    assert "ليس فتوى" in _kind_model("ruling").ask(QUESTION).note  # any other ruling question keeps its notice
 
 
 # --- the strict second reading --------------------------------------------------------------------
