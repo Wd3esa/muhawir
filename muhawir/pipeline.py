@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from . import classify
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
-from .generate import Generator
+from .generate import Generator, is_example
 from .messages import LANGS, STYLES, TEXT
 from .normalize import STOPWORDS, normalize
 from .retrieve import Hit, Retriever, is_sufficient
@@ -40,6 +40,10 @@ _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # a quotation of five words or more inside «» or "" or ﴿﴾: pasted from a source, not explained
 _COPIED = re.compile(r'«(?:[^»\s]+\s+){4,}[^»]*»|"(?:[^"\s]+\s+){4,}[^"]*"|“(?:[^”\s]+\s+){4,}[^”]*”|﴿(?:[^﴾\s]+\s+){4,}[^﴾]*﴾')
 MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not explained
+# Everyday examples («مثلًا إذا كان لديك…») are switched off. In every full test run the examples the model wrote
+# about acts of worship were wrong, likened the act to something worldly, or restated a ruling, and no check can
+# tell what an invented example implies about religion. Set True to allow them again (the checks for them stay).
+ALLOW_EXAMPLES = False
 _LATIN = re.compile(r"[A-Za-z]{2,}")
 # fixed replies (greetings, offers to explain again): never taken as "the previous answer"
 _CANNED = {v for t in TEXT.values() for v in t.values() if isinstance(v, str)}
@@ -93,6 +97,7 @@ _REJECTED_BECAUSE = (
     ("not supported", "فيها ما ليس في المقطع المذكور (زيادة أو استنتاج أو تحريف)"),
     ("cites passages", "أسندتَها إلى مقطع غير موجود"),
     ("an example that", "كتبتَ مثالًا يشبّه أمرًا شرعيًا بشيء من الدنيا، فلا تكتب مثالًا هنا"),
+    ("an everyday example", "كتبتَ مثالًا من عندك، ولا تُكتب أمثلة هنا"),
     ("ruling word", "ذكرتَ نوعًا من الحكم (وجوبًا أو جوازًا أو تحريمًا أو استحبابًا…) غير الذي في المقطع"),
     ("no citation", "بلا مقطع تستند إليه"),
     ("is not named", "فيها اسم لم يرد في المقطع"),
@@ -268,6 +273,10 @@ class Muhawir:
             copied = [c for c in kept if _copies_a_source(c.text)]
             rejected += [Rejected(c, "copied a source sentence instead of explaining it") for c in copied]
             kept = [c for c in kept if c not in copied]
+            if not ALLOW_EXAMPLES:
+                examples = [c for c in kept if is_example(c.text)]
+                rejected += [Rejected(c, "an everyday example: examples are switched off") for c in examples]
+                kept = [c for c in kept if c not in examples]
             compared = [c for c in kept if _compares_to_daily_life(c.text)]
             rejected += [Rejected(c, "an example that compares a religious matter to daily life") for c in compared]
             kept = [c for c in kept if c not in compared]

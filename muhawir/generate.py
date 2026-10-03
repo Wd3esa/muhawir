@@ -29,10 +29,10 @@ STYLE_GUIDE = {
             "وبنبرة دافئة مطمئنة. ابدأ بجملة بسيطة تقول ما الشيء. لا تستعمل مصطلحًا صعبًا (مثل النصاب أو الحول أو المذاهب) "
             "إلا بعد أن تشرحه بكلمات الطفل، ولا تذكر الخلاف بين العلماء ولا الأرقام والمقادير الدقيقة. "
             "ولا تُضف إلى العبادة تفصيلًا لم يرد في المقطع (وقتًا أو عددًا أو كيفية أو مدة) ولو كان مشهورًا، واكتفِ بما قاله المقطع بكلمات أبسط. "
-            "قدّم السبب قبل الأمر، وتجنب التفاصيل المخيفة. يفيده مثال قصير من حياته اليومية (البيت، المدرسة، الأصدقاء) يشرح المعنى فقط.",
+            "قدّم السبب قبل الأمر، وتجنب التفاصيل المخيفة. ولا تكتب مثالًا ولا تشبيهًا من عندك.",
     "youth": "القارئ يافع بين 13 و18 سنة: خاطبه باحترام كشخص يفكر، لا كطفل. اكتب من أربع إلى ست جمل. ابدأ بالجواب، "
              "ثم وضّح «لماذا» قبل «ماذا»، واذكر الدليل بوضوح (آية أو حديث). وإن كان في سؤاله شك فتعامل معه بجدية وهدوء. "
-             "ويفيده مثال من واقعه إن ناسب.",
+             "ولا تكتب مثالًا ولا تشبيهًا من عندك.",
     "extended": "القارئ يريد التفصيل: اكتب جوابًا وافيًا من ثماني إلى اثنتي عشرة جملة، يغطي كل ما في المقاطع المتعلقة بالسؤال، "
                 "مرتبًا: المعنى، ثم الأدلة من الآيات والأحاديث، ثم أقوال العلماء بأسمائهم وسبب اختلافهم إن وردت، دون ترجيح من عندك.",
     "newcomer": "القارئ جديد على الإسلام وقد لا يكون مسلمًا. ابدأ بالفكرة الكبرى في جملة واحدة، ثم التفاصيل، وسمِّ الأمر باسمه العربي مع معناه "
@@ -91,9 +91,9 @@ SYSTEM_PROMPT = """أنت «مُحاور»: معلّم هادئ يشرح الإ�
    - ما حكم: الأقوال نفسها باختصار كما وردت بأسماء أصحابها (لا تكتب «في المسألة عدة أقوال» دون أن تذكرها).
    - اعتراض أو شبهة: ابدأ من موضع الإشكال نفسه بهدوء واحترام كما يحاور المرء صديقًا، لا تصف السؤال بالفساد أو السخف ولا تتهم السائل،
      ثم أجب خطوة خطوة مما في المقاطع، وإن لم تكفِ فامتنع.
-10. يجوز مثال قصير من الحياة اليومية يوضح معنى ورد في المقاطع: يبدأ بـ«مثلًا»، ولا يضيف أي معلومة شرعية أو حكمًا،
-    ويُسند إلى المقطع الذي يوضحه. والمثال يشرح معنى كلمة أو فكرة فقط: لا يصف كيف تُؤدّى عبادة، ولا مقدارها، ولا لمن تُعطى، ولا يطبّق الحكم على موقف،
-    ولا يشبّه عبادة أو ركنًا أو أمرًا شرعيًا بشيء من أمور الدنيا (كالمدرسة أو اللعب)؛ وإن لم يكن في المقاطع معنى يحتاج إلى مثال فلا تكتب مثالًا، ولا تكتب مثالًا في سؤال عن عبادة أو ركن أو حكم أو عقيدة.
+10. لا تكتب أمثلة من الحياة اليومية ولا تشبيهات من عندك (مثل «مثلًا إذا كان لديك…» أو «وهذا يشبه…»): المثال الذي تخترعه عن عبادة أو حكم
+    أو عقيدة معلومة دينية من عندك لا يمكن التحقق منها في المقاطع، فلا يصف كيف تُؤدّى عبادة، ولا مقدارها، ولا لمن تُعطى، ولا يشبّهها بشيء من أمور الدنيا.
+    اشرح بكلماتك أنت ما قالته المقاطع نفسها فقط.
 11. اتبع أسلوب الشرح المطلوب للقارئ. لا تكتب «بحسب المقطع» ولا أرقام المقاطع في النص، فالنظام يضع الإحالة بجانب كل جملة.
 
 ثالثًا: مثالان على الجواب الجيد (للأسلوب والترتيب فقط؛ أرقامهما x1 وx2… ليست من مقاطعك، فلا تستعملها، ولا تنقل مضمونهما إلا إن ورد في المقاطع المعطاة لك)
@@ -272,7 +272,12 @@ EXAMPLE_SCHEMA = {
 
 # the second reading must find real words in the cited passage; at least this share of them has to be there
 EVIDENCE_MIN_SHARE = 0.4
-_EXAMPLE_START = ("مثلا", "for example", "e g")  # a sentence that starts so is an illustration: it quotes nothing
+_EXAMPLE_START = ("مثلا", "مثال", "for example", "e g")  # a sentence that starts so is an illustration: it quotes nothing
+
+
+def is_example(text: str) -> bool:
+    """The sentence is an everyday example («مثلًا…», «مثال: …», «For example, …»)."""
+    return normalize(text).startswith(_EXAMPLE_START)
 
 UNDERSTAND_SCHEMA = {
     "type": "object",
@@ -327,7 +332,7 @@ def _stem(token: str) -> str:
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
     """The words the second reading quoted as support really are in the passages the sentence cites.
     An illustration («مثلًا…») quotes nothing and is judged by the reading alone."""
-    if normalize(claim.text).startswith(_EXAMPLE_START):
+    if is_example(claim.text):
         return True
     words = tokenize(evidence) if isinstance(evidence, str) else []
     if not words:
@@ -646,7 +651,7 @@ class ModelGenerator:
             return []
 
         def read(claim: Claim):
-            if normalize(claim.text).startswith(_EXAMPLE_START):  # an everyday example: only "does it teach religion?"
+            if is_example(claim.text):  # an everyday example (only when examples are allowed): does it teach religion?
                 return self._check_example(claim) or self._check_example(claim)
             return self._check_once([claim], passages, question) or self._check_once([claim], passages, question)
 

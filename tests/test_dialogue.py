@@ -564,3 +564,34 @@ def test_any_present_tense_verb_after_a_demonstrative_begins_an_inference():
         == "ورد نصف ما ترك الأزواج في الآية."
     keep = Claim("ذكر العلماء أن للذكر مثل حظ الأنثيين، وهذا قول الجمهور في المسألة.", ("a",))
     assert _without_inference(keep) is keep  # «وهذا قول» is a statement about whose view it is, not an inference
+
+
+# --- everyday examples are switched off -------------------------------------------------------------
+
+def _with_example(text):
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [
+            {"text": "تحتاج النخلة إلى ماء كثير في الصيف.", "passage_ids": ["test-a:1"]},
+            {"text": text, "passage_ids": ["test-a:1"]}]}, ensure_ascii=False)
+    return Muhawir(CORPUS, ModelGenerator([("m", call)]))
+
+
+@pytest.mark.parametrize("example", ["مثلًا، إذا كان لديك لعبة كثيرة تعطي بعضها لأصدقائك.",
+                                     "مثال: إذا كان لديك تمر تعطي صاعًا للفقراء.",
+                                     "For example, if you have many toys you share them."])
+def test_an_everyday_example_is_dropped_because_examples_are_switched_off(example, monkeypatch):
+    monkeypatch.setattr(pipeline, "DEBUG", True)
+    res = _with_example(example).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
+    assert "examples are switched off" in res.why
+
+
+def test_the_switch_can_turn_examples_back_on(monkeypatch):
+    monkeypatch.setattr(pipeline, "ALLOW_EXAMPLES", True)
+    res = _with_example("مثلًا، تحتاج النخلة إلى سقي كما يحتاج العطشان إلى الماء.").ask(QUESTION)
+    assert len(res.claims) == 2
