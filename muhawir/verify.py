@@ -52,14 +52,24 @@ def _names(text: str) -> list[str]:
     return [_CASE.get(t, t) for t in tokenize(text)]
 
 
+def _forms(token: str) -> set[str]:
+    """A name as it may be written in a text: as it is, and without a «و» joined to it
+    («وأبو حنيفة» in «مالك والشافعي وأبو حنيفة»)."""
+    forms = {token}
+    if token.startswith("و") and len(token) > 2:
+        forms.add(_CASE.get(token[1:], token[1:]))
+    return forms
+
+
 def is_named(school: str, text: str) -> bool:
     """Every name in a view's label is written in the passage. The label may differ from the passage
-    only in grammatical case («أبي حنيفة» for «أبو حنيفة»), in a joining «و», in words that name nobody
-    («وأصحابه»), and in a bracketed note. A school or scholar the passage does not name is not accepted."""
+    only in grammatical case («أبي حنيفة» for «أبو حنيفة», and the same for any other «أبو» name),
+    in a joining «و» on either side, in words that name nobody («وأصحابه»), and in a bracketed note.
+    A school or scholar the passage does not name is not accepted."""
     label = re.sub(r"[(\[][^)\]]*[)\]]", " ", school)
-    have = set(_names(text))
+    have = set().union(*(_forms(t) for t in _names(text)))
     words = [w for w in _names(label) if w not in _LABEL_FILLER and w[1:] not in _LABEL_FILLER]
-    return bool(words) and all(w in have or (w.startswith("و") and w[1:] in have) for w in words)
+    return bool(words) and all(_forms(w) & have for w in words)
 
 
 def _rulings(text: str, positive_only: bool = False) -> set[str]:

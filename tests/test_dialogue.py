@@ -111,6 +111,25 @@ def test_a_name_in_another_grammatical_case_or_with_his_companions_is_still_that
     assert is_named("الشافعي ومالك وغيرهم (في المسألة)", PASSAGE)
 
 
+def test_أبو_in_any_case_is_one_name_whatever_the_kunya():
+    for kunya in ("حنيفة", "يوسف", "ثور", "عبيد"):
+        for label in ("أبو", "أبي", "أبا", "ابو", "ابي", "ابا"):
+            for written in ("أبو", "أبي", "أبا"):
+                assert is_named(f"{label} {kunya}", f"وقال {written} {kunya} بعدمه.")
+
+
+def test_a_name_joined_to_the_word_before_it_by_waw_is_still_named():
+    # f:189 of «بداية المجتهد» (from the test report): the names follow «و» without a space
+    passage = ("والذين قالوا يقتل منهم من أوجب قتله كفرا، وهو مذهب أحمد وإسحاق وابن المبارك، ومنهم من أوجبه حدا "
+               "وهو مالك والشافعي وأبو حنيفة، وأصحابه، وأهل الظاهر ممن رأى حبسه وتعزيره حتى يصلي.")
+    for label in ("أبي حنيفة", "أبا حنيفة", "أبو حنيفة", "أبي حنيفة وأصحابه", "إسحاق", "ابن المبارك", "مالك", "الشافعي"):
+        assert is_named(label, passage), label
+    assert is_named("وأبي حنيفة", passage)                    # a «و» joined in the label too
+    assert is_named("أبو حنيفة", "قال مالك وأبي حنيفة: لا.")   # the passage in the genitive, joined by «و»
+    assert not is_named("الثوري", passage)                    # a name the passage does not have stays rejected
+    assert not is_named("أبي يوسف", passage)                  # same kunya word, different name
+
+
 def test_a_school_the_passage_does_not_name_is_not_accepted():
     assert not is_named("الحنابلة", PASSAGE) and not is_named("المالكيون", PASSAGE) and not is_named("", PASSAGE)
 
