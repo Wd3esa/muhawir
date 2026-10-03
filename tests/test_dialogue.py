@@ -611,6 +611,38 @@ def test_a_sentence_that_gives_a_weak_hadith_as_established_is_rejected_and_the_
     assert generate.CHECK_PROMPT in seen["system"][0] and "لم يرد في ذلك حديث ثابت" in seen["user"][0]
 
 
+# a460:108:1:4:1 (first paragraph): says Kaab ibn al-Ashraf disbelieved, and nothing about his tribe
+KAAB = ("بأنه المنبتر من قومه ورده عليهم بأنهم خير من رسول الله - صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ - فأنزل الله السورة "
+        "على رسوله بالمدينة مبشراً إياه بالكوثر ومخبره بأن مبغضه هو الأقطع وأنزل عليه الآية أيضاً في سورة النساء "
+        "وأخبره بأن كعب بن الأشرف من الذين يؤمنون بالجبت والطاغوت.")
+
+
+def test_the_instructions_reject_an_added_fact_about_a_person():
+    c = generate.CHECK_PROMPT
+    assert "قبيلته" in c and "قرابته" in c and "ولو كانت معروفة" in c
+    assert c.index("قبيلته") < c.index("2. evidence")                  # in the list of missing details
+    assert c.index("عن شخص", c.index('"addition"')) < c.index('"conclusion"')  # and in the definition of an addition
+
+
+@pytest.mark.real_check
+def test_a_fact_added_about_a_person_that_the_cited_passage_does_not_give_is_rejected():
+    assert "قريش" not in KAAB  # the premise: the passage does not say which tribe he belonged to
+    pid = "a460:108:1:4:1"
+    passages = {pid: Passage(pid, "s", "سورة الكوثر، الآية 1", KAAB, "asbab")}
+    kept = Claim("أخبر الله رسوله أن كعب بن الأشرف من الذين يؤمنون بالجبت والطاغوت.", (pid,))
+    added = Claim("كعب بن الأشرف من قريش.", (pid,))
+
+    def call(system, user, schema=None):  # a reader that applies the rule: a tribe the passage does not name is missing
+        sentence = user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
+        passage = user.split("المقاطع:", 1)[1]
+        missing = [t for t in ("قريش", "تميم", "الأوس", "الخزرج") if t in sentence and t not in passage]
+        return json.dumps({"on_topic": [True], "missing": [missing], "problem": ["none"],
+                           "evidence": ["كعب بن الأشرف من الذين يؤمنون بالجبت والطاغوت"]}, ensure_ascii=False)
+    gen = ModelGenerator([("m", call)])
+    assert gen.check_support([kept, added], passages, "ما سبب نزول سورة الكوثر؟") == [True, False]
+    assert gen.last_check_reasons[1] == "key term not in the passage: قريش"
+
+
 def test_the_instructions_say_never_to_write_ids_or_source_numbers_in_the_text():
     s = generate.SYSTEM_PROMPT
     assert "معرّفات المقاطع" in s and "t4:2:255:4947:1" in s
