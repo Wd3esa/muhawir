@@ -50,7 +50,7 @@ def test_greeting_with_a_question_is_answered_normally():
 def test_follow_up_is_rewritten_for_search_and_answered_from_sources():
     m, seen = model()
     res = m.ask("وماذا تحتاج في الصيف؟", history=HISTORY)
-    assert seen["standalone"] == 1 and res.status == ANSWERED
+    assert seen["standalone"] == 2 and res.status == ANSWERED  # the understanding step runs twice (see test_dialogue)
     assert res.understood == "ماذا تحتاج النخلة في الصيف؟"
     assert res.sources[0]["passage_id"] == "test-a:1"
 

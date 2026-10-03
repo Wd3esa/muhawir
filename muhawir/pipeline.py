@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 
 from . import classify
@@ -28,6 +29,7 @@ MAX_HADITH = 3  # live hadith results offered to the model, in addition to the p
 MAX_QUESTION_CHARS = 500
 NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
 MAX_NEIGHBOURS = 4
+MAX_UNDERSTOOD_QUERIES = 14  # search phrases kept after the understanding step has run twice
 MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
 SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "newcomer"}  # for "I did not understand"
@@ -126,15 +128,31 @@ _CONCLUSION_STARTS = _INFERENCE_STARTS + tuple(tuple(normalize(w) for w in seq) 
     ("وهذا",), ("وذلك",), ("فهذا",), ("فذلك",), ("أي", "أن")))
 
 
+# after a demonstrative («وهذا», «وذلك»), any present-tense verb begins the model's own inference («وهذا يحدد…»)
+_DEMONSTRATIVES = frozenset(normalize(w) for w in ("وهذا", "فهذا", "وذلك", "فذلك", "هذا", "ذلك"))
+# a sentence may not end on one of these: the part before a cut would be left unfinished
+_DANGLING = frozenset(normalize(w) for w in (
+    "لمن", "من", "الذي", "التي", "الذين", "أن", "إن", "أنه", "أنها", "في", "على", "إلى", "عن", "ل", "ب", "ك", "و", "ف",
+    "ثم", "أو", "لكن", "بل", "إلا", "إذا", "لو", "كما", "حتى", "مع", "عند", "هو", "هي", "ما", "لا", "لم", "لن"))
+
+
+def _starts_inference(plain: list[str], k: int, starts) -> bool:
+    if any(tuple(plain[k:k + len(seq)]) == seq for seq in starts):
+        return True
+    nxt = plain[k + 1] if k + 1 < len(plain) else ""
+    return plain[k] in _DEMONSTRATIVES and len(nxt) >= 4 and nxt[0] in "يت"
+
+
 def _cut_at(claim, starts):
     """The sentence up to the first of `starts` (after at least MIN_TRIMMED_WORDS words), as a new claim with the
-    same sources; None if there is no such point or the part before it would end inside a quotation."""
+    same sources; None if there is no such point, the part before it would end inside a quotation, or it would
+    end on a word that needs something after it."""
     raw = claim.text.split()
     plain = [normalize(w) for w in raw]
     for k in range(MIN_TRIMMED_WORDS, len(raw)):
-        if any(tuple(plain[k:k + len(seq)]) == seq for seq in starts):
+        if _starts_inference(plain, k, starts):
             head = " ".join(raw[:k]).rstrip(" ،,؛:")
-            if head.count("«") == head.count("»"):
+            if head.count("«") == head.count("»") and normalize(head.split()[-1]) not in _DANGLING:
                 return type(claim)(head + ".", claim.passage_ids, claim.school)
     return None
 
@@ -302,6 +320,19 @@ class Muhawir:
                 break
         return list(found.values())[:MAX_HADITH]
 
+    @staticmethod
+    def _understood(understand, question: str, turns: list[dict]) -> dict | None:
+        """The understanding step, run twice at once. The model's recall of verses and hadith differs from one
+        call to the next, so the second run only adds its search phrases to the first run's; everything else
+        (the neutral question, its kind, the language) is the first run's, or the second's if the first failed."""
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first, second = pool.map(lambda _: understand(question, turns), range(2))
+        u = first or second
+        if first and second:
+            phrases = list(dict.fromkeys((first.get("queries") or []) + (second.get("queries") or [])))
+            u = {**first, "queries": phrases[:MAX_UNDERSTOOD_QUERIES]}
+        return u
+
     def _gather(self, question: str, original: str, queries: list[str] | None) -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them."""
         best: dict[str, object] = {}
@@ -426,7 +457,7 @@ class Muhawir:
         if question and understand and len(question) <= MAX_QUESTION_CHARS:
             gate = classify.check(question)  # the user's own words are checked before any rewording
             if gate.kind not in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
-                u = understand(question, turns)
+                u = self._understood(understand, question, turns)
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:

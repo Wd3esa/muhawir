@@ -505,3 +505,62 @@ def test_the_answer_shown_has_no_inference_tail_even_when_the_checks_accepted_th
             {"text": "تحتاج النخلة إلى ماء كثير في الصيف، وهذا يدل على عدل الله.", "passage_ids": ["test-a:1"]}]}, ensure_ascii=False)
     res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
     assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
+
+
+# --- the understanding step runs twice and adds up its search phrases ---------------------------------
+
+def _understanding(replies):
+    replies = iter(replies)
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            r = next(replies)
+            if isinstance(r, Exception):
+                raise r
+            return json.dumps({"question": QUESTION, "translate": "", "answer_lang": "", "kind": r[0], "reexplain": False,
+                               "recall": "", "queries": r[1]}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    return Muhawir(CORPUS, ModelGenerator([("m", call)]))
+
+
+def test_two_runs_of_the_understanding_step_add_their_search_phrases_and_keep_the_first_ones_reading():
+    m = _understanding([("what", ["أ", "ب"]), ("why", ["ب", "ج"])])
+    u = Muhawir._understood(m.generator.understand, QUESTION, [])
+    assert u["queries"] == ["أ", "ب", "ج"] and u["kind"] == "what"
+
+
+def test_if_one_run_of_the_understanding_step_fails_the_other_is_used():
+    ok = ("what", ["أ"])
+    for replies in ([RuntimeError("down"), ok], [ok, RuntimeError("down")]):
+        m = _understanding(replies)
+        assert Muhawir._understood(m.generator.understand, QUESTION, [])["queries"] == ["أ"]
+    m = _understanding([RuntimeError("down"), RuntimeError("down")])
+    assert Muhawir._understood(m.generator.understand, QUESTION, []) is None
+
+
+def test_the_merged_search_phrases_are_capped():
+    from muhawir import pipeline as pl
+    many = [str(i) for i in range(10)]
+    m = _understanding([("what", many), ("what", [str(i) for i in range(10, 20)])])
+    assert len(Muhawir._understood(m.generator.understand, QUESTION, [])["queries"]) == pl.MAX_UNDERSTOOD_QUERIES
+
+
+# --- a cut must leave a finished sentence -----------------------------------------------------------
+
+def test_a_cut_that_would_leave_a_dangling_word_is_refused():
+    from muhawir.pipeline import _without_inference
+    dangling = Claim("لا تنفع الشفاعة إلا لمن وهذا يعني أن الإذن بيد الله وحده.", ("a",))
+    assert _without_inference(dangling) is dangling  # «إلا لمن» cannot end a sentence
+    ok = Claim("لا تنفع الشفاعة إلا لمن أذن له الله، وهذا يعني أن الإذن بيد الله وحده.", ("a",))
+    assert _without_inference(ok).text == "لا تنفع الشفاعة إلا لمن أذن له الله."
+
+
+def test_any_present_tense_verb_after_a_demonstrative_begins_an_inference():
+    from muhawir.pipeline import _without_inference
+    assert _without_inference(Claim("ورد نصف ما ترك الأزواج في الآية، وهذا يحدد نصيب المرأة بنصف نصيب الرجل.", ("a",))).text \
+        == "ورد نصف ما ترك الأزواج في الآية."
+    keep = Claim("ذكر العلماء أن للذكر مثل حظ الأنثيين، وهذا قول الجمهور في المسألة.", ("a",))
+    assert _without_inference(keep) is keep  # «وهذا قول» is a statement about whose view it is, not an inference
