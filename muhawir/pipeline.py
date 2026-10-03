@@ -45,6 +45,9 @@ MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not e
 # tell what an invented example implies about religion. Set True to allow them again (the checks for them stay).
 ALLOW_EXAMPLES = False
 _LATIN = re.compile(r"[A-Za-z]{2,}")
+# a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
+# or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
+_ASKS_FOR_KINDS = re.compile(r"(?<!\w)[وفبل]?(?:ال)?(?:انواع|اقسام)")
 # fixed replies (greetings, offers to explain again): never taken as "the previous answer"
 _CANNED = {v for t in TEXT.values() for v in t.values() if isinstance(v, str)}
 ALL_MODELS_FAILED = "every model call failed"
@@ -208,6 +211,11 @@ def _compares_to_daily_life(text: str) -> bool:
     tell where an everyday example stops explaining a word and starts saying what an act is like."""
     plain = normalize(text)
     return plain.startswith("مثلا") and bool(_COMPARES.search(plain))
+
+
+def _asks_for_kinds(*questions: str) -> bool:
+    """The question asks for the types or sections of something, so its answer is a list of them."""
+    return any(_ASKS_FOR_KINDS.search(normalize(q)) for q in questions if q)
 
 
 def _copies_a_source(text: str) -> bool:
@@ -631,6 +639,8 @@ class Muhawir:
         res = Response(ANSWERED, t["reexplain_lead"] if previous else "", claims, cards, synthetic, note, views)
         if DEBUG and (dropped or written.retried):
             res.why = ("answered after a second search | " if written.retried else "") + dropped
-        # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked
-        res.as_list = (bool(getattr(self.generator, "last_as_list", False)) or kind == "how") and len(claims) > 1
+        # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked: a "how" question
+        # or one that asks for the types or sections of something (the model does not always call it "how")
+        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how" or _asks_for_kinds(question, original)
+        res.as_list = listing and len(claims) > 1
         return res

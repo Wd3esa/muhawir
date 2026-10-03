@@ -253,3 +253,41 @@ def test_kinds_question_is_shown_as_a_list_even_if_the_model_did_not_mark_it():
             {"text": "الماء.", "passage_ids": ["test-a:1"]}, {"text": "الشمس.", "passage_ids": ["test-a:1"]}]},
             ensure_ascii=False)
     assert Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("ماذا تحتاج النخلة في الصيف؟").as_list is True
+
+
+def test_a_question_for_the_types_or_sections_of_something_is_recognised():
+    from muhawir.pipeline import _asks_for_kinds
+    for q in ("أنواع الزكاة", "ما هي أنواع الزكاة؟", "اشرح الزكاة وأنواعها", "ما أقسام الطلاق؟", "ما هي الأنواع؟",
+              "وما بأنواعها", "الأقسام", "ما هي انواع الصلاة"):
+        assert _asks_for_kinds(q), q
+    for q in ("ما نوع الصلاة؟", "ما حكم القسم بغير الله؟", "أقسم بالله أن لا أفعل", "ماذا تحتاج النخلة؟", "", "ما تنوع الأقوال؟"):
+        assert not _asks_for_kinds(q), q
+    assert _asks_for_kinds("", "أنواع الزكاة") and not _asks_for_kinds("", "")
+
+
+def _types_model(kind, claims, as_list=False, understood="ما أنواع ما تحتاجه النخلة في الصيف؟"):
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": understood, "translate": "", "answer_lang": "", "kind": kind,
+                               "reexplain": False, "recall": "", "queries": ["ماذا تحتاج النخلة في الصيف"]},
+                              ensure_ascii=False)
+        return json.dumps({"plan": "", "abstain": False, "as_list": as_list, "views": [], "claims": [
+            {"text": text, "passage_ids": ["test-a:1"]} for text in claims]}, ensure_ascii=False)
+    return Muhawir(CORPUS, ModelGenerator([("m", call)]))
+
+
+def test_a_types_question_is_shown_as_a_list_whatever_kind_the_model_gave_it():
+    claims = ["الماء.", "الشمس."]
+    for kind in ("", "what", "why", "how"):  # «أنواع» is enough: the model called it «what», or nothing
+        res = _types_model(kind, claims).ask("ما أنواع ما تحتاجه النخلة في الصيف؟")
+        assert res.status == ANSWERED and res.as_list is True, kind
+    # the user's own words count too, when the rewritten question lost the word
+    res = _types_model("what", claims, understood="ماذا تحتاج النخلة في الصيف؟").ask("اشرح النخلة وأنواعها")
+    assert res.as_list is True
+
+
+def test_a_list_needs_more_than_one_sentence_and_a_question_that_asks_for_one():
+    assert _types_model("what", ["الماء."]).ask("ما أنواع ما تحتاجه النخلة في الصيف؟").as_list is False
+    assert _types_model("what", ["الماء.", "الشمس."], understood="ماذا تحتاج النخلة في الصيف؟").ask(
+        "ماذا تحتاج النخلة في الصيف؟").as_list is False
