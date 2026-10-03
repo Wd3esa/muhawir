@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 
-from . import classify
+from . import bidaya, classify
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -320,6 +320,33 @@ class Muhawir:
                     have.add(pid)
         return out
 
+    def _issue_opener(self, p: Passage) -> Passage | None:
+        """The passage that opens the issue (it starts with «المسألة…») which fiqh passage `p` continues:
+        the one just before it, or the one before that, in the same heading. None when `p` opens its own
+        issue, is not from «بداية المجتهد», or no such passage is there."""
+        if p.kind != "fiqh" or not p.id.startswith("f:") or not p.id[2:].isdigit() or bidaya._ISSUE.match(p.text):
+            return None
+        n = int(p.id[2:])
+        for pid in (f"f:{n - 1}", f"f:{n - 2}"):
+            q = self.corpus.passage(pid)
+            if q is not None and q.keywords == p.keywords and bidaya._ISSUE.match(q.text):
+                return q
+        return None
+
+    def _with_issue_openers(self, passages: list[Passage]) -> list[Passage]:
+        """An issue in «بداية المجتهد» states the views in its first passage and gives the evidence in the next
+        ones. When only an evidence passage was found, the passage that opens its issue comes first, so the
+        model reads what the disagreement is before the evidence for it; one already in the list moves up."""
+        out: list[Passage] = []
+        have: set[str] = set()
+        for p in passages:
+            opener = self._issue_opener(p)
+            for q in (opener, p):
+                if q is not None and q.id not in have:
+                    out.append(q)
+                    have.add(q.id)
+        return out
+
     def _hadith(self, queries: list[str]) -> list[Passage]:
         found: dict[str, Passage] = {}
         for query in queries[:2]:
@@ -369,7 +396,8 @@ class Muhawir:
         # the evidence in the next): add the neighbours of the best fiqh matches from the same section
         for p in self._neighbours([h.passage for h in best.values()]):
             best.setdefault(p.id, Hit(p, 0.0, 1.0))
-        return [h.passage for h in best.values()], queries
+        # and whatever fiqh passage was found, the passage that opens its issue (the views) comes before it
+        return self._with_issue_openers([h.passage for h in best.values()]), queries
 
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
