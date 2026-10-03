@@ -570,6 +570,47 @@ def test_the_second_reading_never_sees_ids_or_source_numbers_in_the_sentence():
     assert sentence == "تحتاج النخلة إلى ماء كثير كما في وفي حديث البخاري."
 
 
+WEAK = {"synthetic": True, "sources": [{"id": "s", "name": "كتاب فقه", "about": "مصطنع"}], "passages": [
+    {"id": "w1", "source_id": "s", "location": "الزكاة", "kind": "fiqh",
+     "text": "وقد روي مرفوعا من حديث ابن عمر عن النبي: لا زكاة في مال حتى يحول عليه الحول، وسبب الاختلاف أنه لم يرد في ذلك حديث ثابت."}]}
+
+
+def test_the_instructions_ask_to_say_that_a_hadith_is_weak_and_to_reject_a_sentence_that_hides_it():
+    s, c = generate.SYSTEM_PROMPT, generate.CHECK_PROMPT
+    for phrase in ("لم يرد فيه حديث ثابت", "لا يخلو من مقال", "ضعيف", "مرسل"):
+        assert phrase in s and phrase in c
+    assert "فيجب أن يقول جوابك ذلك صراحةً كلما استعملت هذا الحديث" in s
+    assert "على أنه ثابت، أو ذكر هذا الحديث مع حذف هذا التنبيه" in c
+    assert c.index("على أنه ثابت") > c.index('"distortion"')  # filed under the defect the reader must name
+
+
+@pytest.mark.real_check
+def test_a_sentence_that_gives_a_weak_hadith_as_established_is_rejected_and_the_one_that_warns_is_kept():
+    seen = {"system": [], "user": []}
+    warned = "ويُروى في ذلك حديث عن ابن عمر، لكنه لم يثبت."
+    unwarned = "ثبت عن ابن عمر عن النبي أنه قال: لا زكاة في مال حتى يحول عليه الحول."
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:  # a reader that applies the rule it is given
+            seen["system"].append(system)
+            seen["user"].append(user)
+            sentence = user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
+            weak = "لم يرد في ذلك حديث ثابت" in user and "لم يثبت" not in sentence
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["لا زكاة في مال حتى يحول عليه الحول"],
+                               "problem": ["distortion" if weak else "none"]}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [{"text": warned, "passage_ids": ["w1"]},
+                                                         {"text": unwarned, "passage_ids": ["w1"]}]}, ensure_ascii=False)
+    res = Muhawir(parse_corpus(WEAK), ModelGenerator([("m", call)])).ask("ما الحول في الزكاة؟")
+    assert [c["text"] for c in res.claims] == [warned]
+    # the reader was given the rule, and saw the passage that says the hadith is not established beside each sentence
+    assert generate.CHECK_PROMPT in seen["system"][0] and "لم يرد في ذلك حديث ثابت" in seen["user"][0]
+
+
 def test_the_instructions_say_never_to_write_ids_or_source_numbers_in_the_text():
     s = generate.SYSTEM_PROMPT
     assert "معرّفات المقاطع" in s and "t4:2:255:4947:1" in s
