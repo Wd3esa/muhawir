@@ -505,12 +505,75 @@ def test_an_explicit_inference_at_the_end_of_a_sentence_is_cut_off_whatever_the_
 
 def test_an_id_written_without_its_last_part_is_resolved_to_the_one_offered_id():
     from muhawir.pipeline import _resolve_ids
-    allowed = {"t4:2:255:4947:1", "t4:2:255:4948:1", "q:2:255"}
-    assert _resolve_ids(Claim("جملة.", ("t4:2:255:4947",)), allowed).passage_ids == ("t4:2:255:4947:1",)
-    assert _resolve_ids(Claim("جملة.", ("t4:2:255",)), allowed).passage_ids == ("t4:2:255",)  # begins two ids: left alone
-    assert _resolve_ids(Claim("جملة.", ("x:9",)), allowed).passage_ids == ("x:9",)           # begins none: left alone
+    allowed = {"t4:2:255:4947:1", "t4:2:255:4948:1", "q:2:255", "m:82.01", "m:83.01", "m:83.02", "b:4895"}
+    ids = lambda *cited: _resolve_ids(Claim("جملة.", cited), allowed).passage_ids  # noqa: E731
+    assert ids("t4:2:255:4947") == ("t4:2:255:4947:1",)
+    assert ids("m:82") == ("m:82.01",)           # cut at the dot of a Muslim id
+    assert ids("t4:2:255") == ()                 # begins two offered ids: dropped
+    assert ids("m:83") == ()
+    assert ids("x:9") == ()                      # begins none: dropped
+    assert ids("b:48") == ()                     # the start of a number is not a cut id: b:4895 is another hadith
+    assert ids("q:2:255", "x:9", "m:82") == ("q:2:255", "m:82.01")  # the others stay
     claim = Claim("جملة.", ("q:2:255",))
     assert _resolve_ids(claim, allowed) is claim
+
+
+def test_a_sentence_whose_only_ids_are_made_up_has_no_citation_and_is_not_shown():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [
+            {"text": "ماء كثير.", "passage_ids": ["test-a:99"]},
+            {"text": "وتثمر في آخر الصيف.", "passage_ids": ["test-a:98", "test-a:1"]}]})
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["وتثمر في آخر الصيف."]
+    assert [c["passage_ids"] for c in res.claims] == [["test-a:1"]]  # the made-up id is gone, the real one stays
+
+
+def test_ids_and_source_numbers_are_taken_out_of_the_sentence_before_any_check():
+    m = Muhawir(CORPUS, ModelGenerator([("m", lambda *a, **k: "{}")]))
+    allowed = {"test-a:1", "b:7426"}
+    text = ("كما ذكر المفسر (t4:48:26:9994:1) في حديث صحيح البخاري رقم 7296 وفي مسلم (رقم 726) "
+            "وفي كتاب برقم 5641 وما رواه a460:108:1:4:1 وفي [m:82.01] وكذلك (b:7426) وهذا مذكور في ف:565.")
+    [claim] = m._tidy([Claim(text, ("test-a:1",))], allowed)
+    assert claim.text == "كما ذكر المفسر في حديث صحيح البخاري وفي مسلم وفي كتاب وما رواه وفي وكذلك وهذا مذكور في."
+    for leftover in (":", "رقم", "7296", "726", "5641", "()"):
+        assert leftover not in claim.text
+    plain = Claim("أخبرنا النبي ﷺ أن الأعمال بالنيات، وعدد الأرقام كثير، وفي الأنعام: 141.", ("test-a:1",))
+    assert m._tidy([plain], allowed) == [plain]  # nothing to take out: the same sentence, a verse number stays
+    assert m._tidy([Claim("(رقم 7296)", ("test-a:1",))], allowed) == []  # nothing left of it
+
+
+@pytest.mark.real_check
+def test_the_second_reading_never_sees_ids_or_source_numbers_in_the_sentence():
+    seen = []
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            seen.append(user)
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"],
+                               "problem": ["none"]}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [
+            {"text": "تحتاج النخلة إلى ماء كثير كما في (t4:48:26:9994:1) وفي حديث البخاري رقم 7296.",
+             "passage_ids": ["test-a:1"]}]}, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert res.status == ANSWERED and seen
+    sentence = seen[0].split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
+    assert sentence == "تحتاج النخلة إلى ماء كثير كما في وفي حديث البخاري."
+
+
+def test_the_instructions_say_never_to_write_ids_or_source_numbers_in_the_text():
+    s = generate.SYSTEM_PROMPT
+    assert "معرّفات المقاطع" in s and "t4:2:255:4947:1" in s
+    assert "رقم الحديث" in s and "رقم الآية" in s and "رقم الصفحة" in s and "passage_ids وحدها" in s
 
 
 def test_the_answer_shown_has_no_inference_tail_even_when_the_checks_accepted_the_sentence():

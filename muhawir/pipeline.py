@@ -76,6 +76,9 @@ _NUMBERS = r"(?::\d+(?:\.\d+)?)"
 # Arabic («ف:565» for f:565, «ق:18:51» for q:18:51). «ق» alone needs two numbers, so «ق:16» (a verse) stays.
 _LOOSE_ID = re.compile(
     rf"\s*[\[(]?(?<![\w:])(?:[a-z]\d*|[فتبمأ]\d*|ق\d*(?={_NUMBERS}{_NUMBERS})){_NUMBERS}{{1,5}}(?![\w:])[\])]?")
+# the number of a hadith or a page written in the text: «رقم 7296», «برقم 7296»
+_NUMBER_OF = re.compile(r"\s*(?<!\w)ب?رقم\s*:?\s*[0-9٠-٩]+(?:\.[0-9٠-٩]+)?")
+_EMPTY_BRACKETS = re.compile(r"\s*[\[(]\s*[\])]")
 
 
 @dataclass
@@ -163,16 +166,26 @@ def _cut_at(claim, starts):
 
 
 def _resolve_ids(claim, allowed: set[str]):
-    """An id the model wrote without its last part («t4:2:255:4947» for «t4:2:255:4947:1») is the one offered id
-    it begins; an id that begins several offered ids, or none, is left for the checks to reject."""
+    """An id the model wrote without its last part («t4:2:255:4947» for «t4:2:255:4947:1», «m:82» for
+    «m:82.01») is the one offered id it is the beginning of, cut at a «:» or «.». An id that is not offered and
+    begins several offered ids, or none, is dropped: it supports nothing. A sentence left with no id has no
+    citation and is rejected by the verifier."""
     fixed = []
     for pid in claim.passage_ids:
         if pid not in allowed:
-            matches = [a for a in allowed if a.startswith(pid + ":")]
-            pid = matches[0] if len(matches) == 1 else pid
+            matches = [a for a in allowed if a.startswith(pid) and a[len(pid):len(pid) + 1] in (":", ".")]
+            if len(matches) != 1:
+                continue
+            pid = matches[0]
         fixed.append(pid)
     ids = tuple(dict.fromkeys(fixed))
     return claim if ids == claim.passage_ids else type(claim)(claim.text, ids, claim.school)
+
+
+def _without_ids(claim, allowed: set[str]):
+    """The claim with passage ids and source numbers taken out of its text, so the checks read only what it says."""
+    text = _strip_ids(claim.text, allowed)
+    return claim if text == claim.text else type(claim)(text, claim.passage_ids, claim.school)
 
 
 def _without_inference(claim):
@@ -205,10 +218,12 @@ def _copies_a_source(text: str) -> bool:
 
 
 def _strip_ids(text: str, ids: set[str]) -> str:
-    """Remove passage ids a model wrote into the answer text; the source cards already show them."""
+    """Remove passage ids and source numbers («رقم 7296») a model wrote into the answer text; the source
+    cards already show where each sentence comes from."""
     for pid in sorted(ids, key=len, reverse=True):
         text = re.sub(rf"\s*[\[(]?(?<![\w:]){re.escape(pid)}(?![\w:])[\])]?", "", text)
     text = _LOOSE_ID.sub("", text)
+    text = _EMPTY_BRACKETS.sub("", _NUMBER_OF.sub("", text))
     if text.count("(") > text.count(")"):  # a reference cut off in the middle, e.g. «(تفسير.»
         text = re.sub(r"\s*\([^()]*$", "", text).rstrip(" ،,:") + "."
     return re.sub(r"\s+([.،,؛])", r"\1", text).strip()
@@ -259,11 +274,13 @@ class Muhawir:
         return res
 
     def _tidy(self, draft: list, allowed: set[str]) -> list:
-        """Before any check: ids the model wrote without their last part are resolved, and an explicit
-        inference of its own at the end of a sentence is cut off (model drafts only)."""
+        """Before any check (model drafts only): ids the model wrote without their last part are resolved and
+        unknown ones dropped, passage ids and source numbers are taken out of the sentence text, and an explicit
+        inference of its own at the end of a sentence is cut off. A sentence with nothing left is dropped."""
         if self.generator.name == "extractive":
             return draft
-        return [_without_inference(_resolve_ids(c, allowed)) for c in draft]
+        tidy = [_without_inference(_without_ids(_resolve_ids(c, allowed), allowed)) for c in draft]
+        return [c for c in tidy if c.text]
 
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = ""):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
