@@ -126,11 +126,11 @@ def test_without_an_explicit_request_the_page_language_is_kept():
     assert "الإنجليزية" not in seen["answer_prompts"][0].split("لغة الجواب:")[1].splitlines()[0]
 
 
-def test_understanding_keeps_up_to_five_search_phrases():
+def test_understanding_keeps_a_limited_number_of_search_phrases():
     gen = ModelGenerator([("m", lambda s, u, schema=None: json.dumps(
-        {"question": "س؟", "answer_lang": "fr", "queries": [str(i) for i in range(8)]}))])
+        {"question": "س؟", "answer_lang": "fr", "queries": [str(i) for i in range(30)]}))])
     u = gen.understand("س؟", [])
-    assert u["queries"] == ["0", "1", "2", "3", "4"] and u["lang"] == ""
+    assert u["queries"] == [str(i) for i in range(generate.MAX_QUERIES)] and u["lang"] == ""
 
 
 def test_translation_request_gets_a_translation_not_a_sourced_answer():

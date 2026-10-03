@@ -52,6 +52,8 @@ def test_pasted_quotation_is_rejected_and_rewritten_in_own_words():
         keys = json.dumps(schema or {})
         if "supported" in keys:
             return json.dumps({"supported": [True] * user.count("الجملة ")})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
         if '"question"' in keys or "queries" in keys:
             return '{"queries": []}'
         prompts.append(user)

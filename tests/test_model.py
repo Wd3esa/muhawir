@@ -365,6 +365,8 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
         keys = json.dumps(schema or {})
         if "supported" in keys:
             return json.dumps({"supported": next(verdicts)})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
         if "queries" in keys:
             return '{"queries": []}'
         prompts.append(user)
@@ -377,7 +379,7 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
 
 def test_second_reading_accepts_plain_explanations_and_rejects_additions():
     assert "إن شككت" not in generate.CHECK_PROMPT
-    assert "شرحًا له بلغة سهلة" in generate.CHECK_PROMPT and "أضافت معلومة شرعية ليست في المقاطع" in generate.CHECK_PROMPT
+    assert "شرحًا له بلغة سهلة" in generate.CHECK_PROMPT and "معلومة شرعية ليست في المقاطع" in generate.CHECK_PROMPT
 
 
 def test_religious_information_from_sources_explanation_from_the_model():

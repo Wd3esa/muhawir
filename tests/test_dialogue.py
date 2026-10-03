@@ -1,0 +1,250 @@
+"""Dialogue quality: search by phrase, one more search when nothing was found, clean text, tolerant
+scholar names, translation requests, the strict second reading. Fake model calls and synthetic data only."""
+import json
+from pathlib import Path
+
+import pytest
+
+from muhawir import generate, pipeline, store
+from muhawir.corpus import load_corpus, parse_corpus
+from muhawir.generate import ModelGenerator, _has_evidence
+from muhawir.pipeline import ABSTAINED, ANSWERED, TRANSLATED, Muhawir, _strip_ids
+from muhawir.store import SqliteCorpus, SqliteRetriever, build_db
+from muhawir.verify import Claim, is_named
+from muhawir.corpus import Passage
+
+CORPUS = load_corpus(Path(__file__).resolve().parent.parent / "data" / "synthetic_corpus.json")
+QUESTION = "ماذا تحتاج النخلة في الصيف؟"
+
+PHRASES = {"synthetic": True, "sources": [{"id": "s", "name": "مصدر تجريبي", "about": "مصطنع"}], "passages": [
+    {"id": "o", "source_id": "s", "location": "أ", "kind": "quran",
+     "text": "تثمر النخلة التمر في آخر الصيف لأنها تحتاج إلى ماء كثير وتعطي ظلا للمسافرين في الطريق الطويل"},
+    {"id": "c1", "source_id": "s", "location": "ب", "kind": "tafsir",
+     "text": "قال المفسر إن النخلة تحتاج إلى ماء كثير ثم كرر أن النخلة تحتاج إلى ماء كثير وأن النخلة تحتاج إلى ماء كثير"},
+    {"id": "c2", "source_id": "s", "location": "ج", "kind": "fiqh", "text": "ماء قليل وكثير من التمر عند الجمال"},
+]}
+
+
+@pytest.fixture()
+def retriever(tmp_path):
+    build_db(PHRASES, tmp_path / "p.db")
+    return SqliteRetriever(SqliteCorpus(tmp_path / "p.db"))
+
+
+# --- search ---------------------------------------------------------------------------------------
+
+def test_the_original_text_comes_before_the_book_that_discusses_it(retriever):
+    ids = [h.passage.id for h in retriever.search("تحتاج إلى ماء كثير", k=5)]
+    assert ids[:2] == ["o", "c1"]  # c1 repeats the phrase three times and would win on score alone
+
+
+def test_a_wrong_word_at_the_edge_of_a_recalled_phrase_still_finds_the_passage(retriever):
+    ids = [h.passage.id for h in retriever.search("بالتأكيد تثمر النخلة التمر في آخر الصيف", k=5)]
+    assert ids[0] == "o"
+
+
+def test_a_phrase_found_in_too_many_passages_identifies_nothing(retriever, monkeypatch):
+    monkeypatch.setattr(store, "MAX_PHRASE_MATCHES", 1)
+    assert retriever._phrase_rows(["تحتاج", "ماء", "كثير"], 8) == []  # held by two passages: not selective
+
+
+# --- one more search when the first found nothing usable ------------------------------------------
+
+def _retrying_model(retry_queries, second_answer=True):
+    seen = {"retry": 0, "answers": 0}
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": "ما حاجة شجرة البلح؟", "translate": "", "answer_lang": "", "kind": "",
+                               "reexplain": False, "recall": "", "queries": ["بلح"]}, ensure_ascii=False)
+        if '"recall"' in keys:
+            seen["retry"] += 1
+            return json.dumps({"recall": "", "queries": retry_queries}, ensure_ascii=False)
+        seen["answers"] += 1
+        if "[test-a:1]" in user and second_answer:
+            return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+        return json.dumps({"abstain": True, "claims": []})
+    return Muhawir(CORPUS, ModelGenerator([("m", call)])), seen
+
+
+def test_when_nothing_is_found_the_model_is_asked_once_for_different_phrases():
+    m, seen = _retrying_model(["النخلة ماء كثير الصيف"])
+    res = m.ask("ما حاجة شجرة البلح؟")
+    assert res.status == ANSWERED and res.sources[0]["passage_id"] == "test-a:1" and seen["retry"] == 1
+
+
+def test_the_retry_does_not_loop_and_ends_in_an_honest_not_found():
+    m, seen = _retrying_model(["ثعلب ذهبي"], second_answer=False)
+    res = m.ask("ما حاجة شجرة البلح؟")
+    assert res.status == ABSTAINED and seen["retry"] == 1
+
+
+def test_no_retry_for_a_personal_case():
+    m, seen = _retrying_model(["النخلة ماء كثير الصيف"])
+    m.ask("هل يلزمني سقي شجرة البلح؟")
+    assert seen["retry"] == 0
+
+
+# --- text shown to the reader ---------------------------------------------------------------------
+
+def test_ids_written_in_arabic_letters_or_unclosed_references_are_removed_from_the_text():
+    assert _strip_ids("كما يذكر ف:565 أن الحول سنة.", {"f:565"}) == "كما يذكر أن الحول سنة."
+    assert _strip_ids("في سورة الكهف (ق:18:51) خلق.", {"q:18:51"}) == "في سورة الكهف خلق."
+    assert _strip_ids("وردت في t4:41:30:9543:1 وفي m:2643.02 أيضًا.", set()) == "وردت في وفي أيضًا."
+    assert _strip_ids("وفيه قوله: «نص» (تفسير.", set()) == "وفيه قوله: «نص»."
+
+
+def test_a_verse_reference_is_not_mistaken_for_an_id():
+    text = "قال تعالى في سورة ق:16 إنه قريب، وفي الأنعام: 141 وفي ص:23 قصة، والوقت 5:30."
+    assert _strip_ids(text, set()) == text
+
+
+# --- names of scholars ----------------------------------------------------------------------------
+
+PASSAGE = "فقال الشافعي وأصحابه بالوجوب، وقال أبو حنيفة وأصحابه بعدمه، وروي عن مالك."
+
+
+def test_a_name_in_another_grammatical_case_or_with_his_companions_is_still_that_name():
+    assert is_named("أبي حنيفة وأصحابه", PASSAGE) and is_named("الشافعي وأصحابه", PASSAGE)
+    assert is_named("الشافعي وأحمد وغيرهم (مس الذكر)", PASSAGE) is False  # أحمد is not in this passage
+    assert is_named("الشافعي ومالك وغيرهم (في المسألة)", PASSAGE)
+
+
+def test_a_school_the_passage_does_not_name_is_not_accepted():
+    assert not is_named("الحنابلة", PASSAGE) and not is_named("المالكيون", PASSAGE) and not is_named("", PASSAGE)
+
+
+# --- translation request --------------------------------------------------------------------------
+
+def test_a_translation_request_is_translated_even_when_the_question_field_is_empty():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": "", "translate": "التوحيد", "answer_lang": "en", "kind": "",
+                               "reexplain": False, "recall": "", "queries": []}, ensure_ascii=False)
+        return json.dumps({"translation": "Monotheism (Tawhid)"})
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("ترجم كلمة التوحيد إلى الإنجليزية")
+    assert res.status == TRANSLATED and res.message == "Monotheism (Tawhid)"
+
+
+# --- the note on rulings --------------------------------------------------------------------------
+
+def _kind_model(kind):
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": QUESTION, "translate": "", "answer_lang": "", "kind": kind,
+                               "reexplain": False, "recall": "", "queries": []}, ensure_ascii=False)
+        return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    return Muhawir(CORPUS, ModelGenerator([("m", call)]))
+
+
+def test_a_ruling_answer_carries_a_fixed_notice_that_it_is_not_a_fatwa():
+    assert "ليس فتوى" in _kind_model("ruling").ask(QUESTION).note
+    assert _kind_model("what").ask(QUESTION).note == ""
+
+
+# --- the strict second reading --------------------------------------------------------------------
+
+def test_the_instructions_ask_for_search_phrases_in_the_sources_own_wording():
+    p = generate.UNDERSTAND_PROMPT
+    assert "بلفظها كما وردت" in p and "عناوين موضوعات" in p and "recall" in p
+    assert "سؤال ضمني" in p  # a topic named without a question is a question about it
+    assert generate.QUERY_RULES in generate.RETRY_PROMPT
+
+
+def test_the_second_reading_must_quote_words_that_are_really_in_the_cited_passage():
+    passages = {"a": Passage("a", "s", "ل", "تحتاج النخلة إلى ماء كثير في الصيف")}
+    claim = Claim("تحتاج النخلة إلى ماء كثير.", ("a",))
+    assert _has_evidence(claim, "تحتاج النخلة إلى ماء كثير", passages)
+    assert not _has_evidence(claim, "", passages)                      # nothing quoted
+    assert not _has_evidence(claim, "لا تحتاج النخلة إلى الثلج أبدا", passages)  # words that are not there
+    assert _has_evidence(Claim("مثلًا، الماء للعطشان.", ("a",)), "", passages)  # an illustration quotes nothing
+
+
+@pytest.mark.real_check
+def test_a_sentence_whose_quoted_support_is_not_in_the_passage_is_dropped():
+    answer = {"abstain": False, "claims": [{"text": "تحتاج النخلة إلى ماء كثير.", "passage_ids": ["test-a:1"]},
+                                           {"text": "وهذا يدل على عدل الله.", "passage_ids": ["test-a:1"]}]}
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "supported" in keys:  # the second sentence is "approved" by a careless reader but quotes nothing real
+            return json.dumps({"evidence": ["تحتاج إلى ماء كثير في الصيف", "العدل صفة من صفات الله"],
+                               "supported": [True, True]}, ensure_ascii=False)
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps(answer, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
+
+
+def test_instructions_forbid_added_conclusions_book_structure_and_neighbouring_topics():
+    s, c = generate.SYSTEM_PROMPT, generate.CHECK_PROMPT
+    assert "وهذا يدل على" in s and "ترتيب الكتاب" in s and "مسألة مجاورة" in s
+    assert "لا يصف كيف تُؤدّى عبادة" in s
+    assert "استنتاج أو تعليق أو تقييم" in c and "ترتيب الكتاب" in c and "مثال يصف كيف تُؤدّى عبادة" in c
+
+
+# --- the answer must reply to the question asked --------------------------------------------------
+
+def _judged(verdicts, answers=None, retry=None):
+    """A model whose relevance judge says what `verdicts` lists, one per call (an Exception raises)."""
+    verdicts, seen = iter(verdicts), {"answer_prompts": [], "judged": 0}
+    answers = iter(answers or [{"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]}] * 3)
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": QUESTION, "translate": "", "answer_lang": "", "kind": "", "reexplain": False,
+                               "recall": "", "queries": []}, ensure_ascii=False)
+        if "verdict" in keys:
+            seen["judged"] += 1
+            v = next(verdicts)
+            if isinstance(v, Exception):
+                raise v
+            return json.dumps({"verdict": v})
+        if '"recall"' in keys:
+            return json.dumps({"recall": "", "queries": retry or []}, ensure_ascii=False)
+        seen["answer_prompts"].append(user)
+        return json.dumps(next(answers), ensure_ascii=False)
+    return Muhawir(CORPUS, ModelGenerator([("m", call)])), seen
+
+
+def test_a_sourced_answer_about_another_matter_is_not_shown(monkeypatch):
+    monkeypatch.setattr(pipeline, "DEBUG", True)
+    m, seen = _judged(["no"])
+    res = m.ask(QUESTION)
+    assert res.status == ABSTAINED and res.claims == [] and "another matter" in res.why
+
+
+def test_an_off_topic_first_answer_triggers_the_second_search_and_a_better_answer():
+    m, seen = _judged(["no", "yes"], retry=["الجمل العطش الصحراء"])  # reaches a passage not offered the first time
+    res = m.ask(QUESTION)
+    assert res.status == ANSWERED and seen["judged"] == 2 and len(seen["answer_prompts"]) == 2
+
+
+def test_a_partial_answer_is_rewritten_once_and_told_what_is_missing():
+    full = {"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]},
+                                         {"text": "وتثمر التمر في آخره.", "passage_ids": ["test-a:1"]}]}
+    first = {"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]}
+    m, seen = _judged(["partly"], answers=[first, full])
+    res = m.ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["ماء كثير.", "وتثمر التمر في آخره."]
+    assert len(seen["answer_prompts"]) == 2 and "لا يغطي السؤال كله" in seen["answer_prompts"][1]
+    assert seen["judged"] == 1  # one rewrite only, and the rewrite is not judged again
+
+
+def test_when_the_judge_cannot_run_the_checked_answer_stands():
+    m, _ = _judged([RuntimeError("down")])
+    assert m.ask(QUESTION).status == ANSWERED
+
+
+def test_the_rewrite_request_says_why_each_sentence_was_rejected():
+    from muhawir.verify import Rejected
+    text = pipeline._feedback([Rejected(Claim("جملة منقولة.", ("a",)), "copied a source sentence instead of explaining it"),
+                               Rejected(Claim("جملة زائدة.", ("a",)), "not supported by the cited passage")])
+    assert "جملة منقولة.  ← نقلتَ نص المقطع" in text and "جملة زائدة.  ← فيها ما ليس في المقطع" in text
+    assert "ولو بدا الجواب أقصر" in text and "لا يغطي السؤال كله" not in text
+    assert "لا يغطي السؤال كله" in pipeline._feedback([], incomplete=True)

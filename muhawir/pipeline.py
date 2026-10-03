@@ -28,6 +28,7 @@ MAX_HADITH = 3  # live hadith results offered to the model, in addition to the p
 MAX_QUESTION_CHARS = 500
 NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
 MAX_NEIGHBOURS = 4
+MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
 SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "newcomer"}  # for "I did not understand"
 
@@ -63,10 +64,59 @@ class Response:
         return asdict(self)
 
 
+_NUMBERS = r"(?::\d+(?:\.\d+)?)"
+# an id written in the text in another form: Latin («t4:41:30:9543:1») or its first letter turned into
+# Arabic («ف:565» for f:565, «ق:18:51» for q:18:51). «ق» alone needs two numbers, so «ق:16» (a verse) stays.
+_LOOSE_ID = re.compile(
+    rf"\s*[\[(]?(?<![\w:])(?:[a-z]\d*|[فتبمأ]\d*|ق\d*(?={_NUMBERS}{_NUMBERS})){_NUMBERS}{{1,5}}(?![\w:])[\])]?")
+
+
+@dataclass
+class _Written:
+    """One written and checked answer, with the passages it was written from."""
+    passages: list
+    allowed: set
+    corpus: object
+    kept: list
+    rejected: list
+    retried: bool = False  # written after a second search with new search phrases
+    off_topic: bool = False  # the checked answer was about another matter than the question, so it was dropped
+
+
+# why a sentence was rejected, told to the model in its own language when it is asked to write again
+_REJECTED_BECAUSE = (
+    ("copied a source", "نقلتَ نص المقطع بدل أن تشرحه بكلماتك"),
+    ("quotation not found", "اقتبستَ نصًا لا يطابق المقطع"),
+    ("not supported", "فيها ما ليس في المقطع المذكور (زيادة أو استنتاج أو تحريف)"),
+    ("cites passages", "أسندتَها إلى مقطع غير موجود"),
+    ("no citation", "بلا مقطع تستند إليه"),
+    ("is not named", "فيها اسم لم يرد في المقطع"),
+)
+
+
+def _feedback(rejected: list, incomplete: bool = False) -> str:
+    """What to tell the model before the one rewrite: each rejected sentence with the reason, and what to do."""
+    parts = []
+    if rejected:
+        lines = []
+        for r in rejected:
+            why = next((ar for en, ar in _REJECTED_BECAUSE if r.reason.startswith(en) or en in r.reason), "لا تتفق مع المقاطع")
+            lines.append(f"- {r.claim.text}  ← {why}")
+        parts.append("رُفضت الجمل التالية، وبجانب كل جملة سبب رفضها:\n" + "\n".join(lines))
+    if incomplete:
+        parts.append("والجواب السابق لا يغطي السؤال كله: اذكر كل ما في المقاطع المتعلقة بالسؤال (كل العناصر إن كان المطلوب قائمة).")
+    parts.append("اكتب الجواب كله من جديد جوابًا متصلًا مفهومًا، بما قالته المقاطع نفسها فقط، دون تفصيل أو شرح من عندك "
+                 "لما لم تذكره المقاطع (ولو بدا الجواب أقصر)، واشرح النص المقتبس بكلماتك بدل نقله.")
+    return "\n".join(parts)[:2500]
+
+
 def _strip_ids(text: str, ids: set[str]) -> str:
     """Remove passage ids a model wrote into the answer text; the source cards already show them."""
     for pid in sorted(ids, key=len, reverse=True):
         text = re.sub(rf"\s*[\[(]?(?<![\w:]){re.escape(pid)}(?![\w:])[\])]?", "", text)
+    text = _LOOSE_ID.sub("", text)
+    if text.count("(") > text.count(")"):  # a reference cut off in the middle, e.g. «(تفسير.»
+        text = re.sub(r"\s*\([^()]*$", "", text).rstrip(" ،,:") + "."
     return re.sub(r"\s+([.،,؛])", r"\1", text).strip()
 
 
@@ -159,6 +209,97 @@ class Muhawir:
                 break
         return list(found.values())[:MAX_HADITH]
 
+    def _gather(self, question: str, original: str, queries: list[str] | None) -> tuple[list[Passage], list[str]]:
+        """The passages offered to the model, and the search phrases used to find them."""
+        best: dict[str, object] = {}
+        # the opening passage of the matching chapter and section of «بداية المجتهد» first:
+        # it usually holds the overview, the definition or the list of kinds. Only the question and short
+        # topic phrases are matched to chapter names: a quoted verse that happens to contain the word
+        # «الصلاة» is not a question about the chapter on prayer
+        topics = [q for q in (queries or []) if len(q.split()) <= MAX_TOPIC_WORDS]
+        for pid in self.sections.match([original or question] + topics):
+            p = self.corpus.passage(pid)
+            if p is not None:
+                best[pid] = Hit(p, 0.0, 1.0)
+        expand = getattr(self.generator, "expand", None)
+        extra = queries if queries is not None else (expand(question) if expand else [])
+        queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
+        lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if h.coverage >= MODEL_MIN_COVERAGE
+                  and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
+                 for query in queries]
+        # take turns between the phrases, so one long phrase with high scores cannot fill every place
+        for rank in range(MODEL_CANDIDATES):
+            for hits in lists:
+                if rank < len(hits) and len(best) < MODEL_CANDIDATES:
+                    best.setdefault(hits[rank].passage.id, hits[rank])
+        # one issue in «بداية المجتهد» often runs over two or three passages in a row (the views in one,
+        # the evidence in the next): add the neighbours of the best fiqh matches from the same section
+        for p in self._neighbours([h.passage for h in best.values()]):
+            best.setdefault(p.id, Hit(p, 0.0, 1.0))
+        return [h.passage for h in best.values()], queries
+
+    def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
+               extra: dict) -> "_Written | Response":
+        """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
+        A Response (service unavailable) instead when the model or the second reading could not run."""
+        t, synthetic = TEXT[lang], self.corpus.synthetic
+        allowed = {p.id for p in passages}
+        live = [p for p in passages if self.corpus.passage(p.id) is None]
+        corpus = _WithLive(self.corpus, live, {self.hadith_source.id: self.hadith_source}) if live else self.corpus
+        if hasattr(self.generator, "last_note"):
+            self.generator.last_note = self.generator.last_raw = ""
+            self.generator.last_as_list = False
+        draft = self.generator.generate(question, passages, style, lang, personal=personal, **extra)
+        if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
+            # the model could not be reached: say so honestly instead of "nothing found in the sources"
+            return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
+        result = self._checked(draft, corpus, allowed, passages)
+        if result is None:  # the check could not run: show nothing unchecked, and say why honestly
+            return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
+                             "support check could not run")
+        kept, rejected = result
+        can_review = bool(getattr(self.generator, "check_support", None))
+        rewritten = False
+
+        def rewrite(feedback: str) -> None:
+            """One full rewrite from the feedback, checked again; kept only if it leaves more sentences."""
+            nonlocal kept, rejected, rewritten
+            rewritten = True
+            redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
+                                              **extra)
+            second = self._checked(redraft, corpus, allowed, passages) if redraft else None
+            if second is not None and len(second[0]) > len(kept):
+                kept, rejected = second
+
+        if rejected and self._broken(kept, rejected, draft) and can_review:
+            # the checks removed the start or most of the answer, so what is left would not read as one
+            # answer: ask once for a full rewrite that avoids the rejected sentences, then check it again
+            rewrite(_feedback(rejected))
+        judge = getattr(self.generator, "judge_relevance", None)
+        verdict = judge(question, kept) if judge and kept else None
+        if verdict == "partly" and not rewritten and can_review:  # it answers only part of what was asked
+            rewrite(_feedback(rejected, incomplete=True))
+        if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
+            return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
+        return _Written(passages, allowed, corpus, kept, rejected)
+
+    def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
+               first: _Written | None) -> _Written | None:
+        """Nothing usable came out of the first search (no passage, or none that answered): ask the model once
+        for different search phrases, search again, and write from the new passages. The first outcome
+        stands unless this gives an answer."""
+        more = getattr(self.generator, "retry_queries", lambda *_: [])(question, tried)
+        if not more:
+            return first
+        passages, _ = self._gather(question, original, more)
+        if all(p.id in (first.allowed if first else ()) for p in passages):
+            return first
+        second = self._write(question, passages, style, lang, False, extra)
+        if isinstance(second, Response) or not second.kept:
+            return first
+        second.retried = True
+        return second
+
     def _cards(self, passage_ids: list[str], corpus=None) -> list[dict]:
         corpus = corpus or self.corpus
         cards = []
@@ -196,12 +337,8 @@ class Muhawir:
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
-                    if not u["question"]:  # no question in the message (e.g. only an insult): no judgement, an invitation
-                        # right after an answer, it usually means the answer did not help: offer to explain again
-                        after = any(t["role"] == "assistant" for t in turns)
-                        reply = "no_question_after_answer" if after else "no_question"
-                        return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
-                    if u.get("translate") and gate.kind is None:  # a language request: translate it, nothing more
+                    # a language request: translate it, nothing more (the model may leave `question` empty for it)
+                    if u.get("translate") and gate.kind is None:
                         text = u["translate"]
                         target = u.get("lang") if u.get("lang") in LANGS else ("en" if _ARABIC.search(text) else "ar")
                         out = getattr(self.generator, "translate", lambda *_: None)(text, target)
@@ -209,6 +346,11 @@ class Muhawir:
                             return Response(UNAVAILABLE, TEXT[lang_ok]["unavailable"], synthetic=self.corpus.synthetic)
                         return Response(TRANSLATED, out, synthetic=self.corpus.synthetic,
                                         note=TEXT[lang_ok]["translation_label"])
+                    if not u["question"]:  # no question in the message (e.g. only an insult): no judgement, an invitation
+                        # right after an answer, it usually means the answer did not help: offer to explain again
+                        after = any(t["role"] == "assistant" for t in turns)
+                        reply = "no_question_after_answer" if after else "no_question"
+                        return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
                     queries = u["queries"]
                     kind = u.get("kind", "")
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -261,70 +403,34 @@ class Muhawir:
             hits = self.retriever.search(question)
             passages = [h.passage for h in hits if is_sufficient([h])]
         else:
-            best: dict[str, object] = {}
-            # the opening passage of the matching chapter and section of «بداية المجتهد» first:
-            # it usually holds the overview, the definition or the list of kinds
-            for pid in self.sections.match([original or question] + (queries or [])):
-                p = self.corpus.passage(pid)
-                if p is not None:
-                    best[pid] = Hit(p, 0.0, 1.0)
-            expand = getattr(self.generator, "expand", None)
-            extra = queries if queries is not None else (expand(question) if expand else [])
-            queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
-            lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if h.coverage >= MODEL_MIN_COVERAGE
-                      and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
-                     for query in queries]
-            # take turns between the phrases, so one long phrase with high scores cannot fill every place
-            for rank in range(MODEL_CANDIDATES):
-                for hits in lists:
-                    if rank < len(hits) and len(best) < MODEL_CANDIDATES:
-                        best.setdefault(hits[rank].passage.id, hits[rank])
-            # one issue in «بداية المجتهد» often runs over two or three passages in a row (the views in one,
-            # the evidence in the next): add the neighbours of the best fiqh matches from the same section
-            for p in self._neighbours([h.passage for h in best.values()]):
-                best.setdefault(p.id, Hit(p, 0.0, 1.0))
-            passages = [h.passage for h in best.values()]
+            passages, queries = self._gather(question, original, queries)
             if self.hadith_search:
                 live = self._hadith(queries)
                 passages += live
-        if not passages:
+        extra = {k: v for k, v in (("previous", previous), ("kind", kind)) if v}
+        written = self._write(question, passages, style, lang, personal, extra) if passages else None
+        if isinstance(written, Response):  # the model could not be reached, or the check could not run
+            return written
+        if (written is None or not written.kept) and not personal and not self.generator.strict_retrieval:
+            written = self._retry(question, original, queries or [], style, lang, extra, written)
+        if written is None:
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
             return self._why(self._abstain(question, t, synthetic), "search found no passage")
-
-        allowed = {p.id for p in passages}
-        live = [p for p in passages if self.corpus.passage(p.id) is None]
-        corpus = _WithLive(self.corpus, live, {self.hadith_source.id: self.hadith_source}) if live else self.corpus
-        if hasattr(self.generator, "last_note"):
-            self.generator.last_note = self.generator.last_raw = ""
-            self.generator.last_as_list = False
-        extra = {k: v for k, v in (("previous", previous), ("kind", kind)) if v}
-        draft = self.generator.generate(question, passages, style, lang, personal=personal, **extra)
-        if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
-            # the model could not be reached: say so honestly instead of "nothing found in the sources"
-            return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
-        result = self._checked(draft, corpus, allowed, passages)
-        if result is None:  # the check could not run: show nothing unchecked, and say why honestly
-            return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
-                             "support check could not run")
-        kept, rejected = result
-        if rejected and self._broken(kept, rejected, draft) and getattr(self.generator, "check_support", None):
-            # the checks removed the start or most of the answer, so what is left would not read as one
-            # answer: ask once for a full rewrite that avoids the rejected sentences, then check it again
-            feedback = "\n".join(f"- {r.claim.text}" for r in rejected)[:2000]
-            redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
-                                              **extra)
-            second = self._checked(redraft, corpus, allowed, passages) if redraft else None
-            if second is not None and len(second[0]) > len(kept):
-                kept, rejected = second
+        kept, rejected, passages, allowed, corpus = (written.kept, written.rejected, written.passages,
+                                                     written.allowed, written.corpus)
         offered = f"{len(passages)} passages offered"
         if not kept:
             reason = "; ".join(r.reason for r in rejected) or getattr(self.generator, "last_note", "") or "no claims"
+            if written.off_topic:
+                reason = "the answer was about another matter than the question" + (f"; {reason}" if rejected else "")
             raw = getattr(self.generator, "last_raw", "")
             if personal:
                 return self._why(Response(REFERRED, t["personal_case"], synthetic=synthetic), f"{offered}; {reason}")
             return self._why(self._abstain(question, t, synthetic), f"{offered}; {reason}", raw)
-        dropped = f"{len(rejected)} sentence(s) dropped: " + "; ".join(r.reason for r in rejected)[:400] if rejected else ""
+        # the dropped sentences themselves are shown only in the debug reply, never written to the log
+        dropped = (f"{len(rejected)} sentence(s) dropped: " + " ## ".join(
+            f"{r.reason} <{r.claim.text[:160]}>" for r in rejected)[:1500]) if rejected else ""
         if rejected:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
@@ -338,12 +444,14 @@ class Muhawir:
                  for c in kept if c.school]
         cards = self._cards([pid for c in answer + [v for v in kept if v.school] for pid in c.passage_ids], corpus)
         note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
+        if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage
+            note = t["ruling_note"]
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
             return Response(REFERRED, message, claims, cards, synthetic, note, views)
         res = Response(ANSWERED, "", claims, cards, synthetic, note, views)
-        if DEBUG and dropped:
-            res.why = dropped
+        if DEBUG and (dropped or written.retried):
+            res.why = ("answered after a second search | " if written.retried else "") + dropped
         # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked
         res.as_list = (bool(getattr(self.generator, "last_as_list", False)) or kind == "how") and len(claims) > 1
         return res

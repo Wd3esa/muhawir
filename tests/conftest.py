@@ -3,9 +3,17 @@
 Most tests use fake models that only know the understanding and answer steps. The second
 reading (check_support) is accepted by default here; tests marked `real_check` exercise it.
 """
+import os
+
 import pytest
 
-from muhawir.generate import ModelGenerator
+# Tests run on the synthetic corpus with fake models only. Set before any test module imports
+# muhawir.server, which would otherwise load a real data/muhawir.db or a real model from the environment.
+os.environ["MUHAWIR_DB"] = os.path.join(os.path.dirname(__file__), "no-database-for-tests.db")
+for _name in ("MUHAWIR_CORPUS", "LLM_PROVIDER", "MUHAWIR_DEBUG", "MUHAWIR_DORAR"):
+    os.environ.pop(_name, None)
+
+from muhawir.generate import ModelGenerator  # noqa: E402
 
 
 def pytest_configure(config):
