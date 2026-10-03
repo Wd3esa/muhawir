@@ -23,4 +23,4 @@ def pytest_configure(config):
 @pytest.fixture(autouse=True)
 def _accept_support_check(request, monkeypatch):
     if "real_check" not in request.keywords:
-        monkeypatch.setattr(ModelGenerator, "check_support", lambda self, claims, passages: [True] * len(claims))
+        monkeypatch.setattr(ModelGenerator, "check_support", lambda self, claims, passages, question="": [True] * len(claims))

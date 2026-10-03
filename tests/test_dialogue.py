@@ -159,7 +159,9 @@ def test_the_second_reading_must_quote_words_that_are_really_in_the_cited_passag
     claim = Claim("تحتاج النخلة إلى ماء كثير.", ("a",))
     assert _has_evidence(claim, "تحتاج النخلة إلى ماء كثير", passages)
     assert not _has_evidence(claim, "", passages)                      # nothing quoted
-    assert not _has_evidence(claim, "لا تحتاج النخلة إلى الثلج أبدا", passages)  # words that are not there
+    assert not _has_evidence(claim, "العدل صفة من صفات الله تعالى", passages)  # words that are not there
+    assert _has_evidence(Claim("يغسل الوجه.", ("b",)), "فاغسلوا وجوهكم وأيديكم",
+                         {"b": Passage("b", "s", "ل", "إذا قمتم إلى الصلاة فاغسلوا وجوهكم وأيديكم إلى المرافق")})
     assert _has_evidence(Claim("مثلًا، الماء للعطشان.", ("a",)), "", passages)  # an illustration quotes nothing
 
 
@@ -170,8 +172,8 @@ def test_a_sentence_whose_quoted_support_is_not_in_the_passage_is_dropped():
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
-        if "supported" in keys:  # the second sentence is "approved" by a careless reader but quotes nothing real
-            if "تحتاج النخلة" in user.split("<<<", 1)[1].split(">>>", 1)[0]:
+        if "problem" in keys:  # the second sentence is "approved" by a careless reader but quotes nothing real
+            if "تحتاج النخلة" in user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]:
                 return json.dumps({"missing": [[]], "evidence": ["تحتاج إلى ماء كثير في الصيف"], "supported": [True]},
                                   ensure_ascii=False)
             return json.dumps({"missing": [[]], "evidence": ["العدل صفة من صفات الله"], "supported": [True]},
@@ -286,3 +288,153 @@ def test_explaining_again_starts_with_a_short_human_line_and_the_next_turn_still
     res = m.ask("ما فهمت", history=history)
     assert res.status == ANSWERED and res.message.startswith("لا بأس")
     assert m.ask(QUESTION).message == ""  # a first answer has no such line
+
+
+def test_a_cut_off_understanding_reply_is_asked_for_once_more():
+    replies = iter(['{"question": "ماذا تحتاج الن', json.dumps(
+        {"question": QUESTION, "translate": "", "answer_lang": "", "kind": "", "reexplain": False, "recall": "",
+         "queries": ["ماء كثير"]}, ensure_ascii=False)])
+    gen = ModelGenerator([("m", lambda s, u, schema=None: next(replies))])
+    assert gen.understand(QUESTION, [])["queries"] == ["ماء كثير"]
+    broken = ModelGenerator([("m", lambda s, u, schema=None: '{"question": "ماذا')])
+    assert broken.understand(QUESTION, []) is None  # still unusable after the second try
+
+
+@pytest.mark.real_check
+def test_the_second_reading_sees_the_neutral_question_never_the_users_own_words():
+    seen = []
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": QUESTION, "translate": "", "answer_lang": "", "kind": "", "reexplain": False,
+                               "recall": "", "queries": []}, ensure_ascii=False)
+        if "problem" in keys:
+            seen.append(user)
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [True]},
+                              ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("يا لسذاجتكم، قولوا لي ماذا تحتاج نخلتكم في الصيف؟")
+    assert res.status == ANSWERED and seen
+    assert QUESTION in seen[0] and "سذاجتكم" not in seen[0]
+
+
+@pytest.mark.real_check
+def test_a_passage_about_another_matter_than_the_question_rejects_the_sentence():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            return json.dumps({"on_topic": [False], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [True]},
+                              ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert res.status == ABSTAINED
+
+
+def test_a_conclusion_added_after_a_sound_first_part_is_cut_off_and_the_rest_is_read_again():
+    from muhawir.pipeline import _without_conclusion
+    claim = Claim("يذكر الحديث أن الناس سيستمرون في السؤال عن الخلق، وهذا يدل على أن السؤال مستثنى.", ("a",))
+    assert _without_conclusion(claim).text == "يذكر الحديث أن الناس سيستمرون في السؤال عن الخلق."
+    assert _without_conclusion(Claim("قال العلماء إن الأمر كذلك، ما يعني أن الحكم ثابت.", ("a",), "مالك")).school == "مالك"
+    assert _without_conclusion(Claim("جملة قصيرة، وهذا يدل.", ("a",))) is None  # too little would be left
+    assert _without_conclusion(Claim("يخبرنا الله تعالى أنه خالق كل شيء في السماوات والأرض.", ("a",))) is None
+
+
+@pytest.mark.real_check
+def test_the_trimmed_sentence_is_checked_again_and_kept_when_it_holds():
+    answer = {"abstain": False, "claims": [
+        {"text": "تحتاج النخلة إلى ماء كثير في الصيف، وهذا يدل على عدل الله.", "passage_ids": ["test-a:1"]}]}
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            ok = "يدل على" not in user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [ok]},
+                              ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps(answer, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert res.status == ANSWERED and [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
+
+
+def _reading_model(says, default=True):
+    """A model whose second reading says what `says` lists, one answer per reading, then `default`."""
+    import threading
+    lock, calls = threading.Lock(), {"n": 0}
+    answers = iter(says)
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            with lock:
+                calls["n"] += 1
+                ok = next(answers, default)
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"],
+                               "problem": ["none" if ok else "addition"]}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    return Muhawir(CORPUS, ModelGenerator([("m", call)])), calls
+
+
+@pytest.mark.real_check
+def test_a_sentence_the_first_reading_accepts_is_read_once():
+    m, calls = _reading_model([True])
+    assert m.ask(QUESTION).status == ANSWERED and calls["n"] == 1
+
+
+@pytest.mark.real_check
+def test_a_sentence_is_dropped_only_when_two_readings_reject_it():
+    m, calls = _reading_model([False, False], default=False)
+    res = m.ask(QUESTION)
+    assert res.status == ABSTAINED and calls["n"] >= 2  # (the rewrite asks again, and is rejected the same way)
+    m, calls = _reading_model([False, True])  # a chance "no": the second reading keeps the sentence
+    assert m.ask(QUESTION).status == ANSWERED and calls["n"] == 2
+
+
+def _named_defects(defects):
+    """A model whose second reading names the defect of each sentence of TWO ("none" = no defect)."""
+    texts = [c["text"] for c in TWO_CLAIMS["claims"]]
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            mine = defects[texts.index(user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0])]
+            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "problem": [mine]},
+                              ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps(TWO_CLAIMS, ensure_ascii=False)
+    return Muhawir(CORPUS, ModelGenerator([("m", call)]))
+
+
+TWO_CLAIMS = {"abstain": False, "claims": [{"text": "تحتاج النخلة إلى ماء كثير.", "passage_ids": ["test-a:1"]},
+                                           {"text": "لا تحتاج النخلة إلى الماء.", "passage_ids": ["test-a:1"]}]}
+
+
+@pytest.mark.real_check
+def test_a_sentence_is_rejected_only_when_the_reader_names_a_defect():
+    res = _named_defects(["none", "distortion"]).ask(QUESTION)
+    assert res.status == ANSWERED and [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
+    res = _named_defects(["none", "none"]).ask(QUESTION)
+    assert len(res.claims) == 2
+
+
+@pytest.mark.real_check
+def test_the_reason_a_sentence_was_rejected_names_the_defect(monkeypatch):
+    monkeypatch.setattr(pipeline, "DEBUG", True)
+    res = _named_defects(["none", "conclusion"]).ask(QUESTION)
+    assert "the second reading found: conclusion" in res.why

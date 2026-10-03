@@ -112,6 +112,28 @@ def _feedback(rejected: list, incomplete: bool = False) -> str:
     return "\n".join(parts)[:2500]
 
 
+# where the model starts a conclusion of its own after a sentence that rests on the passage
+MIN_TRIMMED_WORDS = 4  # fewest words a sentence keeps when its conclusion is cut off
+_CONCLUSION_STARTS = (
+    ("وهذا",), ("وذلك",), ("فهذا",), ("فذلك",), ("فدل",),
+    ("ما", "يدل"), ("ما", "يعني"), ("ما", "يؤكد"), ("ما", "يبين"), ("ما", "يثبت"), ("ما", "يوضح"), ("ما", "يظهر"),
+    ("مما", "يدل"), ("مما", "يعني"), ("اي", "ان"),
+)
+
+
+def _without_conclusion(claim):
+    """The sentence up to the point where it starts a conclusion of its own («…، وهذا يدل على…», «…، أي أن…»),
+    as a new claim with the same sources; None if there is no such point or too little would be left."""
+    raw = claim.text.split()
+    plain = [normalize(w) for w in raw]
+    for k in range(MIN_TRIMMED_WORDS, len(raw)):
+        if any(tuple(plain[k:k + len(seq)]) == seq for seq in _CONCLUSION_STARTS):
+            head = " ".join(raw[:k]).rstrip(" ،,؛:")
+            if head.count("«") == head.count("»"):
+                return type(claim)(head + ".", claim.passage_ids, claim.school)
+    return None
+
+
 # words that turn an everyday example into a comparison with a religious matter («هذا يشبه الزكاة»)
 _COMPARES = re.compile(r"(يشبه|تشبه|يشابه|تشابه|مثلما|كما لو|تماما مثل)")
 
@@ -184,9 +206,9 @@ class Muhawir:
             res.why = reason[:500] + (f" | reply began: {reply_start}" if reply_start else "")
         return res
 
-    def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage]):
+    def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = ""):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
-        second reading against the cited passages. None when the second reading could not run."""
+        second reading against the cited passages and the question. None when the second reading could not run."""
         kept, rejected = verify(draft, corpus, allowed)
         if self.generator.name != "extractive":  # the model must explain, not paste the sources
             copied = [c for c in kept if _copies_a_source(c.text)]
@@ -197,10 +219,20 @@ class Muhawir:
             kept = [c for c in kept if c not in compared]
         check = getattr(self.generator, "check_support", None)
         if kept and check:
-            flags = check(kept, {p.id: p for p in passages})
+            by_id = {p.id: p for p in passages}
+            flags = check(kept, by_id, question)
             if flags is None:
                 return None
-            why = getattr(self.generator, "last_check_reasons", None) or []
+            flags, kept = list(flags), list(kept)
+            why = list(getattr(self.generator, "last_check_reasons", None) or [])
+            # a sentence rejected only because of a conclusion added after a sound first part
+            # («…، وهذا يدل على…») is read once more without that tail
+            cuts = {i: cut for i, (c, ok) in enumerate(zip(kept, flags)) if not ok
+                    for cut in [_without_conclusion(c)] if cut is not None}
+            again = check(list(cuts.values()), by_id, question) if cuts else None
+            for (i, cut), ok in zip(cuts.items(), again or []):
+                if ok:
+                    kept[i], flags[i] = cut, True
             rejected += [Rejected(c, "not supported by the cited passage" + (f" ({why[i]})" if i < len(why) and why[i] else ""))
                          for i, (c, ok) in enumerate(zip(kept, flags)) if not ok]
             kept = [c for c, ok in zip(kept, flags) if ok]
@@ -208,9 +240,9 @@ class Muhawir:
 
     @staticmethod
     def _broken(kept: list, rejected: list, draft: list) -> bool:
-        """True when the checks removed the first sentence or at least half of the answer."""
+        """True when the checks removed the first sentence or a third or more of the answer."""
         first = draft[0] if draft else None
-        return not kept or (first is not None and first not in kept) or len(rejected) >= len(kept)
+        return not kept or (first is not None and first not in kept) or len(rejected) * 2 >= len(kept)
 
     def _neighbours(self, passages: list[Passage], best: int = NEIGHBOUR_OF, limit: int = MAX_NEIGHBOURS) -> list[Passage]:
         """The passage before and after each of the first fiqh passages, when in the same section."""
@@ -278,7 +310,7 @@ class Muhawir:
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
-        result = self._checked(draft, corpus, allowed, passages)
+        result = self._checked(draft, corpus, allowed, passages, question)
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "support check could not run")
@@ -292,7 +324,7 @@ class Muhawir:
             rewritten = True
             redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
                                               **extra)
-            second = self._checked(redraft, corpus, allowed, passages) if redraft else None
+            second = self._checked(redraft, corpus, allowed, passages, question) if redraft else None
             if second is not None and len(second[0]) > len(kept):
                 kept, rejected = second
 

@@ -300,7 +300,7 @@ def test_json_with_text_around_it_is_read():
 
 def _claim_in(user):
     """The sentence a second-reading request is about (each request carries one)."""
-    return user.split("<<<", 1)[1].split(">>>", 1)[0]
+    return user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
 
 
 def _checker(answer, verdict):
@@ -310,7 +310,7 @@ def _checker(answer, verdict):
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
-        if "supported" in keys:
+        if "problem" in keys:
             seen.append(user)
             if isinstance(verdict, Exception):
                 raise verdict
@@ -333,7 +333,7 @@ def test_sentence_not_supported_by_its_passage_is_dropped():
     m, seen = _checker(TWO, [True, False])
     res = m.ask(QUESTION)
     assert res.status == ANSWERED and [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
-    assert "[test-a:1]" in seen[0] and QUESTION not in seen[0]  # the check sees claims and passages only
+    assert "[test-a:1]" in seen[0] and "السؤال الذي يجيب عنه المساعد" in seen[0]  # claims, passages and the neutral question
 
 
 @pytest.mark.real_check
@@ -357,7 +357,7 @@ def test_a_cut_off_reply_is_asked_for_again_for_that_sentence():
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
-        if "supported" in keys:
+        if "problem" in keys:
             with lock:
                 cut, state["first"] = state["first"], False
             if cut:
@@ -395,7 +395,7 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
-        if "supported" in keys:
+        if "problem" in keys:
             return json.dumps({"supported": ["لا تحتاج إلى الماء" not in _claim_in(user)]})
         if "verdict" in keys:
             return '{"verdict": "yes"}'

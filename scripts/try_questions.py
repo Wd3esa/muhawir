@@ -97,6 +97,8 @@ def main() -> None:
             out(f"- {c['text']}  {c['passage_ids']}")
         for v in res.get("views", []):
             out(f"  view [{v['school']}]: {v['text']}  {v['passage_ids']}")
+        if res.get("note"):
+            out(f"note: {res['note']}")
         for src in res.get("sources", []):
             grade = f"  [{src['grade']}]" if src.get("grade") else ""
             out(f"  source: {src['source_name']} · {src['location']}{grade}")
