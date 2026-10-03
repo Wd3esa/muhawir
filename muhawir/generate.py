@@ -211,7 +211,8 @@ CHECK_PROMPT = """أمامك جمل كتبها مساعد، ومع كل جملة
 0. on_topic: إن ذُكر في أول الرسالة «السؤال الذي يجيب عنه المساعد» فهل يتناول المقطع المذكور مع الجملة المسألة المحددة التي يسأل عنها هذا السؤال،
    أي هل هو جوابها أو أصل من أصول جوابها أو دليل عليها؟ وكل اسم محدد في السؤال (عبادة أو واقعة أو شخص) ينبغي أن يتناوله المقطع.
    فإن كان المقطع في مسألة أخرى مجاورة أو في موضوع عام، أو يشترك مع السؤال في لفظ فقط (مثل مقطع عن قراءة الفجر لسؤال عن شيء آخر في الصلاة، أو حديث عن الرياء لسؤال عن السماع) فاكتب false.
-   والمثال الذي يبدأ بـ«مثلًا» اكتب له true.
+   أما المثال الذي يبدأ بـ«مثلًا» فهو يوضّح معنى كلمة أو فكرة وردت في المقطع المسند إليه: اكتب له true إن كان المقطع المذكور معه هو الذي يوضّح المثال معناه
+   وكان في موضوع السؤال، واكتب false إن كان المقطع في موضوع آخر غير ما يوضّحه المثال.
 1. missing: موضوع الجملة نفسها (لا ألفاظ السؤال): اسم العبادة أو المسألة أو الشخص أو الآية أو الحكم أو العدد الذي تتحدث عنه الجملة، إن لم يذكره أي من المقاطع المذكورة مع الجملة
    ولا يدل عليه نصها صراحة (فجملة عن «الكفارة» لا يدعمها مقطع لا يذكر الكفارة)؛ فإن ورد موضوعها فاكتب []. ولا تعدّ من ذلك:
    صيغة الإسناد (يخبرنا الله تعالى، أخبرنا النبي ﷺ، ذكر الطبري)، ولا بيان معنى كلمة وردت في المقاطع بكلمات أبسط (مثل: الحول = سنة كاملة)،
@@ -660,8 +661,8 @@ class ModelGenerator:
             return []
 
         def read(claim: Claim):
-            if is_example(claim.text):  # an everyday example (only when examples are allowed): does it teach religion?
-                return self._check_example(claim) or self._check_example(claim)
+            if is_example(claim.text):  # an everyday example (only when examples are allowed)
+                return self._read_example(claim, passages, question)
             return self._check_once([claim], passages, question) or self._check_once([claim], passages, question)
 
         # The free cloud models answer the same question differently from one call to the next, and a good sentence
@@ -678,6 +679,15 @@ class ModelGenerator:
         verdicts = [r[0][0] or second[i][0][0] if i in second else r[0][0] for i, r in enumerate(first)]
         self.last_check_reasons = ["" if ok else first[i][1][0] for i, ok in enumerate(verdicts)]
         return verdicts
+
+    def _read_example(self, claim: Claim, passages: dict[str, Passage],
+                      question: str) -> tuple[list[bool], list[str]] | None:
+        """An example is accepted only if it states no religious information and explains the passage it cites:
+        an example cited to a passage on another topic than the one it illustrates is rejected."""
+        said = self._check_example(claim) or self._check_example(claim)
+        if said is None or not said[0][0]:
+            return said
+        return self._check_once([claim], passages, question) or self._check_once([claim], passages, question)
 
     def _check_example(self, claim: Claim) -> tuple[list[bool], list[str]] | None:
         """An example sentence is accepted only if it states no religious information at all."""

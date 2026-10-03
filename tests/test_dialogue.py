@@ -746,6 +746,37 @@ def test_an_everyday_example_is_dropped_because_examples_are_switched_off(exampl
     assert "examples are switched off" in res.why
 
 
+def test_an_example_is_no_longer_exempt_from_the_topic_check_in_the_instructions():
+    c = generate.CHECK_PROMPT
+    assert "والمثال الذي يبدأ بـ«مثلًا» اكتب له true" not in c  # the old exemption
+    assert "المقطع المسند إليه" in c and "اكتب false إن كان المقطع في موضوع آخر غير ما يوضّحه المثال" in c
+
+
+@pytest.mark.real_check
+def test_an_example_must_be_cited_to_the_passage_whose_meaning_it_explains():
+    year = Passage("h", "s", "الزكاة", "وأما وقت الزكاة فإن جمهور الفقهاء يشترطون الحول، وهو مرور سنة كاملة على المال.", "fiqh")
+    wudu = Passage("u", "s", "الوضوء", "ويجب في الوضوء غسل الوجه واليدين ومسح الرأس وغسل الرجلين.", "fiqh")
+    text = "مثلًا، من يضع كتابه في الدرج ثم يعود إليه بعد سنة يكون قد مرّ عليه حول كامل."
+    religious = "مثلًا، من يعطي صاعًا من التمر للفقراء يؤدي ما عليه."
+    asked = []
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "religious" in keys:  # the first reading: does the example itself teach religion?
+            return json.dumps({"religious": "صاعًا" in user})
+        asked.append(user)  # the second reading: the example beside the passage it is cited to
+        cited = user.split("المقاطع:", 1)[1]
+        return json.dumps({"on_topic": ["حول" in cited], "missing": [[]], "evidence": [""], "problem": ["none"]},
+                          ensure_ascii=False)
+    gen = ModelGenerator([("m", call)])
+    claims = [Claim(text, ("h",)), Claim(text, ("u",)), Claim(religious, ("h",))]
+    verdicts = gen.check_support(claims, {"h": year, "u": wudu}, "ما هو الحول في الزكاة؟")
+    assert verdicts == [True, False, False]
+    assert gen.last_check_reasons == ["", "the cited passage is about another matter than the question",
+                                      "the example states religious information"]
+    assert any("[u]" in a for a in asked) and not any("صاعًا" in a for a in asked)  # a religious example is not read again
+
+
 def test_the_switch_can_turn_examples_back_on(monkeypatch):
     monkeypatch.setattr(pipeline, "ALLOW_EXAMPLES", True)
     res = _with_example("مثلًا، تحتاج النخلة إلى سقي كما يحتاج العطشان إلى الماء.").ask(QUESTION)
