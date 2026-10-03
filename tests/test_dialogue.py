@@ -438,3 +438,25 @@ def test_the_reason_a_sentence_was_rejected_names_the_defect(monkeypatch):
     monkeypatch.setattr(pipeline, "DEBUG", True)
     res = _named_defects(["none", "conclusion"]).ask(QUESTION)
     assert "the second reading found: conclusion" in res.why
+
+
+# --- ruling words ---------------------------------------------------------------------------------
+
+def test_a_sentence_may_not_state_another_kind_of_ruling_than_the_passage_it_cites():
+    from muhawir.verify import mismatched_rulings
+    passage = "تجب الزكاة في الذهب والفضة والإبل."
+    assert mismatched_rulings("تجوز الزكاة في الذهب.", [passage]) == {"permitted"}
+    assert mismatched_rulings("يجب إخراج الزكاة من الذهب.", [passage]) == set()
+    assert mismatched_rulings("وفرض على المسلم أن يخرجها.", [passage]) == set()  # «فرض» is the same kind as «تجب»
+    assert mismatched_rulings("لا يجوز ترك الزكاة.", [passage]) == set()  # «not permitted» may paraphrase «obligatory»
+    assert mismatched_rulings("تجوز الزكاة في الذهب.", ["الذهب معدن نفيس يُستخرج من الأرض."]) == set()  # nothing to compare
+
+
+def test_verify_drops_a_sentence_with_another_kind_of_ruling_and_says_why():
+    from muhawir.verify import verify
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "s", "name": "ت", "about": "ت"}], "passages": [
+        {"id": "p", "source_id": "s", "location": "ل", "text": "تجب الزكاة في الذهب والفضة والإبل والغنم والبقر."}]})
+    kept, rejected = verify([Claim("تجوز الزكاة في الذهب والفضة.", ("p",)), Claim("تجب الزكاة في الذهب والفضة.", ("p",))],
+                            corpus, {"p"})
+    assert [c.text for c in kept] == ["تجب الزكاة في الذهب والفضة."]
+    assert rejected[0].reason.startswith("ruling word not in the cited passage")

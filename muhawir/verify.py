@@ -19,6 +19,16 @@ _ARABIC = re.compile(r"[؀-ۿ]")
 _LABEL_FILLER = frozenset(t for w in ("أصحابه", "أصحابهم", "أصحابهما", "غيرهم", "مذهب", "الإمام", "أصحاب")
                           for t in tokenize(w))
 _CASE = {"ابي": "ابو", "ابا": "ابو"}  # أبو / أبي / أبا are one name in three grammatical cases
+# the words that say what kind of ruling it is (normalized spelling). A sentence may not give a ruling of a
+# different kind than the passage it cites: «تجوز» (permitted) for a passage that says «تجب» (obligatory).
+_RULING_WORDS = {
+    "obligatory": frozenset("تجب يجب واجب وجوب فرض يلزم لازم اوجب فريضه".split()),
+    "permitted": frozenset("تجوز يجوز جايز مباح يباح اباح اجاز جاز يجيز".split()),
+    "forbidden": frozenset("تحرم يحرم حرام محرم حرم ممنوع يمنع منع".split()),
+    "disliked": frozenset("يكره تكره مكروه كراهه".split()),
+    "recommended": frozenset("يستحب تستحب مستحب مسنون يسن ندب مندوب".split()),
+}
+_NEGATORS = frozenset("لا ليس لم لن غير ما".split())
 
 
 @dataclass(frozen=True)
@@ -52,6 +62,27 @@ def is_named(school: str, text: str) -> bool:
     return bool(words) and all(w in have or (w.startswith("و") and w[1:] in have) for w in words)
 
 
+def _rulings(text: str, positive_only: bool = False) -> set[str]:
+    """The kinds of ruling a text speaks of. With `positive_only`, a ruling word right after a negation
+    («لا يجوز») is left out: «not permitted» may be a paraphrase of «forbidden»."""
+    found: set[str] = set()
+    tokens = normalize(text).split()
+    for i, token in enumerate(tokens):
+        if positive_only and any(t in _NEGATORS for t in tokens[max(0, i - 2):i]):
+            continue
+        for word in {token, token[1:] if token[:1] in "وفبل" and len(token) > 3 else token,
+                     token[2:] if token[:2] == "ال" and len(token) > 4 else token}:
+            found.update(kind for kind, words in _RULING_WORDS.items() if word in words)
+    return found
+
+
+def mismatched_rulings(claim_text: str, passage_texts: list[str]) -> set[str]:
+    """Kinds of ruling the sentence states that the cited passages do not state, when they state another
+    kind. A passage that uses no ruling word at all says nothing either way, so nothing is flagged."""
+    in_passages = set().union(*[_rulings(t) for t in passage_texts]) if passage_texts else set()
+    return (_rulings(claim_text, positive_only=True) - in_passages) if in_passages else set()
+
+
 def verify(claims: list[Claim], corpus: Corpus,
            allowed_ids: set[str]) -> tuple[list[Claim], list[Rejected]]:
     kept: list[Claim] = []
@@ -73,6 +104,10 @@ def verify(claims: list[Claim], corpus: Corpus,
             continue
         if claim.school and not any(is_named(claim.school, corpus.passage(pid).text) for pid in claim.passage_ids):
             rejected.append(Rejected(claim, f"'{claim.school}' is not named in the cited passage"))
+            continue
+        wrong = mismatched_rulings(claim.text, [corpus.passage(pid).text for pid in claim.passage_ids])
+        if wrong:
+            rejected.append(Rejected(claim, f"ruling word not in the cited passage: {', '.join(sorted(wrong))}"))
             continue
         kept.append(claim)
     return kept, rejected
