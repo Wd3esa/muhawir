@@ -37,6 +37,7 @@ ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED 
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # a quotation of five words or more inside «» or "" or ﴿﴾: pasted from a source, not explained
 _COPIED = re.compile(r'«(?:[^»\s]+\s+){4,}[^»]*»|"(?:[^"\s]+\s+){4,}[^"]*"|“(?:[^”\s]+\s+){4,}[^”]*”|﴿(?:[^﴾\s]+\s+){4,}[^﴾]*﴾')
+MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not explained
 _LATIN = re.compile(r"[A-Za-z]{2,}")
 # fixed replies (greetings, offers to explain again): never taken as "the previous answer"
 _CANNED = {v for t in TEXT.values() for v in t.values() if isinstance(v, str)}
@@ -89,6 +90,7 @@ _REJECTED_BECAUSE = (
     ("quotation not found", "اقتبستَ نصًا لا يطابق المقطع"),
     ("not supported", "فيها ما ليس في المقطع المذكور (زيادة أو استنتاج أو تحريف)"),
     ("cites passages", "أسندتَها إلى مقطع غير موجود"),
+    ("an example that", "كتبتَ مثالًا يشبّه أمرًا شرعيًا بشيء من الدنيا، فلا تكتب مثالًا هنا"),
     ("no citation", "بلا مقطع تستند إليه"),
     ("is not named", "فيها اسم لم يرد في المقطع"),
 )
@@ -108,6 +110,24 @@ def _feedback(rejected: list, incomplete: bool = False) -> str:
     parts.append("اكتب الجواب كله من جديد جوابًا متصلًا مفهومًا، بما قالته المقاطع نفسها فقط، دون تفصيل أو شرح من عندك "
                  "لما لم تذكره المقاطع (ولو بدا الجواب أقصر)، واشرح النص المقتبس بكلماتك بدل نقله.")
     return "\n".join(parts)[:2500]
+
+
+# words that turn an everyday example into a comparison with a religious matter («هذا يشبه الزكاة»)
+_COMPARES = re.compile(r"(يشبه|تشبه|يشابه|تشابه|مثلما|كما لو|تماما مثل)")
+
+
+def _compares_to_daily_life(text: str) -> bool:
+    """An example («مثلًا…») that likens a religious matter to something in daily life. The model cannot
+    tell where an everyday example stops explaining a word and starts saying what an act is like."""
+    plain = normalize(text)
+    return plain.startswith("مثلا") and bool(_COMPARES.search(plain))
+
+
+def _copies_a_source(text: str) -> bool:
+    """The sentence is mostly a long quotation (five words or more). A short quotation inside the model's own
+    explanation is fine: the source card shows the text, and the sentence explains it."""
+    quoted = sum(len(m.group(0).split()) for m in _COPIED.finditer(text))
+    return quoted > 0 and quoted / max(1, len(text.split())) > MAX_QUOTED_SHARE
 
 
 def _strip_ids(text: str, ids: set[str]) -> str:
@@ -169,15 +189,20 @@ class Muhawir:
         second reading against the cited passages. None when the second reading could not run."""
         kept, rejected = verify(draft, corpus, allowed)
         if self.generator.name != "extractive":  # the model must explain, not paste the sources
-            copied = [c for c in kept if _COPIED.search(c.text)]
+            copied = [c for c in kept if _copies_a_source(c.text)]
             rejected += [Rejected(c, "copied a source sentence instead of explaining it") for c in copied]
             kept = [c for c in kept if c not in copied]
+            compared = [c for c in kept if _compares_to_daily_life(c.text)]
+            rejected += [Rejected(c, "an example that compares a religious matter to daily life") for c in compared]
+            kept = [c for c in kept if c not in compared]
         check = getattr(self.generator, "check_support", None)
         if kept and check:
             flags = check(kept, {p.id: p for p in passages})
             if flags is None:
                 return None
-            rejected += [Rejected(c, "not supported by the cited passage") for c, ok in zip(kept, flags) if not ok]
+            why = getattr(self.generator, "last_check_reasons", None) or []
+            rejected += [Rejected(c, "not supported by the cited passage" + (f" ({why[i]})" if i < len(why) and why[i] else ""))
+                         for i, (c, ok) in enumerate(zip(kept, flags)) if not ok]
             kept = [c for c, ok in zip(kept, flags) if ok]
         return kept, rejected
 
@@ -276,7 +301,7 @@ class Muhawir:
             # answer: ask once for a full rewrite that avoids the rejected sentences, then check it again
             rewrite(_feedback(rejected))
         judge = getattr(self.generator, "judge_relevance", None)
-        verdict = judge(question, kept) if judge and kept else None
+        verdict = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
         if verdict == "partly" and not rewritten and can_review:  # it answers only part of what was asked
             rewrite(_feedback(rejected, incomplete=True))
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
@@ -449,7 +474,8 @@ class Muhawir:
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
             return Response(REFERRED, message, claims, cards, synthetic, note, views)
-        res = Response(ANSWERED, "", claims, cards, synthetic, note, views)
+        # «I did not understand»: a short human line first, said by the system, with no religious content
+        res = Response(ANSWERED, t["reexplain_lead"] if previous else "", claims, cards, synthetic, note, views)
         if DEBUG and (dropped or written.retried):
             res.why = ("answered after a second search | " if written.retried else "") + dropped
         # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked

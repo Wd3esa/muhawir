@@ -298,8 +298,15 @@ def test_json_with_text_around_it_is_read():
 
 # --- second reading of each sentence against its passage --------------------
 
+def _claim_in(user):
+    """The sentence a second-reading request is about (each request carries one)."""
+    return user.split("<<<", 1)[1].split(">>>", 1)[0]
+
+
 def _checker(answer, verdict):
+    """`verdict`: a list with one verdict per claim of `answer`, or an Exception raised by every check."""
     seen = []
+    texts = [c["text"] for c in answer["claims"]]
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
@@ -307,7 +314,10 @@ def _checker(answer, verdict):
             seen.append(user)
             if isinstance(verdict, Exception):
                 raise verdict
-            return json.dumps({"supported": verdict})
+            mine = verdict[texts.index(_claim_in(user))] if len(verdict) == len(texts) else None
+            return json.dumps({"supported": [mine] if mine is not None else verdict})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
         if "queries" in keys:
             return '{"queries": []}'
         return json.dumps(answer, ensure_ascii=False)
@@ -335,9 +345,31 @@ def test_failed_support_check_fails_closed():
 
 @pytest.mark.real_check
 def test_wrong_number_of_verdicts_fails_closed():
-    m, _ = _checker(TWO, [True])
+    m, _ = _checker(TWO, [True, True, True])  # not one verdict for the sentence asked about
     res = m.ask(QUESTION)
     assert res.status == UNAVAILABLE and res.claims == []
+
+
+@pytest.mark.real_check
+def test_a_cut_off_reply_is_asked_for_again_for_that_sentence():
+    import threading
+    lock, state = threading.Lock(), {"first": True}
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "supported" in keys:
+            with lock:
+                cut, state["first"] = state["first"], False
+            if cut:
+                return '{"supported": [tru'
+            return json.dumps({"supported": ["لا تحتاج" not in _claim_in(user)]})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps(TWO, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert res.status == ANSWERED and [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
 
 
 def test_prose_answer_with_ids_becomes_claims():
@@ -359,12 +391,12 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
     second = {"abstain": False, "claims": [
         {"text": "تحتاج النخلة إلى ماء كثير.", "passage_ids": ["test-a:1"]},
         {"text": "ويزداد ذلك في الصيف.", "passage_ids": ["test-a:1"]}]}
-    prompts, verdicts = [], iter([[False, True], [True, True]])
+    prompts = []
 
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if "supported" in keys:
-            return json.dumps({"supported": next(verdicts)})
+            return json.dumps({"supported": ["لا تحتاج إلى الماء" not in _claim_in(user)]})
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:

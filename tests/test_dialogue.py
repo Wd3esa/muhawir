@@ -171,8 +171,13 @@ def test_a_sentence_whose_quoted_support_is_not_in_the_passage_is_dropped():
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if "supported" in keys:  # the second sentence is "approved" by a careless reader but quotes nothing real
-            return json.dumps({"evidence": ["تحتاج إلى ماء كثير في الصيف", "العدل صفة من صفات الله"],
-                               "supported": [True, True]}, ensure_ascii=False)
+            if "تحتاج النخلة" in user.split("<<<", 1)[1].split(">>>", 1)[0]:
+                return json.dumps({"missing": [[]], "evidence": ["تحتاج إلى ماء كثير في الصيف"], "supported": [True]},
+                                  ensure_ascii=False)
+            return json.dumps({"missing": [[]], "evidence": ["العدل صفة من صفات الله"], "supported": [True]},
+                              ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
         if "queries" in keys:
             return '{"queries": []}'
         return json.dumps(answer, ensure_ascii=False)
@@ -248,3 +253,36 @@ def test_the_rewrite_request_says_why_each_sentence_was_rejected():
     assert "جملة منقولة.  ← نقلتَ نص المقطع" in text and "جملة زائدة.  ← فيها ما ليس في المقطع" in text
     assert "ولو بدا الجواب أقصر" in text and "لا يغطي السؤال كله" not in text
     assert "لا يغطي السؤال كله" in pipeline._feedback([], incomplete=True)
+
+
+def test_a_short_quotation_inside_an_explanation_is_allowed_but_a_pasted_sentence_is_not():
+    from muhawir.pipeline import _copies_a_source
+    pasted = "حيث ذُكر: «تحتاج النخلة إلى ماء كثير في الصيف»"
+    explained = "أخبرنا النبي ﷺ أن الناس سيظلون يتساءلون حتى يقولوا هذه العبارة: «هذا الله خالق كل شيء فمن خلق الله» وأمرنا بالاستعاذة."
+    assert _copies_a_source(pasted) and not _copies_a_source(explained)
+    assert not _copies_a_source("يخبرنا الله تعالى أنه خالق كل شيء.")
+
+
+def test_an_everyday_example_that_likens_a_religious_matter_to_daily_life_is_dropped():
+    from muhawir.pipeline import _compares_to_daily_life
+    assert _compares_to_daily_life("مثلاً، إذا كان لديك حلوى كثيرة وتشاركها مع أصدقائك، فهذا يشبه الزكاة.")
+    assert _compares_to_daily_life("مثلًا، في المدرسة نتبع خمس قواعد، وهذا يشبه أركان الإسلام.")
+    assert not _compares_to_daily_life("مثلًا، من يترك كتابه في الصيف ثم يعود إليه بعد سنة يكون قد مرّ عليه حول.")
+    assert not _compares_to_daily_life("الزكاة تشبه الضريبة عند بعض الناس.")  # not an example sentence: judged by the checks
+
+
+def test_explaining_again_starts_with_a_short_human_line_and_the_next_turn_still_finds_the_answer():
+    history = [{"role": "user", "text": QUESTION}, {"role": "assistant", "text": "تحتاج النخلة إلى ماء كثير في الصيف."}]
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": QUESTION, "translate": "", "answer_lang": "", "kind": "", "reexplain": True,
+                               "recall": "", "queries": []}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        return json.dumps({"abstain": False, "claims": [{"text": "النخلة تشرب كثيرا.", "passage_ids": ["test-a:1"]}]})
+    m = Muhawir(CORPUS, ModelGenerator([("m", call)]))
+    res = m.ask("ما فهمت", history=history)
+    assert res.status == ANSWERED and res.message.startswith("لا بأس")
+    assert m.ask(QUESTION).message == ""  # a first answer has no such line

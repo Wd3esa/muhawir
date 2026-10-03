@@ -24,6 +24,7 @@ TEXT = {
                           "يمكنني أن أعرض لك ما تقوله المصادر المعتمدة عن المفاهيم نفسها.",
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
                             "إن كان لديك سؤال، فاكتبه وسأبحث عنه في المصادر، أو اسأل مختصًا.",
+        "reexplain_lead": "لا بأس، سأشرح لك الجواب نفسه بطريقة أبسط:",
         "ruling_note": "هذا عرض لأقوال العلماء كما وردت في المصدر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
         "translation_pending": "",
         "synthetic": "بيانات تجريبية مصطنعة للاختبار، وليست نصوصًا دينية.",
@@ -54,6 +55,7 @@ TEXT = {
         "override_attempt": "I cannot change how I work: I answer only from approved sources and do not "
                             "give fatwas of my own. Ask your question and I will look for it in the "
                             "sources, or ask a qualified scholar.",
+        "reexplain_lead": "No problem, I will explain the same answer again, more simply:",
         "ruling_note": "This presents the scholars' views as the source states them; it is not a fatwa. "
                        "For a matter that concerns you, ask a qualified scholar.",
         "translation_pending": "The quotation is shown in its original language. Translation will be "
