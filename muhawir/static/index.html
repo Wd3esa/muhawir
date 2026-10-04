@@ -5,136 +5,1175 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>مُحاور</title>
 <style>
+
   :root {
-    --bg: #f6f5f1; --panel: #ffffff; --ink: #1f2430; --muted: #5d6475;
-    --line: #dedbd2; --accent: #1f6f5c; --accent-ink: #ffffff;
-    --warn-bg: #fff4dc; --warn-ink: #6b4a00; --card: #f2f7f5; --mine: #e6f0ec;
+  color-scheme:light;
+  --bg:#F7F5FE;
+  --panel:#fff;
+  --sidebar:#F2F4FF;
+  --ink:#0E153F;
+  --muted:#4A5590;
+  --muted-soft:#8E99CC;
+  --line:#D8DCEC;
+  --accent:#6150EA;
+  --accent-ink:#fff;
+  --accent-soft:#E0D9FB;
+  --mint:#2EF2C2;
+  --deep:#12183F;
+  --indigo:#2D3775;
+  --warn-bg:#E0D9FB;
+  --warn-ink:#2D3775;
+  --card:#F2F4FF;
+  --mine:#E0D9FB;
+  --shadow:0 10px 34px rgba(18,24,63,.09);
+  --focus:#6150EA
+}
+
+  @media(prefers-color-scheme:dark) {
+  :root {
+    color-scheme:dark;
+    --bg:#0E153F;
+    --panel:#12183F;
+    --sidebar:#12183F;
+    --ink:#F7F5FE;
+    --muted:#8E99CC;
+    --muted-soft:#4A5590;
+    --line:#2D3775;
+    --accent:#2EF2C2;
+    --accent-ink:#0E153F;
+    --accent-soft:#2D3775;
+    --mint:#2EF2C2;
+    --deep:#0E153F;
+    --indigo:#4A5590;
+    --warn-bg:#2D3775;
+    --warn-ink:#F7F5FE;
+    --card:#12183F;
+    --mine:#2D3775;
+    --shadow:0 10px 34px rgba(0,0,0,.22);
+    --focus:#2EF2C2
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #15181d; --panel: #1d2128; --ink: #e9ebef; --muted: #a3a9b6;
-      --line: #313743; --accent: #4fb69a; --accent-ink: #0d1512;
-      --warn-bg: #3a3017; --warn-ink: #f2d999; --card: #1b2a26; --mine: #20302b;
-    }
+}
+
+  * {
+  box-sizing:border-box
+}
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:16px/1.75 "Segoe UI",Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",sans-serif
+}
+button,textarea,select {
+  font:inherit
+}
+button {
+  color:inherit
+}
+button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible {
+  outline:3px solid var(--focus);
+  outline-offset:2px
+}
+
+  .app-shell {
+  min-height:100dvh;
+  display:grid;
+  grid-template-columns:286px minmax(0,1fr)
+}
+.sidebar {
+  min-width:0;
+  height:100dvh;
+  position:sticky;
+  top:0;
+  display:flex;
+  flex-direction:column;
+  padding:22px 16px 14px;
+  background:var(--sidebar);
+  border-inline-end:1px solid var(--line);
+  z-index:5
+}
+.sidebar-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:11px;
+  padding:0 6px 22px
+}
+.brand-lockup {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:11px
+}
+.brand-mark {
+  width:42px;
+  height:42px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  color:var(--accent);
+  background:var(--accent-soft);
+  border:1px solid color-mix(in srgb,var(--accent) 13%,transparent);
+  border-radius:15px
+}
+.brand-mark svg {
+  width:24px;
+  height:24px
+}
+.brand-name {
+  margin:0;
+  font-family:Tahoma,"Segoe UI",sans-serif;
+  font-size:21px;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:normal
+}
+.brand-caption {
+  margin:3px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4
+}
+.icon-button {
+  width:40px;
+  height:40px;
+  display:inline-grid;
+  place-items:center;
+  flex:0 0 auto;
+  border:1px solid transparent;
+  border-radius:13px;
+  background:transparent;
+  cursor:pointer;
+  color:var(--muted)
+}
+.icon-button:hover {
+  color:var(--ink);
+  background:color-mix(in srgb,var(--accent) 8%,transparent)
+}
+.icon-button svg {
+  width:20px;
+  height:20px
+}
+.sidebar-close,.mobile-menu {
+  display:none
+}
+
+  .new-chat {
+  width:100%;
+  min-height:48px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  border:0;
+  border-radius:15px;
+  background:var(--accent);
+  color:var(--accent-ink);
+  font-weight:650;
+  cursor:pointer;
+  box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 18%,transparent);
+  transition:transform .16s ease,box-shadow .16s ease
+}
+.new-chat:hover {
+  transform:translateY(-1px);
+  box-shadow:0 7px 16px color-mix(in srgb,var(--accent) 21%,transparent)
+}
+.new-chat svg {
+  width:19px;
+  height:19px
+}
+.history-heading {
+  margin:28px 8px 10px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.04em
+}
+.history-search {
+  height:42px;
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:0 11px;
+  color:var(--muted);
+  background:color-mix(in srgb,var(--panel) 70%,transparent)
+}
+.history-search svg {
+  width:17px;
+  height:17px;
+  flex:0 0 auto
+}
+.history-search input {
+  min-width:0;
+  width:100%;
+  border:0;
+  outline:0;
+  color:var(--ink);
+  background:transparent;
+  font-size:13px
+}
+.history-search input::placeholder {
+  color:var(--muted);
+  opacity:.9
+}
+.history-list {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  overflow:auto;
+  margin-top:12px
+}
+.history-item {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:43px;
+  width:100%;
+  padding:7px 10px;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:transparent;
+  text-align:start;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:13px
+}
+.history-item:hover {
+  background:color-mix(in srgb,var(--panel) 72%,transparent);
+  color:var(--ink)
+}
+.history-item[aria-current="true"] {
+  color:var(--ink);
+  background:color-mix(in srgb,var(--panel) 90%,transparent);
+  border-color:var(--line);
+  box-shadow:0 2px 8px rgba(35,60,48,.035)
+}
+.history-item svg {
+  width:17px;
+  height:17px;
+  flex:0 0 auto;
+  opacity:.72
+}
+.history-item span {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.history-empty {
+  margin:12px 7px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7
+}
+.sidebar-spacer {
+  flex:1;
+  min-height:20px
+}
+.sidebar-note {
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:12px 10px 4px;
+  border-top:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.65
+}
+.sidebar-note svg {
+  width:17px;
+  height:17px;
+  flex:0 0 auto;
+  margin-top:2px;
+  color:var(--accent)
+}
+
+  .workspace {
+  position:relative;
+  isolation:isolate;
+  min-width:0;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:var(--bg)
+}
+.ambient {
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.2),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(224,217,251,.72),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(97,80,234,.12),transparent 76%),linear-gradient(145deg,rgba(247,245,254,.58),transparent 43%)
+}
+.topbar {
+  flex:0 0 auto;
+  height:76px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:0 clamp(18px,3.4vw,48px);
+  border-bottom:1px solid color-mix(in srgb,var(--line) 68%,transparent);
+  background:color-mix(in srgb,var(--bg) 67%,transparent);
+  backdrop-filter:blur(18px)
+}
+.topbar-start,.topbar-tools {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:12px
+}
+.topbar h1 {
+  max-width:min(52vw,570px);
+  margin:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:16px;
+  line-height:1.4;
+  font-weight:650
+}
+.trust-pill {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  white-space:nowrap;
+  border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);
+  border-radius:100px;
+  padding:6px 10px;
+  color:var(--accent);
+  background:color-mix(in srgb,var(--panel) 58%,transparent);
+  font-size:11px;
+  font-weight:650
+}
+.trust-pill svg {
+  width:15px;
+  height:15px
+}
+.lang-wrap {
+  display:flex;
+  align-items:center
+}
+.sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap
+}
+.topbar select {
+  max-width:100%;
+  color:var(--ink);
+  background:color-mix(in srgb,var(--panel) 70%,transparent);
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:7px 9px;
+  font-size:12px
+}
+.synthetic {
+  flex:0 0 auto;
+  margin:12px auto 0;
+  width:min(850px,calc(100% - 40px));
+  padding:8px 12px;
+  border:1px solid color-mix(in srgb,#6150EA 20%,transparent);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--warn-bg) 83%,transparent);
+  color:var(--warn-ink);
+  font-size:12px;
+  line-height:1.5
+}
+
+  .conversation-frame {
+  position:relative;
+  z-index:1;
+  width:100%;
+  max-width:1000px;
+  min-height:0;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-self:center;
+  padding:0 clamp(18px,4vw,58px)
+}
+#thread {
+  min-height:0;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:24px 2px 22px;
+  scroll-behavior:smooth
+}
+.empty-state {
+  width:100%;
+  margin:auto;
+  padding:36px 0 48px;
+  text-align:center;
+  animation:arrive .55s ease both
+}
+.welcome-orbit {
+  width:74px;
+  height:74px;
+  display:grid;
+  place-items:center;
+  position:relative;
+  margin:0 auto 22px;
+  border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);
+  border-radius:27px;
+  color:var(--accent);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 75%,transparent),color-mix(in srgb,var(--accent-soft) 73%,transparent));
+  box-shadow:0 9px 24px rgba(42,68,57,.06);
+  transform:rotate(-4deg)
+}
+.welcome-orbit:before,.welcome-orbit:after {
+  content:"";
+  position:absolute;
+  border:1px solid color-mix(in srgb,var(--accent) 10%,transparent);
+  border-radius:50%
+}
+.welcome-orbit:before {
+  width:92px;
+  height:92px
+}
+.welcome-orbit:after {
+  width:110px;
+  height:110px;
+  border-style:dashed;
+  opacity:.55
+}
+.welcome-orbit svg {
+  width:33px;
+  height:33px
+}
+.welcome-kicker {
+  margin:0 0 7px;
+  color:var(--accent);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.03em
+}
+.empty-state h2 {
+  margin:0;
+  font-size:clamp(26px,3vw,36px);
+  letter-spacing:-.035em;
+  line-height:1.35;
+  font-weight:650
+}
+.welcome-copy {
+  max-width:530px;
+  margin:10px auto 26px;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.85
+}
+.prompt-grid {
+  max-width:720px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:11px;
+  text-align:start
+}
+.suggestion {
+  min-height:98px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 15px;
+  border:1px solid color-mix(in srgb,var(--line) 85%,transparent);
+  border-radius:16px;
+  background:color-mix(in srgb,var(--panel) 68%,transparent);
+  box-shadow:0 4px 16px rgba(45,70,58,.025);
+  cursor:pointer;
+  text-align:start;
+  transition:border-color .16s ease,transform .16s ease,background .16s ease
+}
+.suggestion:hover {
+  transform:translateY(-2px);
+  border-color:color-mix(in srgb,var(--accent) 31%,var(--line));
+  background:color-mix(in srgb,var(--panel) 90%,transparent)
+}
+.suggestion-topic {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:var(--accent);
+  font-size:11px;
+  font-weight:700
+}
+.suggestion-topic:before {
+  content:"";
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--accent);
+  opacity:.7
+}
+.suggestion-text {
+  color:var(--ink);
+  font-size:12px;
+  line-height:1.7
+}
+
+  .turn-user {
+  align-self:flex-start;
+  max-width:min(78%,690px);
+  border:1px solid color-mix(in srgb,var(--accent) 8%,transparent);
+  border-radius:18px 18px 5px 18px;
+  padding:11px 17px;
+  white-space:pre-line;
+  background:color-mix(in srgb,var(--mine) 91%,transparent);
+  color:var(--ink);
+  box-shadow:0 3px 12px rgba(44,67,56,.035);
+  animation:arrive .25s ease both
+}
+.msg {
+  align-self:stretch;
+  padding:20px 22px;
+  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--panel) 91%,transparent);
+  color:var(--ink);
+  box-shadow:0 8px 28px rgba(38,60,49,.055);
+  white-space:pre-line;
+  animation:arrive .35s ease both
+}
+.msg.pending {
+  width:max-content;
+  min-width:98px;
+  color:var(--muted)
+}
+.answer-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+  padding-bottom:10px;
+  border-bottom:1px solid color-mix(in srgb,var(--line) 77%,transparent)
+}
+.answer-brand {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700
+}
+.answer-brand .brand-mark {
+  width:27px;
+  height:27px;
+  border-radius:10px
+}
+.answer-brand .brand-mark svg {
+  width:16px;
+  height:16px
+}
+.status {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:var(--accent);
+  font-size:11px
+}
+.status:before {
+  content:"";
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor
+}
+.answer {
+  margin:0;
+  line-height:1.95
+}
+.answer-list {
+  margin:7px 0 0;
+  padding-inline-start:22px
+}
+.answer-list li {
+  margin:4px 0;
+  padding-inline-start:3px
+}
+.cite {
+  font-size:12px;
+  vertical-align:super;
+  line-height:0;
+  margin-inline-start:2px
+}
+.cite a {
+  color:var(--accent);
+  text-decoration:none;
+  font-weight:700
+}
+.sources-title {
+  color:var(--muted);
+  font-size:12px;
+  margin:16px 0 0;
+  font-weight:700
+}
+.card .num {
+  color:var(--accent);
+  margin-inline-end:6px
+}
+.card {
+  background:color-mix(in srgb,var(--card) 85%,transparent);
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:11px 14px;
+  margin-top:9px
+}
+.card summary,.views summary {
+  cursor:pointer;
+  font-weight:650;
+  font-size:13px
+}
+.card[open] summary,.views[open] summary {
+  margin-bottom:7px
+}
+.card .about {
+  color:var(--muted);
+  font-size:12px;
+  margin:2px 0 8px
+}
+.card blockquote {
+  margin:0;
+  padding-inline-start:12px;
+  border-inline-start:3px solid var(--accent)
+}
+.card .meta {
+  color:var(--muted);
+  font-size:11px;
+  margin-top:9px
+}
+.note {
+  color:var(--muted);
+  font-size:13px;
+  margin-top:10px
+}
+.views {
+  border:1px dashed var(--line);
+  border-radius:12px;
+  padding:10px 14px;
+  margin-top:10px
+}
+.view {
+  margin:6px 0
+}
+.tools {
+  margin-top:12px
+}
+.no-voice {
+  font-size:12px;
+  color:var(--muted);
+  margin-top:4px
+}
+.link-btn {
+  font:inherit;
+  font-size:12px;
+  background:none;
+  border:0;
+  padding:0;
+  color:var(--accent);
+  cursor:pointer
+}
+
+  #ask {
+  flex:0 0 auto;
+  padding:9px;
+  border:1px solid color-mix(in srgb,var(--line) 89%,transparent);
+  border-radius:21px;
+  background:color-mix(in srgb,var(--panel) 94%,transparent);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(18px)
+}
+.composer-field {
+  display:flex;
+  align-items:flex-end;
+  gap:9px;
+  padding:3px 4px 5px
+}
+textarea {
+  display:block;
+  min-width:0;
+  width:100%;
+  min-height:49px;
+  max-height:180px;
+  resize:vertical;
+  border:0;
+  outline:0;
+  border-radius:13px;
+  padding:9px 11px;
+  font:inherit;
+  font-size:14px;
+  line-height:1.7;
+  color:var(--ink);
+  background:transparent
+}
+textarea:focus-visible {
+  outline:0
+}
+textarea::placeholder {
+  color:var(--muted);
+  opacity:.9
+}
+.composer-row {
+  display:flex;
+  min-height:43px;
+  align-items:center;
+  gap:8px;
+  padding:3px 5px 2px;
+  border-top:1px solid color-mix(in srgb,var(--line) 65%,transparent)
+}
+.style-wrap {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:var(--muted);
+  font-size:11px
+}
+.style-wrap select {
+  border:0;
+  padding:5px 8px;
+  background:transparent;
+  font-size:11px
+}
+.send {
+  width:39px;
+  height:39px;
+  display:inline-grid;
+  place-items:center;
+  margin-inline-start:auto;
+  border:0;
+  border-radius:13px;
+  background:var(--accent);
+  color:var(--accent-ink);
+  cursor:pointer;
+  transition:transform .15s ease,opacity .15s ease
+}
+.send:hover {
+  transform:translateY(-1px)
+}
+.send svg {
+  width:19px;
+  height:19px
+}
+.send span {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap
+}
+.send:disabled {
+  opacity:.58;
+  cursor:wait
+}
+.mic {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 9px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:transparent;
+  color:var(--muted);
+  font-size:11px;
+  cursor:pointer
+}
+.mic svg {
+  width:14px;
+  height:14px;
+  flex:0 0 auto
+}
+.mic:hover {
+  color:var(--accent);
+  border-color:var(--accent)
+}
+.mic[aria-pressed="true"] {
+  border-color:var(--accent);
+  color:var(--accent);
+  font-weight:650;
+  background:var(--accent-soft)
+}
+.voice-note {
+  padding:0 11px 7px;
+  color:var(--muted);
+  font-size:10px
+}
+.disclaimer {
+  flex:0 0 auto;
+  margin:9px 0 10px;
+  text-align:center;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.5
+}
+.sidebar-scrim {
+  display:none
+}
+a {
+  color:var(--accent)
+}
+@keyframes blink {
+  0%,80%,100% {
+    opacity:.25
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 17px/1.7 "Segoe UI", Tahoma, "Noto Naskh Arabic", "Noto Sans Arabic", sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 24px; min-height: 100vh;
-         display: flex; flex-direction: column; }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  h1 { margin: 0; font-size: 30px; }
-  .tag { color: var(--muted); margin: 4px 0 16px; }
-  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px;
-            padding: 10px 14px; margin-bottom: 16px; font-size: 15px; }
-  label { color: var(--muted); font-size: 15px; }
-  select { font: inherit; font-size: 15px; padding: 6px 8px; border-radius: 8px;
-           border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
-  #thread { flex: 1; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-  .empty { color: var(--muted); text-align: center; margin: 32px 0; }
-  .turn-user { align-self: flex-start; max-width: 85%; background: var(--mine); border-radius: 14px;
-               padding: 8px 14px; white-space: pre-line; }
-  .msg { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
-         white-space: pre-line; }
-  .msg.pending { color: var(--muted); }
-  .typing span { display: inline-block; width: 7px; height: 7px; margin: 0 2px; border-radius: 50%;
-                 background: var(--muted); animation: blink 1.2s infinite ease-in-out; }
-  .typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }
-  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .typing span { animation: none; opacity: .6; } }
-  .status { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-  .answer { margin: 0; }
-  .answer-list { margin: 6px 0 0; padding-inline-start: 22px; }
-  .answer-list li { margin: 3px 0; }
-  .answer-section { font-size: 17px; margin: 14px 0 4px; color: var(--accent); }
-  .follow-up { display: block; margin-top: 12px; font: inherit; font-size: 15px; text-align: start; cursor: pointer;
-               background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 6px 14px; }
-  .cite { font-size: 12px; vertical-align: super; line-height: 0; margin-inline-start: 2px; }
-  .cite a { text-decoration: none; }
-  .sources-title { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
-  .card .num { color: var(--accent); margin-inline-end: 6px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 10px; }
-  .card summary, .views summary { cursor: pointer; font-weight: 600; font-size: 16px; }
-  .card[open] summary, .views[open] summary { margin-bottom: 6px; }
-  .card .about { color: var(--muted); font-size: 14px; margin: 2px 0 8px; }
-  .card blockquote { margin: 0; padding-inline-start: 12px; border-inline-start: 3px solid var(--accent); }
-  .card .meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
-  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
-  .views { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; margin-top: 10px; }
-  .view { margin: 6px 0; }
-  .tools { margin-top: 8px; }
-  .no-voice { font-size: 13px; color: var(--muted); margin-top: 4px; }
-  .link-btn { font: inherit; font-size: 14px; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
-  form { position: sticky; bottom: 0; background: var(--panel); border: 1px solid var(--line);
-         border-radius: 14px; padding: 12px; }
-  textarea { width: 100%; min-height: 56px; resize: vertical; border: 1px solid var(--line);
-             border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--ink); background: var(--bg); }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-  .send { margin-inline-start: auto; font: inherit; font-weight: 600; padding: 8px 22px;
-          border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
-  .send:disabled { opacity: .6; cursor: wait; }
-  .mic { font: inherit; font-size: 15px; padding: 7px 12px; border-radius: 10px; cursor: pointer;
-         border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
-  .mic[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-  .voice-note { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  footer { color: var(--muted); font-size: 13px; margin-top: 12px; }
-  a { color: var(--accent); }
+  40% {
+    opacity:1
+  }
+}
+@keyframes arrive {
+  from {
+    opacity:0;
+    transform:translateY(5px)
+  }
+  to {
+    opacity:1;
+    transform:translateY(0)
+  }
+}
+.typing span {
+  display:inline-block;
+  width:7px;
+  height:7px;
+  margin:0 2px;
+  border-radius:50%;
+  background:var(--muted);
+  animation:blink 1.2s infinite ease-in-out
+}
+.typing span:nth-child(2) {
+  animation-delay:.2s
+}
+.typing span:nth-child(3) {
+  animation-delay:.4s
+}
+
+  @media(prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    scroll-behavior:auto!important;
+    animation-duration:.01ms!important;
+    transition-duration:.01ms!important
+  }
+}
+
+  @media(prefers-color-scheme:dark) {
+  .ambient {
+    background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.12),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(97,80,234,.14),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(45,55,117,.2),transparent 76%),linear-gradient(145deg,rgba(255,255,255,.025),transparent 43%)
+  }
+  .welcome-orbit {
+    box-shadow:0 9px 24px rgba(0,0,0,.14)
+  }
+}
+
+  @media(max-width:860px) {
+  .app-shell {
+    display:block
+  }
+  .sidebar {
+    position:fixed;
+    inset-block:0;
+    inset-inline-start:0;
+    width:min(310px,calc(100vw - 48px));
+    height:100dvh;
+    transform:translateX(105%);
+    transition:transform .22s ease;
+    box-shadow:none
+  }
+  .app-shell.drawer-open .sidebar {
+    transform:translateX(0);
+    box-shadow:var(--shadow)
+  }
+  .app-shell.drawer-open .sidebar-scrim {
+    display:block;
+    position:fixed;
+    inset:0;
+    z-index:4;
+    background:rgba(22,34,29,.3);
+    backdrop-filter:blur(2px)
+  }
+  .sidebar-close,.mobile-menu {
+    display:inline-grid
+  }
+  .conversation-frame {
+    max-width:900px
+  }
+}
+
+  @media(max-width:860px) {
+  [dir="ltr"] .sidebar {
+    transform:translateX(-105%)
+  }
+  .app-shell {
+    display:block
+  }
+  .sidebar {
+    position:fixed;
+    inset-block:0;
+    inset-inline-start:0;
+    width:min(310px,calc(100vw - 48px));
+    height:100dvh;
+    transform:translateX(105%);
+    transition:transform .22s ease;
+    box-shadow:none
+  }
+  .app-shell.drawer-open .sidebar {
+    transform:translateX(0);
+    box-shadow:var(--shadow)
+  }
+  .app-shell.drawer-open .sidebar-scrim {
+    display:block;
+    position:fixed;
+    inset:0;
+    z-index:4;
+    background:rgba(22,34,29,.3);
+    backdrop-filter:blur(2px)
+  }
+  .sidebar-close,.mobile-menu {
+    display:inline-grid
+  }
+  .conversation-frame {
+    max-width:900px
+  }
+}
+
+  @media(max-width:620px) {
+  body {
+    font-size:15px
+  }
+  .topbar {
+    height:64px;
+    gap:8px;
+    padding-inline:12px
+  }
+  .topbar-start,.topbar-tools {
+    gap:7px
+  }
+  .mobile-menu {
+    width:38px;
+    height:38px
+  }
+  .topbar h1 {
+    max-width:48vw;
+    font-size:14px
+  }
+  .trust-pill {
+    gap:5px;
+    padding:5px 7px;
+    font-size:0
+  }
+  .trust-pill svg {
+    width:17px;
+    height:17px
+  }
+  .topbar-tools select {
+    padding:6px;
+    font-size:11px
+  }
+  .synthetic {
+    width:calc(100% - 24px);
+    margin-top:8px;
+    font-size:11px
+  }
+  .conversation-frame {
+    padding-inline:13px
+  }
+  #thread {
+    gap:13px;
+    padding:14px 0
+  }
+  .empty-state {
+    padding:26px 0 28px
+  }
+  .welcome-orbit {
+    width:62px;
+    height:62px;
+    margin-bottom:18px;
+    border-radius:23px
+  }
+  .welcome-orbit:before {
+    width:78px;
+    height:78px
+  }
+  .welcome-orbit:after {
+    width:94px;
+    height:94px
+  }
+  .empty-state h2 {
+    font-size:27px
+  }
+  .welcome-copy {
+    margin:8px auto 20px;
+    font-size:13px
+  }
+  .prompt-grid {
+    grid-template-columns:1fr;
+    gap:8px
+  }
+  .suggestion {
+    min-height:0;
+    flex-direction:row;
+    align-items:center;
+    justify-content:flex-start;
+    gap:11px;
+    padding:10px 12px
+  }
+  .suggestion-topic {
+    flex:0 0 auto;
+    min-width:55px
+  }
+  .suggestion-text {
+    font-size:11px
+  }
+  .turn-user {
+    max-width:90%;
+    padding:9px 13px;
+    border-radius:16px 16px 5px 16px;
+    font-size:14px
+  }
+  .msg {
+    padding:15px 14px;
+    border-radius:16px;
+    font-size:14px
+  }
+  .answer-heading {
+    margin-bottom:9px
+  }
+  #ask {
+    padding:7px;
+    border-radius:18px
+  }
+  .composer-field {
+    gap:5px
+  }
+  textarea {
+    min-height:45px;
+    padding-inline:8px;
+    font-size:14px
+  }
+  .composer-row {
+    gap:5px;
+    min-height:40px
+  }
+  .style-wrap {
+    gap:2px;
+    font-size:10px
+  }
+  .style-wrap select {
+    max-width:130px;
+    padding-inline:4px;
+    font-size:10px
+  }
+  .mic {
+    gap:4px;
+    padding:5px 6px;
+    font-size:10px
+  }
+  .send {
+    width:36px;
+    height:36px;
+    border-radius:12px
+  }
+  .disclaimer {
+    margin-block:6px 8px;
+    font-size:9px
+  }
+}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>مُحاور</h1>
-    <div>
-      <label for="lang" data-t="lang">اللغة</label>
-      <select id="lang"><option value="ar">العربية</option><option value="en">English</option></select>
+<div class="app-shell" id="appShell">
+  <aside class="sidebar" id="sidebar" aria-label="">
+    <div class="sidebar-head">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9.7 20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.3L12 3.5Z"/><path d="m18.5 3 .7 2 2 .7-2 .8-.7 2-.8-2-2-.8 2-.7.8-2Z"/></svg></div>
+        <div><p class="brand-name" id="brandName"></p><p class="brand-caption" data-t="brandCaption"></p></div>
+      </div>
+      <button class="icon-button sidebar-close" id="closeHistory" type="button" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
     </div>
-  </header>
-  <p class="tag" data-t="tagline">يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.</p>
-  <div class="banner" id="synthetic" hidden></div>
-
-  <section id="thread" aria-live="polite">
-    <p class="empty" id="empty" data-t="empty">اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.</p>
-  </section>
-
-  <form id="ask">
-    <textarea id="q" maxlength="500" required aria-label="سؤالك" placeholder="اكتب سؤالك هنا…"></textarea>
-    <div class="row">
-      <label for="style" data-t="style">أسلوب الشرح</label>
-      <select id="style">
-        <option value="kids" data-t="kids">للصغار</option>
-        <option value="youth" data-t="youth" selected>لليافعين</option>
-        <option value="extended" data-t="extended">موسّع</option>
-        <option value="newcomer" data-t="newcomer">جديد على الإسلام</option>
-      </select>
-      <button type="button" class="mic" id="mic" aria-pressed="false" hidden>🎤 تحدّث</button>
-      <button type="submit" class="send" id="send" data-t="send">اسأل</button>
+    <button class="new-chat" id="newChat" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span data-t="newChat"></span></button>
+    <p class="history-heading" data-t="historyHeading"></p>
+    <label class="history-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg><input id="historySearch" type="search" autocomplete="off" placeholder="" aria-label=""></label>
+    <nav class="history-list" id="historyList" aria-label=""></nav>
+    <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
+  </aside>
+  <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
+  <main class="workspace">
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="topbar">
+      <div class="topbar-start">
+        <button class="icon-button mobile-menu" id="openHistory" type="button" aria-label="" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <h1 id="conversationTitle" data-t="newChat"></h1>
+      </div>
+      <div class="topbar-tools">
+        <span class="trust-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="trustLabel"></span></span>
+        <label class="lang-wrap"><span class="sr-only" data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option></select></label>
+      </div>
+    </header>
+    <div class="synthetic" id="synthetic" hidden></div>
+    <div class="conversation-frame">
+      <section id="thread" aria-live="polite" aria-label="">
+        <div class="empty-state" id="empty">
+          <div class="welcome-orbit" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9.7 20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.3L12 3.5Z"/><path d="m18.5 3 .7 2 2 .7-2 .8-.7 2-.8-2-2-.8 2-.7.8-2Z"/></svg></div>
+          <p class="welcome-kicker" data-t="welcomeKicker"></p>
+          <h2 data-t="welcomeHeading"></h2>
+          <p class="welcome-copy" data-t="welcomeCopy"></p>
+          <div class="prompt-grid">
+            <button type="button" class="suggestion"><span class="suggestion-topic" data-t="topicQuran"></span><span class="suggestion-text" data-t="promptQuran"></span></button>
+            <button type="button" class="suggestion"><span class="suggestion-topic" data-t="topicFiqh"></span><span class="suggestion-text" data-t="promptFiqh"></span></button>
+            <button type="button" class="suggestion"><span class="suggestion-topic" data-t="topicAqidah"></span><span class="suggestion-text" data-t="promptAqidah"></span></button>
+          </div>
+        </div>
+      </section>
+      <form id="ask">
+        <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
+        <div class="composer-row">
+          <label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label>
+          <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
+          <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+        </div>
+        <div class="voice-note" id="voiceNote" hidden data-t="voiceNote"></div>
+      </form>
+      <p class="disclaimer" data-t="disclaimer"></p>
     </div>
-    <div class="voice-note" id="voiceNote" hidden data-t="voiceNote"></div>
-  </form>
-
-  <footer data-t="disclaimer">مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.</footer>
-</main>
+  </main>
+</div>
 <script>
 const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.",
-        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.",
+        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
+        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
+        welcomeKicker: "مساحة آمنة للتعلّم", welcomeHeading: "ما الذي تودّ أن تعرفه؟", welcomeCopy: "اسأل عن القرآن أو الفقه أو العقيدة، وتابع الحوار خطوةً خطوة. تظهر المراجع التي يدعمها النظام مع الإجابة.",
+        topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "عند استعمال الميكروفون قد يرسل متصفحك صوتك إلى خدمة خارجية لتحويله إلى نص.",
         listen: "🔊 استمع", stop: "⏹ إيقاف", pending: "يكتب…",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
-        views: "أقوال المذاهب",
+        views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
         status: { answered: "إجابة من المصادر", abstained: "امتناع", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
-        qlabel: "Your question", placeholder: "Type your question here…", empty: "Type or speak your question, and I will answer from the sources.",
+        qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
+        newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
+        welcomeKicker: "A thoughtful place to learn", welcomeHeading: "What would you like to know?", welcomeCopy: "Ask about the Quran, fiqh or aqidah, and continue the dialogue one step at a time. References supported by the system appear with each answer.",
+        topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
+        qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         listen: "🔊 Listen", stop: "⏹ Stop", pending: "Typing…",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
-        views: "The schools' views",
+        views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of personal fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
@@ -142,7 +1181,11 @@ const UI = {
 };
 const $ = (id) => document.getElementById(id);
 let lang = "ar";
-const chatTurns = [];  // this conversation only: kept in this page, never stored on the server
+const conversations = [];
+let activeConversation = { id: 1, title: UI.ar.newChat, messages: [], turns: [], updatedAt: Date.now() };
+conversations.push(activeConversation);
+const emptyTemplate = $("empty").cloneNode(true);
+let nextConversationId = 2;
 const MAX_HISTORY = 6;
 let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
@@ -154,6 +1197,76 @@ function el(tag, cls, text) {
   return node;
 }
 
+function renderHistory() {
+  const list = $("historyList");
+  list.replaceChildren();
+  const query = $("historySearch").value.trim().toLocaleLowerCase();
+  const matches = conversations.filter((conversation) => conversation.messages.length && conversation.title.toLocaleLowerCase().includes(query))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  for (const conversation of matches) {
+    const item = el("button", "history-item");
+    item.type = "button";
+    item.setAttribute("aria-current", String(conversation === activeConversation));
+    item.title = conversation.title;
+    item.append(el("span", "history-glyph", "◷"), el("span", "", conversation.title));
+    item.addEventListener("click", () => selectConversation(conversation));
+    list.append(item);
+  }
+  $("historyEmpty").hidden = matches.length > 0;
+  $("historyEmpty").textContent = query && !matches.length ? UI[lang].noMatches : UI[lang].historyEmpty;
+}
+
+function updateConversationTitle() {
+  $("conversationTitle").textContent = activeConversation.title;
+}
+
+function renderConversation(conversation) {
+  $("thread").replaceChildren();
+  if (conversation.messages.length) $("thread").append(...conversation.messages);
+  else {
+    const empty = emptyTemplate.cloneNode(true);
+    empty.querySelectorAll("[data-t]").forEach((node) => { node.textContent = UI[lang][node.dataset.t]; });
+    $("thread").append(empty);
+  }
+  updateConversationTitle();
+  renderHistory();
+  if (conversation.messages.length) $("thread").scrollTop = $("thread").scrollHeight;
+}
+
+function selectConversation(conversation) {
+  activeConversation = conversation;
+  $("q").value = "";
+  renderConversation(conversation);
+  closeHistory();
+}
+
+function startNewConversation() {
+  if (!activeConversation.messages.length) {
+    $("q").value = "";
+    closeHistory();
+    $("q").focus();
+    return;
+  }
+  activeConversation = { id: nextConversationId++, title: UI[lang].newChat, messages: [], turns: [], updatedAt: Date.now() };
+  conversations.push(activeConversation);
+  $("q").value = "";
+  renderConversation(activeConversation);
+  closeHistory();
+  if (window.matchMedia("(min-width: 861px)").matches) $("q").focus();
+}
+
+function openHistory() {
+  $("appShell").classList.add("drawer-open");
+  $("openHistory").setAttribute("aria-expanded", "true");
+  $("closeHistory").focus();
+}
+
+function closeHistory() {
+  $("appShell").classList.remove("drawer-open");
+  $("openHistory").setAttribute("aria-expanded", "false");
+  if (!window.matchMedia("(min-width: 861px)").matches) $("openHistory").focus();
+}
+
 function applyLang() {
   const t = UI[lang];
   document.documentElement.lang = lang;
@@ -161,21 +1274,28 @@ function applyLang() {
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
   $("q").placeholder = t.placeholder;
   $("q").setAttribute("aria-label", t.qlabel);
-  $("mic").textContent = recognizing ? t.micStop : t.mic;
+  $("mic").lastElementChild.textContent = recognizing ? t.micStop : t.mic;
+  $("lang").setAttribute("aria-label", t.lang);
+  $("historySearch").placeholder = t.historySearch;
+  $("historySearch").setAttribute("aria-label", t.historySearch);
+  $("openHistory").setAttribute("aria-label", t.openHistory);
+  $("closeHistory").setAttribute("aria-label", t.closeHistory);
+  $("sidebar").setAttribute("aria-label", t.historyLabel);
+  $("historyList").setAttribute("aria-label", t.recent);
+  $("brandName").textContent = t.assistant;
+  if (!activeConversation.messages.length) activeConversation.title = t.newChat;
+  $("thread").setAttribute("aria-label", t.assistant);
+  $("send").setAttribute("aria-label", t.send);
+  $("conversationTitle").textContent = activeConversation.title;
   $("synthetic").textContent = t.synthetic;
+  renderHistory();
 }
 
 // Muhawir's own words only: quoted ayahs, tafsir and hadith are never read by a computer voice.
 function spokenText(res) {
   const parts = [];
   if (res.message) parts.push(res.message);
-  let heading = "";
-  for (const c of res.claims || []) {
-    if (c.text.startsWith("«")) continue;
-    if (c.section && c.section !== heading) { heading = c.section; parts.push(heading + "."); }
-    parts.push((c.label ? c.label + ": " : "") + c.text);
-  }
-  if (res.follow_up) parts.push(res.follow_up);
+  for (const c of res.claims || []) if (!c.text.startsWith("«")) parts.push(c.text);
   for (const v of res.views || []) parts.push(`${v.school}: ${v.text}`);
   return parts.join("\n");
 }
@@ -239,8 +1359,17 @@ function listenButton(res) {
 function renderAnswer(res, style) {
   const open = style === "extended";
   const t = UI[lang];
-  $("synthetic").hidden = !res.synthetic;
   const msg = el("div", "msg");
+  const heading = el("div", "answer-heading");
+  const identity = el("div", "answer-brand");
+  const mark = el("span", "brand-mark");
+  mark.setAttribute("aria-hidden", "true");
+  mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9.7 20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.3L12 3.5Z"/></svg>';
+  identity.append(mark, el("span", "", t.assistant));
+  heading.append(identity);
+  const statusText = t.status[res.status];
+  if (statusText) heading.append(el("span", "status", statusText));
+  msg.append(heading);
   if (res.message) { const m = el("div", "", res.message); m.dir = "auto"; msg.append(m); }
   // Sources are numbered; each sentence of the answer carries the numbers of the sources it rests on.
   const number = new Map((res.sources || []).map((s, i) => [s.passage_id, i + 1]));
@@ -269,72 +1398,38 @@ function renderAnswer(res, style) {
     c.passage_ids.forEach((id) => shown.add(id));
     return false;
   });
-  // one sentence: an optional bold label («المقدار:»), the text, then its source numbers
-  const fill = (node, c) => {
-    if (c.label) node.append(el("strong", "", c.label + ": "));
-    node.append(c.text);
+  const answer = el("p", "answer");
+  answer.dir = "auto";  // an English reply inside the Arabic page reads left to right
+  // types, kinds, conditions or steps: a short lead sentence, then one item per line
+  const items = res.as_list && sentences.length > 1 ? el("ul", "answer-list") : null;
+  // the first sentence leads the list only when it introduces it (ends with a colon)
+  const lead = items && /[:：]\s*$/.test(sentences[0].text);
+  if (items) items.dir = "auto";
+  sentences.forEach((c, i) => {
     const sup = cite(c);
-    if (sup.childNodes.length) node.append(sup);
-  };
-  const paragraph = () => { const p = el("p", "answer"); p.dir = "auto"; return p; };
-  const list = () => { const u = el("ul", "answer-list"); u.dir = "auto"; return u; };
-  const sectioned = sentences.some((c) => c.section);
-  if (sectioned) {
-    // a short definition, then each part under its own heading, as a list
-    let block = null, current = null, outro = null;
-    const intro = paragraph();
-    for (const c of sentences) {
-      if (!c.section) {  // before the first heading: the definition; after the parts: a closing line
-        const p = block ? (outro || (outro = paragraph())) : intro;
-        if (p.childNodes.length) p.append(" ");
-        fill(p, c);
-        continue;
-      }
-      if (c.section !== current) {
-        if (intro.childNodes.length && !intro.parentNode) msg.append(intro);
-        current = c.section;
-        const h = el("h4", "answer-section", current); h.dir = "auto";
-        block = list();
-        msg.append(h, block);
-      }
-      const li = el("li"); fill(li, c); block.append(li);
+    if (items && (i > 0 || !lead)) {
+      const li = el("li", "", c.text);
+      if (sup.childNodes.length) li.append(sup);
+      items.append(li);
+      return;
     }
-    if (intro.childNodes.length && !intro.parentNode) msg.prepend(intro);
-    if (outro) msg.append(outro);
-  } else {
-    const answer = paragraph();
-    // types, kinds, conditions or steps: a short lead sentence, then one item per line
-    const items = res.as_list && sentences.length > 1 ? list() : null;
-    // the first sentence leads the list only when it introduces it (ends with a colon)
-    const lead = items && /[:：]\s*$/.test(sentences[0].text);
-    sentences.forEach((c, i) => {
-      if (items && (i > 0 || !lead)) { const li = el("li"); fill(li, c); items.append(li); return; }
-      if (answer.childNodes.length) answer.append(" ");
-      fill(answer, c);
-    });
-    if (answer.childNodes.length) msg.append(answer);
-    if (items) msg.append(items);
-  }
+    if (answer.childNodes.length) answer.append(" ");
+    answer.append(c.text);
+    if (sup.childNodes.length) answer.append(sup);
+  });
+  if (answer.childNodes.length) msg.append(answer);
+  if (items) msg.append(items);
   if (res.note) msg.append(el("p", "note", res.note));
   if ((res.views || []).length) {
-    // the schools' views are the heart of a disputed question: a heading inside the answer, each school in
-    // bold, in the usual order (Hanafi, Maliki, Shafi'i, Hanbali, then others), with its source numbers
-    const ORDER = [/حنيف|حنف|احناف|أحناف/, /مالك/, /شافع/, /أحمد|احمد|حنبل/];
-    const rank = (name) => { const i = ORDER.findIndex((re) => re.test(name)); return i < 0 ? ORDER.length : i; };
-    const views = [...res.views].sort((a, b) => rank(a.school) - rank(b.school));
-    const h = el("h4", "answer-section", t.views); h.dir = "auto";
-    const ul = el("ul", "answer-list school-views"); ul.dir = "auto";
-    for (const v of views) {
-      const li = el("li");
-      li.append(el("strong", "", v.school + ": "), document.createTextNode(v.text));
-      const sup = cite(v);
-      if (sup.childNodes.length) li.append(sup);
-      ul.append(li);
+    const panel = el("details", "views");
+    panel.open = true;  // the scholars' views are the answer to a ruling question: shown, not hidden
+    panel.append(el("summary", "", t.views));
+    for (const v of res.views) {
+      const row = el("p", "view");
+      row.append(el("strong", "", v.school + ": "), document.createTextNode(v.text));
+      panel.append(row);
     }
-    // placed right after the opening sentence(s) of the answer, before the other parts
-    const firstHeading = msg.querySelector(".answer-section");
-    if (firstHeading) { msg.insertBefore(h, firstHeading); msg.insertBefore(ul, firstHeading); }
-    else msg.append(h, ul);
+    msg.append(panel);
   }
   if ((res.sources || []).length) msg.append(el("div", "sources-title", t.sources));
   for (const s of res.sources || []) {
@@ -366,12 +1461,6 @@ function renderAnswer(res, style) {
     card.append(meta);
     msg.append(card);
   }
-  if (res.follow_up) {  // Muhawir's suggestion to continue the dialogue: a tap asks it
-    const next = el("button", "follow-up", res.follow_up);
-    next.type = "button"; next.dir = "auto";
-    next.addEventListener("click", () => { $("q").value = res.follow_up; $("ask").requestSubmit(); });
-    msg.append(next);
-  }
   const listen = listenButton(res);
   if (listen) { msg.append(listen); msg.listen = listen; }
   return msg;
@@ -385,15 +1474,29 @@ function searchPhrase(text) {
   return (quoted ? words.slice(0, 7) : words.slice(-7)).join(" ");
 }
 
-function remember(role, text) {
+function remember(conversation, role, text) {
   if (!text) return;
-  chatTurns.push({ role, text: text.slice(0, 600) });
-  while (chatTurns.length > MAX_HISTORY) chatTurns.shift();
+  conversation.turns.push({ role, text: text.slice(0, 600) });
+  while (conversation.turns.length > MAX_HISTORY) conversation.turns.shift();
 }
 
-function scrollDown() { window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
+function scrollDown() { $("thread").scrollTo({ top: $("thread").scrollHeight, behavior: "smooth" }); }
 
 $("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
+$("newChat").addEventListener("click", startNewConversation);
+$("openHistory").addEventListener("click", openHistory);
+$("closeHistory").addEventListener("click", closeHistory);
+$("sidebarScrim").addEventListener("click", closeHistory);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("appShell").classList.contains("drawer-open")) closeHistory();
+});
+$("historySearch").addEventListener("input", renderHistory);
+$("thread").addEventListener("click", (e) => {
+  const suggestion = e.target.closest(".suggestion");
+  if (!suggestion) return;
+  $("q").value = suggestion.querySelector(".suggestion-text").textContent;
+  $("q").focus();
+});
 
 $("ask").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -402,37 +1505,59 @@ $("ask").addEventListener("submit", async (e) => {
   const askedBySpeech = spokenTurn;
   spokenTurn = false;
   stopListening();
+  const conversation = activeConversation;
   const style = $("style").value;
   const send = $("send");
   send.disabled = true;
   $("empty")?.remove();
-  $("thread").append(el("div", "turn-user", question));
+  const userMessage = el("div", "turn-user", question);
+  userMessage.dir = "auto";
+  conversation.messages.push(userMessage);
+  conversation.updatedAt = Date.now();
+  if (conversation.messages.length === 1) {
+    const title = question.replace(/\s+/g, " ").trim();
+    conversation.title = title.length > 42 ? `${title.slice(0, 41).trimEnd()}…` : title;
+    updateConversationTitle();
+    renderHistory();
+  }
+  $("thread").append(userMessage);
   const pending = el("div", "msg pending typing");  // a typing indicator, no words
   pending.setAttribute("role", "status"); pending.setAttribute("aria-label", UI[lang].pending);
   for (let i = 0; i < 3; i++) pending.append(el("span"));
+  conversation.messages.push(pending);
+  conversation.updatedAt = Date.now();
   $("thread").append(pending);
   $("q").value = "";
   scrollDown();
   try {
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, style, lang, history: chatTurns }) });
+      body: JSON.stringify({ question, style, lang, history: conversation.turns }) });
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
     const msg = renderAnswer(res, style);
+    const pendingIndex = conversation.messages.indexOf(pending);
+    if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
     pending.replaceWith(msg);
     if (askedBySpeech && msg.listen) msg.listen.play();  // spoken question: spoken reply
     // answers and Muhawir's offers (e.g. "shall I explain it more simply?") are remembered, so a follow-up
     // or a "yes" is understood; refusals, errors and "not found" are not answers to explain again
     if (!["invalid", "declined", "abstained", "unavailable"].includes(res.status)) {
-      remember("user", res.understood || question);
-      remember("assistant", [res.message, ...(res.claims || []).map((c) => c.text)].filter(Boolean).join(" "));
+      remember(conversation, "user", res.understood || question);
+      remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text)].filter(Boolean).join(" "));
     }
   } catch {
-    pending.replaceWith(el("div", "msg", UI[lang].error));
+    const errorMessage = el("div", "msg", UI[lang].error);
+    const pendingIndex = conversation.messages.indexOf(pending);
+    if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
+    pending.replaceWith(errorMessage);
   } finally {
     send.disabled = false;
-    scrollDown();
-    $("q").focus();
+    conversation.updatedAt = Date.now();
+    renderHistory();
+    if (activeConversation === conversation) {
+      scrollDown();
+      if (window.matchMedia("(min-width: 861px)").matches) $("q").focus();
+    }
   }
 });
 
@@ -465,18 +1590,19 @@ if (Recognition) {
     recognizer.onend = () => {
       recognizing = false;
       $("mic").setAttribute("aria-pressed", "false");
-      $("mic").textContent = UI[lang].mic;
+      $("mic").lastElementChild.textContent = UI[lang].mic;
       // the user talked: send what was heard and answer by voice, like a conversation
       if (heard && !failed && $("q").value.trim()) { spokenTurn = true; $("ask").requestSubmit(); }
     };
     recognizing = true;
     $("mic").setAttribute("aria-pressed", "true");
-    $("mic").textContent = UI[lang].micStop;
+    $("mic").lastElementChild.textContent = UI[lang].micStop;
     recognizer.start();
   });
 }
 
 fetch("/api/health").then((r) => r.json()).then((h) => { $("synthetic").hidden = !h.synthetic; }).catch(() => {});
+renderHistory();
 applyLang();
 </script>
 </body>
