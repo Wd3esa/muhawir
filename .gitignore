@@ -20,4 +20,10 @@ data/quran_corpus.json
 data/dumps/
 data/muhawir.db
 data/*.tmp
+data/vectors.npy
+data/vectors_ids.json
+data/vectors_model.txt
+data/vectors.partial.f16
+data/vectors.partial_ids.json
+data/vectors.partial_model.txt
 muhawir_test_report.txt

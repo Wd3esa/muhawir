@@ -38,7 +38,12 @@ def build() -> Muhawir:
     hadith = dorar.search if generator.name != "extractive" and os.environ.get("MUHAWIR_DORAR", "0") == "1" else None
     if db.exists() and not os.environ.get("MUHAWIR_CORPUS"):
         corpus = SqliteCorpus(db)
-        engine = Muhawir(corpus, generator, SqliteRetriever(corpus), hadith_search=hadith,
+        retriever = SqliteRetriever(corpus)
+        if os.environ.get("MUHAWIR_VECTORS") == "1":
+            from .vectors import HybridRetriever, load_vectors
+
+            retriever = HybridRetriever(retriever, load_vectors())
+        engine = Muhawir(corpus, generator, retriever, hadith_search=hadith,
                          hadith_source=dorar.SOURCE)
     else:
         corpus = load_corpus(os.environ.get("MUHAWIR_CORPUS") or DEFAULT_CORPUS)
