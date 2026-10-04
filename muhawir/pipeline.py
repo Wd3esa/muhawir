@@ -10,7 +10,7 @@ import logging
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 
 from . import bidaya, classify
 from .asbab import AsbabIndex
@@ -68,6 +68,7 @@ class Response:
     understood: str = ""  # the follow-up question as rewritten for search, when it differs
     why: str = ""  # with MUHAWIR_DEBUG=1: why there is no answer (never contains the question)
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
+    follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -163,7 +164,7 @@ def _cut_at(claim, starts):
         if _starts_inference(plain, k, starts):
             head = " ".join(raw[:k]).rstrip(" ،,؛:")
             if head.count("«") == head.count("»") and normalize(head.split()[-1]) not in _DANGLING:
-                return type(claim)(head + ".", claim.passage_ids, claim.school)
+                return replace(claim, text=head + ".")
     return None
 
 
@@ -181,13 +182,13 @@ def _resolve_ids(claim, allowed: set[str]):
             pid = matches[0]
         fixed.append(pid)
     ids = tuple(dict.fromkeys(fixed))
-    return claim if ids == claim.passage_ids else type(claim)(claim.text, ids, claim.school)
+    return claim if ids == claim.passage_ids else replace(claim, passage_ids=ids)
 
 
 def _without_ids(claim, allowed: set[str]):
     """The claim with passage ids and source numbers taken out of its text, so the checks read only what it says."""
     text = _strip_ids(claim.text, allowed)
-    return claim if text == claim.text else type(claim)(text, claim.passage_ids, claim.school)
+    return claim if text == claim.text else replace(claim, text=text)
 
 
 def _without_inference(claim):
@@ -402,6 +403,7 @@ class Muhawir:
         if hasattr(self.generator, "last_note"):
             self.generator.last_note = self.generator.last_raw = ""
             self.generator.last_as_list = False
+            self.generator.last_follow_up = ""
         draft = self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed)
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
@@ -470,6 +472,9 @@ class Muhawir:
         the answer itself still comes from retrieved passages alone."""
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
+        if question and classify.check(question[:MAX_QUESTION_CHARS * 2]).kind == classify.CRISIS:
+            # thoughts of suicide or self-harm: a fixed caring reply that points to people and help now; no model
+            return Response(REFERRED, TEXT[lang_ok]["crisis"], synthetic=self.corpus.synthetic)
         if question and len(question) <= MAX_QUESTION_CHARS and classify.is_small_talk(question):
             reply = "thanks" if classify.is_thanks(question) else "small_talk"
             return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
@@ -482,7 +487,7 @@ class Muhawir:
                 return Response(ABSTAINED, TEXT[lang_ok]["no_reason"][missing["what"]].format(**missing),
                                 synthetic=self.corpus.synthetic)
         understand = getattr(self.generator, "understand", None)
-        understood, queries, previous, kind = "", None, "", ""
+        understood, queries, previous, kind, feeling = "", None, "", "", ""
         if question and understand and len(question) <= MAX_QUESTION_CHARS:
             gate = classify.check(question)  # the user's own words are checked before any rewording
             if gate.kind not in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
@@ -490,6 +495,9 @@ class Muhawir:
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
+                    if not u["question"] and not u.get("translate") and u.get("feeling") == "sad":
+                        # sorrow without a question: comfort first
+                        return Response(CHAT, TEXT[lang_ok]["comfort"], synthetic=self.corpus.synthetic)
                     # a language request: translate it, nothing more (the model may leave `question` empty for it)
                     if u.get("translate") and gate.kind is None:
                         text = u["translate"]
@@ -506,6 +514,7 @@ class Muhawir:
                         return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
                     queries = u["queries"]
                     kind = u.get("kind", "")
+                    feeling = u.get("feeling", "")
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
                         previous = next((t["text"] for t in reversed(turns)
                                          if t["role"] == "assistant" and t["text"] not in _CANNED), "")
@@ -519,13 +528,19 @@ class Muhawir:
                         lang = "ar"
                     if normalize(u["question"]) != normalize(question):
                         understood = u["question"]
-        res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous, kind=kind)
+        res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous,
+                        kind=kind, feeling=feeling)
+        if classify.mentions_suicide(question) and res.status == ANSWERED:
+            res.message = TEXT[lang_ok]["care_note"]  # the topic is answered, with a caring line above it
+        if feeling == "sad" and res.status == ABSTAINED:
+            # a grieving person is never told "not found": words of comfort, and an invitation to talk
+            res = Response(CHAT, TEXT[lang_ok]["comfort"], synthetic=self.corpus.synthetic)
         if understood and res.status not in (INVALID,):
             res.understood = understood
         return res
 
     def _ask(self, question: str, style: str, lang: str, original: str = "",
-             queries: list[str] | None = None, previous: str = "", kind: str = "") -> Response:
+             queries: list[str] | None = None, previous: str = "", kind: str = "", feeling: str = "") -> Response:
         lang = lang if lang in LANGS else "ar"
         style = style if style in STYLES else "youth"
         t = TEXT[lang]
@@ -557,7 +572,7 @@ class Muhawir:
             passages = [h.passage for h in hits if is_sufficient([h])]
         else:
             passages, queries = self._gather(question, original, queries)
-        extra = {k: v for k, v in (("previous", previous), ("kind", kind)) if v}
+        extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
         if isinstance(written, Response):  # the model could not be reached, or the check could not run
             return written
@@ -585,11 +600,13 @@ class Muhawir:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
         answer = [c for c in kept if not c.school]
-        if not answer:  # views alone, without a sourced answer, are not shown
+        if not any(c.passage_ids for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
-            return self._why(self._abstain(question, t, synthetic), f"{offered}; only scholars' views, no sourced answer")
-        claims = [{"text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)} for c in answer]
+            return self._why(self._abstain(question, t, synthetic), f"{offered}; no sourced sentence (only views or Muhawir's own explanation)")
+        claims = [{"text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids),
+                   **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {})}
+                  for c in answer]
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in kept if c.school]
         cards = self._cards([pid for c in answer + [v for v in kept if v.school] for pid in c.passage_ids], corpus)
@@ -609,4 +626,5 @@ class Muhawir:
         # or one that asks for the types or sections of something (the model does not always call it "how")
         listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how" or _asks_for_kinds(question, original)
         res.as_list = listing and len(claims) > 1
+        res.follow_up = getattr(self.generator, "last_follow_up", "") or ""
         return res

@@ -36,12 +36,30 @@ class Claim:
     text: str
     passage_ids: tuple[str, ...]
     school: str = ""  # set for a scholar's or school's view; must be named in the cited passage
+    section: str = ""  # heading of the part of the answer this sentence belongs to (layout only)
+    label: str = ""  # a short bold word that leads the sentence, e.g. «المقدار» (layout only)
 
 
 @dataclass(frozen=True)
 class Rejected:
     claim: Claim
     reason: str
+
+
+# a school may be named by its founder or its followers: «الحنفية» is named when the passage says «أبو حنيفة»
+_SCHOOLS = [("حنيفه", "حنفيه", "احناف"), ("مالك", "مالكيه"), ("شافعي", "شافعيه"),
+            ("احمد", "حنبل", "حنابله")]
+
+
+def school_names(school: str) -> list[str]:
+    """Normalized names that count as naming this school in a passage (the school as written, plus its
+    founder or followers for the four schools)."""
+    own = normalize(school)
+    names = [own] if own else []
+    for group in _SCHOOLS:
+        if any(g in own for g in group):
+            names += list(group)
+    return names
 
 
 def quotes_in(text: str) -> list[str]:
@@ -99,6 +117,8 @@ def verify(claims: list[Claim], corpus: Corpus,
     rejected: list[Rejected] = []
     for claim in claims:
         if not claim.passage_ids:
+            # every sentence must explain something a passage says: Muhawir's wording is its own,
+            # but there is no sentence without a source
             rejected.append(Rejected(claim, "no citation"))
             continue
         unknown = [pid for pid in claim.passage_ids if pid not in allowed_ids]
@@ -112,7 +132,9 @@ def verify(claims: list[Claim], corpus: Corpus,
         if bad:
             rejected.append(Rejected(claim, f"quotation not found verbatim: {bad}"))
             continue
-        if claim.school and not any(is_named(claim.school, corpus.passage(pid).text) for pid in claim.passage_ids):
+        if claim.school and not any(is_named(claim.school, corpus.passage(pid).text)
+                                    or any(name in normalize(corpus.passage(pid).text) for name in school_names(claim.school))
+                                    for pid in claim.passage_ids):
             rejected.append(Rejected(claim, f"'{claim.school}' is not named in the cited passage"))
             continue
         wrong = mismatched_rulings(claim.text, [corpus.passage(pid).text for pid in claim.passage_ids])

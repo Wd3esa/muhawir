@@ -414,11 +414,9 @@ def test_second_reading_accepts_plain_explanations_and_rejects_additions():
     assert "شرحًا له بلغة سهلة" in generate.CHECK_PROMPT and "معلومة شرعية ليست في المقاطع" in generate.CHECK_PROMPT
 
 
-def test_religious_information_from_sources_explanation_from_the_model():
-    assert "المعلومة الشرعية من المقاطع، والشرح من فهمك" in generate.SYSTEM_PROMPT
-    assert "لا من ذاكرتك" in generate.SYSTEM_PROMPT and "معاني الكلمات" in generate.SYSTEM_PROMPT
-    assert "الشرح اللغوي العام الذي لا يضيف معلومة شرعية" in generate.CHECK_PROMPT
-    assert "حديثًا، أو قولًا لعالم" in generate.CHECK_PROMPT  # added religious content is still rejected
+def test_religious_information_only_from_the_passages_wording_is_free():
+    assert "من المقاطع المعطاة وحدها، لا من ذاكرتك" in generate.SYSTEM_PROMPT
+    assert "أما اللغة والشرح فمن فهمك أنت" in generate.SYSTEM_PROMPT
 
 
 def test_quotes_are_compared_without_diacritics_and_english_quotes_are_not_quotations():
@@ -439,3 +437,57 @@ def test_per_request_state_is_not_shared_between_threads():
     t = threading.Thread(target=lambda: seen.append(gen.last_as_list))
     t.start(); t.join()
     assert seen == [False] and gen.last_as_list is True
+
+
+def test_sections_labels_and_follow_up_are_read_and_follow_up_must_be_a_short_question():
+    from muhawir.generate import follow_up
+    raw = json.dumps({"plan": "", "abstain": False, "as_list": False, "views": [],
+                      "claims": [{"section": "زكاة الفطر", "label": "وقتها", "text": "آخر رمضان.", "passage_ids": ["a:1"]}],
+                      "follow_up": "هل تريد أن تعرف لمن تُعطى؟"}, ensure_ascii=False)
+    c = parse_draft(raw)[0]
+    assert (c.section, c.label, c.text) == ("زكاة الفطر", "وقتها", "آخر رمضان.")
+    assert follow_up(raw) == "هل تريد أن تعرف لمن تُعطى؟"
+    assert follow_up(raw.replace("تُعطى؟", "تُعطى.")) == ""  # not a question: not shown
+    assert follow_up(raw.replace("هل تريد", "[q:1] هل تريد")) == ""
+
+
+def test_a_verse_in_brackets_is_not_copying_but_must_match_its_passage():
+    from muhawir.pipeline import _COPIED
+    from muhawir.verify import Claim, verify
+    assert not _COPIED.search("يُخرج حقها يوم الحصاد: ﴿وآتوا حقه يوم حصاده﴾")  # a short verse may be quoted
+    assert _COPIED.search("﴿وآتوا حقه يوم حصاده يوم كذا وكذا﴾")  # a long one is pasted, not explained
+    pid = CORPUS.passages[0].id
+    kept, rejected = verify([Claim("قال تعالى: ﴿كلام ليس في المقطع أبدًا﴾", (pid,))], CORPUS, {pid})
+    assert kept == [] and rejected  # an invented verse is rejected
+
+
+def test_an_answer_of_explanation_alone_is_not_shown():
+    raw = {"plan": "", "abstain": False, "as_list": False, "views": [], "follow_up": "",
+           "claims": [{"section": "", "label": "", "text": "شرح عام من فهم مُحاور.", "passage_ids": []}]}
+    m = Muhawir(CORPUS, ModelGenerator([("m", lambda s, u, schema=None:
+                                         '{"queries": []}' if "queries" in json.dumps(schema or {}) else json.dumps(raw, ensure_ascii=False))]))
+    assert m.ask(QUESTION).status != ANSWERED  # every answer must rest on the sources
+
+
+def test_a_sentence_without_a_source_is_dropped_and_the_sourced_one_kept():
+    raw = {"plan": "", "abstain": False, "as_list": False, "views": [], "follow_up": "",
+           "claims": [{"section": "", "label": "", "text": "تحتاج النخلة إلى ماء كثير.", "passage_ids": ["test-a:1"]},
+                      {"section": "", "label": "", "text": "وهذا لأن الصيف حار.", "passage_ids": []}]}
+    m = Muhawir(CORPUS, ModelGenerator([("m", lambda s, u, schema=None:
+                                         '{"queries": []}' if "queries" in json.dumps(schema or {}) else json.dumps(raw, ensure_ascii=False))]))
+    res = m.ask(QUESTION)
+    assert res.status == ANSWERED and [c["passage_ids"] for c in res.claims] == [["test-a:1"]]
+
+
+def test_a_school_counts_as_named_by_its_founder_or_followers():
+    from muhawir.verify import school_names
+    from muhawir.normalize import normalize
+    text = normalize("وقال أبو حنيفة والثوري وأحمد: يقرؤها سرا، وقال الشافعي: جهرا، ومنع ذلك مالك.")
+    for school in ("الحنفية", "أبو حنيفة", "المالكية", "الشافعية", "الحنابلة", "أحمد"):
+        assert any(n in text for n in school_names(school)), school
+    assert not any(n in normalize("قال مالك.") for n in school_names("الشافعية"))
+
+
+def test_disputed_questions_show_the_schools_and_the_cause_of_disagreement():
+    assert "وضّح الاختلاف بين المذاهب بوضوح" in generate.SYSTEM_PROMPT
+    assert "«سبب الخلاف»" in generate.SYSTEM_PROMPT and "ولا ترجّح" in generate.SYSTEM_PROMPT
