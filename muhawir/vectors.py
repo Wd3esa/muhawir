@@ -1,7 +1,9 @@
-"""Optional Gemini vector search, fused with the existing SQLite BM25 retriever.
+"""Optional vector search, fused with the existing SQLite BM25 retriever.
 
-The index is deliberately local and disposable. ``build_vectors`` checkpoints each completed
-batch so an interrupted build can continue without re-embedding the completed passages.
+Two embedding backends: a local open model (BAAI/bge-m3, the default, run on the server itself
+with sentence-transformers, so no quota and no data leaves the server) or the Gemini API.
+The index is deliberately local and disposable. Building checkpoints each completed batch so an
+interrupted build can continue without re-embedding the completed passages.
 """
 from __future__ import annotations
 
@@ -28,7 +30,10 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DEFAULT_DB = DATA_DIR / "muhawir.db"
-DIMENSIONS = 768
+DIMENSIONS = 768  # Gemini embeddings
+LOCAL_PREFIX = "local:"  # index model names of the local backend: "local:<model>@<revision>"
+LOCAL_MODEL = os.environ.get("MUHAWIR_LOCAL_EMBED_MODEL", "BAAI/bge-m3")
+LOCAL_MAX_TOKENS = int(os.environ.get("MUHAWIR_EMBED_MAX_TOKENS", "512"))  # longer passages are cut
 RRF_K = 60
 QUERY_CACHE_SIZE = 256
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
@@ -158,6 +163,55 @@ def select_embedding_model(models: Sequence[dict | str]) -> str:
     raise RuntimeError("The Gemini API did not list an embedding model")
 
 
+def is_local(model: str) -> bool:
+    return model.startswith(LOCAL_PREFIX)
+
+
+def dimensions_of(model: str) -> int | None:
+    """Vector size of an index model: fixed for Gemini, read from the index for a local model."""
+    return None if is_local(model) else DIMENSIONS
+
+
+class LocalEmbedder:
+    """An open embedding model run on this machine (sentence-transformers, CPU). Passages and
+    questions go through the same model and revision, so their vectors can be compared."""
+
+    def __init__(self, model: str = LOCAL_MODEL, revision: str | None = None) -> None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:  # optional: requirements-vectors.txt
+            raise RuntimeError("the local embedder needs: pip install -r requirements-vectors.txt") from exc
+        self.model_id = model
+        self.revision = revision or os.environ.get("MUHAWIR_LOCAL_EMBED_REVISION") or self._latest_revision(model)
+        self.model = SentenceTransformer(model, revision=self.revision, device="cpu")
+        self.model.max_seq_length = LOCAL_MAX_TOKENS
+        self.dimensions = int(self.embed(["بسم الله"]).shape[1])  # works across library versions
+        self.name = f"{LOCAL_PREFIX}{model}@{self.revision}"
+
+    @staticmethod
+    def _latest_revision(model: str) -> str:
+        """The exact commit of the model on Hugging Face, recorded with the index."""
+        try:
+            from huggingface_hub import HfApi
+
+            return HfApi().model_info(model).sha or "main"
+        except Exception:  # offline: the cached copy is used, recorded as "main"
+            return "main"
+
+    @classmethod
+    def from_name(cls, name: str) -> "LocalEmbedder":
+        model, _, revision = name[len(LOCAL_PREFIX):].partition("@")
+        return cls(model, revision or None)
+
+    def embed(self, texts: Sequence[str]) -> np.ndarray:
+        vectors = self.model.encode(list(texts), batch_size=16, normalize_embeddings=True,
+                                    convert_to_numpy=True, show_progress_bar=False)
+        return np.asarray(vectors, dtype=np.float32)
+
+    def embed_query(self, _model: str, question: str) -> np.ndarray:
+        return self.embed([question])[0]
+
+
 @dataclass
 class VectorIndex:
     ids: list[str]
@@ -169,11 +223,11 @@ class VectorIndex:
 class _LazyQueryEmbedder:
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
-        self.client: GeminiEmbeddingClient | None = None
+        self.client: GeminiEmbeddingClient | LocalEmbedder | None = None
 
     def __call__(self, question: str) -> Sequence[float]:
         if self.client is None:
-            self.client = GeminiEmbeddingClient()
+            self.client = LocalEmbedder.from_name(self.model_name) if is_local(self.model_name) else GeminiEmbeddingClient()
         return self.client.embed_query(self.model_name, question)
 
 
@@ -189,7 +243,8 @@ def load_vectors(data_dir: str | Path = DATA_DIR) -> VectorIndex | None:
         matrix = np.load(vector_path, mmap_mode="r", allow_pickle=False)
         ids = json.loads(ids_path.read_text(encoding="utf-8"))
         model_name = model_path.read_text(encoding="utf-8").strip()
-        if matrix.ndim != 2 or matrix.shape != (len(ids), DIMENSIONS) or not model_name:
+        expected = dimensions_of(model_name) or (matrix.shape[1] if matrix.ndim == 2 else 0)
+        if matrix.ndim != 2 or matrix.shape != (len(ids), expected) or expected < 1 or not model_name:
             return None
         if not all(isinstance(item, str) for item in ids):
             return None
@@ -214,10 +269,20 @@ class HybridRetriever:
         self._warn_reason: str | None = None
         if vectors is None:
             self._disable("vector index is missing")
-        elif not os.environ.get("GEMINI_API_KEY"):
+        elif not is_local(vectors.model_name) and not os.environ.get("GEMINI_API_KEY"):
             self._disable("GEMINI_API_KEY is missing")
-        elif vectors.matrix.ndim != 2 or vectors.matrix.shape != (len(vectors.ids), DIMENSIONS):
+        elif vectors.matrix.ndim != 2 or vectors.matrix.shape[0] != len(vectors.ids) or vectors.matrix.shape[1] != (
+                dimensions_of(vectors.model_name) or vectors.matrix.shape[1]):
             self._disable("vector index shape is invalid")
+
+    def warm_up(self) -> None:
+        """Load the query model now (a local model takes seconds to load), so the first question is not slow."""
+        if self._disabled:
+            return
+        try:
+            self._query_vector("ما أركان الإسلام")
+        except Exception as exc:
+            self._disable(f"query model could not be loaded ({type(exc).__name__})")
 
     def _disable(self, reason: str) -> None:
         self._disabled = True
@@ -340,9 +405,9 @@ def _passages(db_path: Path) -> tuple[list[str], list[str]]:
     return ids, documents
 
 
-def _normalize_rows(values: Sequence[Sequence[float]]) -> np.ndarray:
+def _normalize_rows(values: Sequence[Sequence[float]], dims: int = DIMENSIONS) -> np.ndarray:
     matrix = np.asarray(values, dtype=np.float32)
-    if matrix.ndim != 2 or matrix.shape[1] != DIMENSIONS or not np.isfinite(matrix).all():
+    if matrix.ndim != 2 or matrix.shape[1] != dims or not np.isfinite(matrix).all():
         raise ValueError("embedding batch has an invalid shape or value")
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     if np.any(norms == 0):
@@ -358,12 +423,13 @@ def _read_json_ids(path: Path) -> list[str] | None:
     return value if isinstance(value, list) and all(isinstance(x, str) for x in value) else None
 
 
-def _start_checkpoint(folder: Path, ids: list[str], model: str) -> tuple[Path, Path, Path, int]:
+def _start_checkpoint(folder: Path, ids: list[str], model: str,
+                      dims: int = DIMENSIONS) -> tuple[Path, Path, Path, int]:
     raw_path = folder / "vectors.partial.f16"
     checkpoint_ids = folder / "vectors.partial_ids.json"
     checkpoint_model = folder / "vectors.partial_model.txt"
     saved_ids = _read_json_ids(checkpoint_ids) if checkpoint_model.exists() and checkpoint_model.read_text(encoding="utf-8").strip() == model else None
-    expected_bytes_per_row = DIMENSIONS * np.dtype(np.float16).itemsize
+    expected_bytes_per_row = dims * np.dtype(np.float16).itemsize
 
     if saved_ids is None or ids[:len(saved_ids)] != saved_ids or len(saved_ids) > len(ids):
         # A completed final index is also a valid prefix if the source database has grown.
@@ -372,7 +438,7 @@ def _start_checkpoint(folder: Path, ids: list[str], model: str) -> tuple[Path, P
             final_model = (folder / "vectors_model.txt").read_text(encoding="utf-8").strip()
             final_matrix = np.load(folder / "vectors.npy", mmap_mode="r", allow_pickle=False)
             if (final_model != model or final_ids is None or ids[:len(final_ids)] != final_ids
-                    or final_matrix.shape != (len(final_ids), DIMENSIONS)):
+                    or final_matrix.shape != (len(final_ids), dims)):
                 raise ValueError("stale index")
             with raw_path.open("wb") as stream:
                 np.asarray(final_matrix, dtype=np.float16).tofile(stream)
@@ -399,6 +465,71 @@ def _start_checkpoint(folder: Path, ids: list[str], model: str) -> tuple[Path, P
         with raw_path.open("r+b") as stream:
             stream.truncate(expected_size)
     return raw_path, checkpoint_ids, checkpoint_model, len(saved_ids)
+
+
+def _embed_corpus(folder: Path, corpus_ids: list[str], documents: list[str], model: str, dims: int,
+                  batch_size: int, embed: Callable[[Sequence[str]], Sequence[Sequence[float]]],
+                  progress: Callable[[int, int], None] | None = None) -> int:
+    """Embed every passage in batches with checkpoint/resume, then atomically publish the float16
+    index (vectors.npy, vectors_ids.json, vectors_model.txt). Returns where the build resumed."""
+    raw_path, ids_path, model_path, resume_at = _start_checkpoint(folder, corpus_ids, model, dims)
+    for start in range(resume_at, len(corpus_ids), batch_size):
+        end = min(start + batch_size, len(corpus_ids))
+        vectors = _normalize_rows(embed(documents[start:end]), dims)
+        if len(vectors) != end - start:
+            raise ValueError("embedding batch length does not match passage batch")
+        with raw_path.open("r+b") as stream:
+            stream.seek(start * dims * np.dtype(np.float16).itemsize)
+            vectors.tofile(stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _atomic_write_text(ids_path, json.dumps(corpus_ids[:end], ensure_ascii=False))
+        _atomic_write_text(model_path, model + "\n")
+        if progress:
+            progress(end, len(corpus_ids))
+
+    if corpus_ids:
+        raw = np.fromfile(raw_path, dtype=np.float16)
+        if raw.size != len(corpus_ids) * dims:
+            raise ValueError("checkpoint size does not match the passage count")
+        matrix = raw.reshape((len(corpus_ids), dims))
+    else:
+        matrix = np.empty((0, dims), dtype=np.float16)
+    _write_npy_atomic(folder / "vectors.npy", matrix)
+    _atomic_write_text(folder / "vectors_ids.json", json.dumps(corpus_ids, ensure_ascii=False))
+    _atomic_write_text(folder / "vectors_model.txt", model + "\n")
+    raw_path.unlink(missing_ok=True)
+    ids_path.unlink(missing_ok=True)
+    model_path.unlink(missing_ok=True)
+    return resume_at
+
+
+def build_local_vectors(embedder: LocalEmbedder | None = None, *, db_path: str | Path | None = None,
+                        data_dir: str | Path = DATA_DIR, batch_size: int = 32) -> dict:
+    """Embed the corpus with the local open model (no API, no quota), with checkpoint/resume."""
+    started = time.monotonic()
+    embedder = embedder or LocalEmbedder()
+    print(f"Using local embedding model: {embedder.name} ({embedder.dimensions} dimensions, "
+          f"up to {LOCAL_MAX_TOKENS} tokens per passage)")
+    folder = Path(data_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    corpus_ids, documents = _passages(Path(db_path or os.environ.get("MUHAWIR_DB") or DEFAULT_DB))
+
+    def progress(done: int, total: int) -> None:
+        if done == total or done % (batch_size * 20) < batch_size:
+            elapsed = time.monotonic() - started
+            print(f"{done}/{total} passages, {elapsed / 60:.1f} min", flush=True)
+
+    resume_at = _embed_corpus(folder, corpus_ids, documents, embedder.name, embedder.dimensions,
+                              batch_size, embedder.embed, progress)
+    return {
+        "model": embedder.name,
+        "passages": len(corpus_ids),
+        "resumed": resume_at,
+        "elapsed_seconds": round(time.monotonic() - started, 2),
+        "api_calls": 0,
+        "vector_bytes": (folder / "vectors.npy").stat().st_size,
+    }
 
 
 def build_vectors(
@@ -431,34 +562,8 @@ def build_vectors(
         print(f"Using embedding model: {model}")
 
         corpus_ids, documents = _passages(Path(db_path or os.environ.get("MUHAWIR_DB") or DEFAULT_DB))
-        raw_path, ids_path, model_path, resume_at = _start_checkpoint(folder, corpus_ids, model)
-        for start in range(resume_at, len(corpus_ids), batch_size):
-            end = min(start + batch_size, len(corpus_ids))
-            vectors = _normalize_rows(api.embed_documents(model, documents[start:end]))
-            if len(vectors) != end - start:
-                raise ValueError("embedding batch length does not match passage batch")
-            with raw_path.open("r+b") as stream:
-                stream.seek(start * DIMENSIONS * np.dtype(np.float16).itemsize)
-                vectors.tofile(stream)
-                stream.flush()
-                os.fsync(stream.fileno())
-            completed_ids = corpus_ids[:end]
-            _atomic_write_text(ids_path, json.dumps(completed_ids, ensure_ascii=False))
-            _atomic_write_text(model_path, model + "\n")
-
-        if corpus_ids:
-            raw = np.fromfile(raw_path, dtype=np.float16)
-            if raw.size != len(corpus_ids) * DIMENSIONS:
-                raise ValueError("checkpoint size does not match the passage count")
-            matrix = raw.reshape((len(corpus_ids), DIMENSIONS))
-        else:
-            matrix = np.empty((0, DIMENSIONS), dtype=np.float16)
-        _write_npy_atomic(folder / "vectors.npy", matrix)
-        _atomic_write_text(folder / "vectors_ids.json", json.dumps(corpus_ids, ensure_ascii=False))
-        _atomic_write_text(folder / "vectors_model.txt", model + "\n")
-        raw_path.unlink(missing_ok=True)
-        ids_path.unlink(missing_ok=True)
-        model_path.unlink(missing_ok=True)
+        resume_at = _embed_corpus(folder, corpus_ids, documents, model, DIMENSIONS, batch_size,
+                                  lambda texts: api.embed_documents(model, texts))
         return {
             "model": model,
             "passages": len(corpus_ids),
@@ -472,10 +577,23 @@ def build_vectors(
             api.close()
 
 
+COMPARE_QUESTIONS = (
+    "ما حكم قراءة البسملة في الصلاة",
+    "أنواع الزكاة",
+    "هل يشترط الحول في زكاة المال",
+    "من خلق الله",
+    "ما هي أركان الإسلام",
+    "لماذا نصوم",
+)
+
+
 def _print_results(label: str, hits: Sequence[Hit]) -> None:
     print(label)
     for position, hit in enumerate(hits, 1):
-        print(f"{position}. {hit.passage.id}")
+        p = hit.passage
+        where = getattr(p, "location", "") or ""
+        text = " ".join((getattr(p, "text", "") or "").split()[:12])
+        print(f"  {position}. {p.id} | {where} | {text}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -483,13 +601,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description="Build and inspect optional Muhawir vector search")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("build", help="embed passages and save a resumable local index")
-    test_parser = commands.add_parser("test", help="compare BM25 and hybrid results for a question")
-    test_parser.add_argument("question")
+    build_parser = commands.add_parser("build", help="embed passages and save a resumable local index")
+    build_parser.add_argument("--backend", choices=("local", "gemini"),
+                              default=os.environ.get("MUHAWIR_EMBEDDER", "local"),
+                              help="local: open model on this machine (default); gemini: Gemini API")
+    test_parser = commands.add_parser("test", help="compare BM25 and hybrid results (no language model used)")
+    test_parser.add_argument("question", nargs="?", help="one question; default: a fixed set of problem questions")
     args = parser.parse_args(argv)
     if args.command == "build":
         try:
-            report = build_vectors()
+            report = build_local_vectors() if args.backend == "local" else build_vectors()
         except Exception as exc:
             print(f"Build failed: {exc}", file=sys.stderr)
             return 2
@@ -503,9 +624,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     db = Path(os.environ.get("MUHAWIR_DB") or DEFAULT_DB)
     retriever = SqliteRetriever(SqliteCorpus(db))
-    _print_results("BM25", retriever.search(args.question, 5))
     hybrid = HybridRetriever(retriever, load_vectors())
-    _print_results("Hybrid", hybrid.search(args.question, 5))
+    for question in ([args.question] if args.question else COMPARE_QUESTIONS):
+        print(f"\n=== {question}")
+        _print_results("BM25 (keywords only)", retriever.search(question, 5))
+        _print_results("Hybrid (keywords + vectors)", hybrid.search(question, 5))
     return 0
 
 

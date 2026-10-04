@@ -6,6 +6,7 @@ Run: uvicorn muhawir.server:app
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -39,6 +40,7 @@ def build() -> Muhawir:
             from .vectors import HybridRetriever, load_vectors
 
             retriever = HybridRetriever(retriever, load_vectors())
+            threading.Thread(target=retriever.warm_up, daemon=True).start()
         engine = Muhawir(corpus, generator, retriever)
     else:
         corpus = load_corpus(os.environ.get("MUHAWIR_CORPUS") or DEFAULT_CORPUS)

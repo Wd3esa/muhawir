@@ -227,3 +227,80 @@ def test_server_wraps_sqlite_retriever_only_when_vector_flag_is_enabled(tmp_path
 
     assert isinstance(engine.retriever, HybridRetriever)
     assert engine.retriever._disabled is True
+
+
+class FakeLocalEmbedder:
+    """Stands in for the local open model: 8 dimensions, a vector from the text's characters."""
+    name = "local:fake/model@abc123"
+    dimensions = 8
+
+    def __init__(self, fail_after=None):
+        self.calls = 0
+        self.fail_after = fail_after
+
+    def embed(self, texts):
+        self.calls += 1
+        if self.fail_after is not None and self.calls > self.fail_after:
+            raise OSError("simulated interruption")
+        rows = []
+        for text in texts:
+            row = np.zeros(self.dimensions, dtype=np.float32)
+            for i, ch in enumerate(text):
+                row[(ord(ch) + i) % self.dimensions] += 1.0
+            rows.append(row)
+        return np.asarray(rows)
+
+    def embed_query(self, _model, question):
+        return self.embed([question])[0]
+
+
+def test_local_build_resumes_and_loads_with_its_own_vector_size(tmp_path, capsys):
+    from muhawir.vectors import build_local_vectors
+
+    db_path = tmp_path / "muhawir.db"
+    build_db(json.loads(SYNTHETIC.read_text(encoding="utf-8")), db_path)
+    data_dir = tmp_path / "vector-data"
+    with pytest.raises(OSError, match="simulated interruption"):
+        build_local_vectors(FakeLocalEmbedder(fail_after=1), db_path=db_path, data_dir=data_dir, batch_size=2)
+    result = build_local_vectors(FakeLocalEmbedder(), db_path=db_path, data_dir=data_dir, batch_size=2)
+    index = load_vectors(data_dir)
+
+    assert result["resumed"] == 2 and result["passages"] == 5 and result["api_calls"] == 0
+    assert index is not None and index.matrix.shape == (5, 8) and index.model_name == "local:fake/model@abc123"
+    assert "Using local embedding model: local:fake/model@abc123" in capsys.readouterr().out
+
+
+def test_a_local_index_needs_no_gemini_key_and_queries_the_same_model(monkeypatch):
+    from muhawir import vectors
+
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    made = []
+
+    def from_name(name):
+        made.append(name)
+        return FakeLocalEmbedder()
+
+    monkeypatch.setattr(vectors.LocalEmbedder, "from_name", staticmethod(from_name))
+    fake = FakeLocalEmbedder()
+    ids = ["a", "b"]
+    matrix = np.asarray(fake.embed(["ماذا تحتاج النخلة", "حيوان صبور"]), dtype=np.float16)
+    index = VectorIndex(ids, matrix, "local:fake/model@abc123", None)
+    retriever = HybridRetriever(FakeSqliteRetriever([hit("b")], all_ids=ids), index)
+
+    assert retriever._disabled is False
+    found = [h.passage.id for h in retriever.search("ماذا تحتاج النخلة", 2)]
+    assert "a" in found and made == ["local:fake/model@abc123"]  # the question used the index's own model
+
+
+def test_warm_up_loads_the_query_model_or_falls_back_to_keyword_search(monkeypatch):
+    from muhawir import vectors
+
+    def broken(_name):
+        raise RuntimeError("no model")
+
+    monkeypatch.setattr(vectors.LocalEmbedder, "from_name", staticmethod(broken))
+    index = VectorIndex(["a"], np.ones((1, 8), dtype=np.float16), "local:fake/model@abc123", None)
+    retriever = HybridRetriever(FakeSqliteRetriever([hit("a")], all_ids=["a"]), index)
+    retriever.warm_up()
+    assert retriever._disabled is True
+    assert [h.passage.id for h in retriever.search("سؤال", 1)] == ["a"]  # keyword search still answers

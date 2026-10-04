@@ -11,6 +11,8 @@
 | HTTPX | 0.28.1 | الاتصال بواجهة النموذج | BSD-3-Clause | https://github.com/encode/httpx |
 | Uvicorn | 0.46.0 | تشغيل الخادم | BSD-3-Clause | https://github.com/encode/uvicorn |
 | NumPy | 2.x | البحث بالمتجهات (اختياري، مُطفأ افتراضيًا) | BSD-3-Clause | https://github.com/numpy/numpy |
+| sentence-transformers وPyTorch (اختياريان، `requirements-vectors.txt`) | 6.x | تشغيل نموذج التضمين المحلي للبحث بالمتجهات | Apache-2.0 وBSD-3-Clause | https://github.com/UKPLab/sentence-transformers |
+| BAAI/bge-m3 (نموذج تضمين، اختياري) | النسخة مسجلة مع الفهرس | تحويل المقاطع والسؤال إلى متجهات | MIT | https://huggingface.co/BAAI/bge-m3 |
 | pytest (للتطوير) | 9.1.1 | الاختبارات | MIT | https://github.com/pytest-dev/pytest |
 
 التراخيص مأخوذة من بيانات الحزم المثبتة (PyPI metadata).

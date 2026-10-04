@@ -1,0 +1,4 @@
+# Optional: local vector search (MUHAWIR_VECTORS=1) with an open embedding model on the server.
+# Not needed for keyword search, and not installed on Render (too large for 512 MB).
+-r requirements.txt
+sentence-transformers>=3.0
