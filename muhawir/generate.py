@@ -339,9 +339,10 @@ EXPAND_SCHEMA = {
 
 log = logging.getLogger("muhawir")
 MAX_QUERIES = 10  # search phrases kept from the understanding step
-# The second reading reads all sentences of an answer in one request, to spend few requests of the free model
-# quota. Set MUHAWIR_READ_EACH_SENTENCE=1 for one request per sentence (stricter, about twice the requests).
-READ_EACH_SENTENCE = os.environ.get("MUHAWIR_READ_EACH_SENTENCE", "0") == "1"
+# The second reading reads each sentence in its own request: read together, sentences are judged leniently
+# (in a live test a hadith merged from two narrations passed a batched reading). MUHAWIR_READ_EACH_SENTENCE=0
+# reads all sentences of an answer in one request instead, to spend fewer requests of the model quota.
+READ_EACH_SENTENCE = os.environ.get("MUHAWIR_READ_EACH_SENTENCE", "1") != "0"
 MAX_PARALLEL_CHECKS = 3  # readings of the second check made at the same time (hosted free models limit concurrency)
 
 
@@ -698,8 +699,8 @@ class ModelGenerator:
         the matter the question asks about? Catches paraphrase errors the quotation check cannot see (a negation
         turned around) and a passage that only shares a word with the question.
         `question` is the neutral standalone question made by the understanding step, never the user's own words.
-        All sentences are read in one call (READ_EACH_SENTENCE reads each in its own call); an unusable reply
-        (cut off, wrong number of verdicts) is asked for once more, then each sentence is read on its own. None when a sentence
+        Each sentence is read in its own call (with READ_EACH_SENTENCE off, all in one call; an unusable batched
+        reply is asked for once more, then each sentence is read on its own). None when a sentence
         still cannot be read; the caller then shows nothing (fail closed)."""
         self.last_check_reasons = []
         if not claims:

@@ -514,7 +514,8 @@ def _batch_checker(verdicts_by_call):
 
 
 @pytest.mark.real_check
-def test_the_second_reading_reads_all_sentences_in_one_request():
+def test_the_second_reading_reads_all_sentences_in_one_request_when_asked(monkeypatch):
+    monkeypatch.setattr(generate, "READ_EACH_SENTENCE", False)
     m, seen = _batch_checker([[True, True]])
     res = m.ask(QUESTION)
     assert res.status == ANSWERED and len(res.claims) == 2
@@ -522,7 +523,8 @@ def test_the_second_reading_reads_all_sentences_in_one_request():
 
 
 @pytest.mark.real_check
-def test_a_rejected_sentence_is_read_once_more_before_it_is_dropped():
+def test_a_rejected_sentence_is_read_once_more_before_it_is_dropped(monkeypatch):
+    monkeypatch.setattr(generate, "READ_EACH_SENTENCE", False)
     m, seen = _batch_checker([[True, False], [False]])
     res = m.ask(QUESTION)
     assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
@@ -538,3 +540,11 @@ def test_open_model_comes_before_gemini(monkeypatch):
     monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://example.invalid/v1")
     monkeypatch.setenv("OPENAI_COMPAT_MODEL", "o")
     assert [name for name, _ in get_generator().calls] == ["open-model", "gemini"]
+
+
+@pytest.mark.real_check
+def test_by_default_each_sentence_is_read_in_its_own_request():
+    assert generate.READ_EACH_SENTENCE is True
+    m, seen = _batch_checker([[True], [True]])
+    res = m.ask(QUESTION)
+    assert res.status == ANSWERED and seen == [1, 1]
