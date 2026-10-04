@@ -481,6 +481,26 @@ def test_a_sentence_may_not_state_another_kind_of_ruling_than_the_passage_it_cit
     assert mismatched_rulings("تجوز الزكاة في الذهب.", ["الذهب معدن نفيس يُستخرج من الأرض."]) == set()  # nothing to compare
 
 
+def test_the_books_own_division_is_not_a_division_of_the_worship():
+    from muhawir.verify import book_structure
+    assert book_structure("تنقسم الزكاة إلى خمس جمل.")
+    assert book_structure("الجملة الأولى في معرفة من تجب عليه الزكاة.")
+    assert book_structure("وفي هذا الباب مسائل.")
+    assert not book_structure("الزكاة ركن من أركان الإسلام الخمسة.")
+    assert not book_structure("وفي الجملة فإن الحول شرط عند الجمهور.")  # «في الجملة» (in general) is not the book's division
+    assert not book_structure("قال ابن رشد في كتابه إن العلماء اختلفوا.")
+
+
+def test_verify_drops_a_sentence_about_the_books_division():
+    from muhawir.verify import verify
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "s", "name": "ت", "about": "ت"}], "passages": [
+        {"id": "p", "source_id": "s", "location": "ل", "text": "والكلام في الزكاة ينحصر في خمس جمل: الجملة الأولى في معرفة من تجب عليه."}]})
+    kept, rejected = verify([Claim("ينحصر الكلام في الزكاة في خمس جمل.", ("p",)), Claim("يبيّن ابن رشد من تجب عليه الزكاة.", ("p",))],
+                            corpus, {"p"})
+    assert [c.text for c in kept] == ["يبيّن ابن رشد من تجب عليه الزكاة."]
+    assert rejected[0].reason.startswith("speaks of the book's own division")
+
+
 def test_verify_drops_a_sentence_with_another_kind_of_ruling_and_says_why():
     from muhawir.verify import verify
     corpus = parse_corpus({"synthetic": True, "sources": [{"id": "s", "name": "ت", "about": "ت"}], "passages": [

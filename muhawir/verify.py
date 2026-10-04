@@ -29,6 +29,17 @@ _RULING_WORDS = {
     "recommended": frozenset("يستحب تستحب مستحب مسنون يسن ندب مندوب".split()),
 }
 _NEGATORS = frozenset("لا ليس لم لن غير ما".split())
+# the author's division of his book (Ibn Rushd's «جملة» is a group of chapters), copied into an answer as if it
+# were a division of the worship itself: «تنقسم الزكاة إلى خمس جمل», «الجملة الأولى», «في هذا الباب»
+_BOOK_STRUCTURE = re.compile(
+    r"(?:^| )(?:جملتين|(?:ثلاث|اربع|خمس|ست|سبع|ثماني|ثمان|تسع|عشر) جمل)(?: |$)"
+    r"|(?:^| )الجمله (?:الاولي|الثانيه|الثالثه|الرابعه|الخامسه|السادسه|الاخيره)(?: |$)"
+    r"|(?:^| )(?:هذا الباب|هذه الجمله|هذا الفصل)(?: |$)")
+
+
+def book_structure(text: str) -> bool:
+    """The sentence speaks of the book's own division (its «جمل», chapters or sections)."""
+    return bool(_BOOK_STRUCTURE.search(normalize(text)))
 
 
 @dataclass(frozen=True)
@@ -136,6 +147,9 @@ def verify(claims: list[Claim], corpus: Corpus,
                                     or any(name in normalize(corpus.passage(pid).text) for name in school_names(claim.school))
                                     for pid in claim.passage_ids):
             rejected.append(Rejected(claim, f"'{claim.school}' is not named in the cited passage"))
+            continue
+        if book_structure(claim.text):
+            rejected.append(Rejected(claim, "speaks of the book's own division, not of the religion"))
             continue
         wrong = mismatched_rulings(claim.text, [corpus.passage(pid).text for pid in claim.passage_ids])
         if wrong:
