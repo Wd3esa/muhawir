@@ -491,3 +491,50 @@ def test_a_school_counts_as_named_by_its_founder_or_followers():
 def test_disputed_questions_show_the_schools_and_the_cause_of_disagreement():
     assert "وضّح الاختلاف بين المذاهب بوضوح" in generate.SYSTEM_PROMPT
     assert "«سبب الخلاف»" in generate.SYSTEM_PROMPT and "ولا ترجّح" in generate.SYSTEM_PROMPT
+
+
+def _batch_checker(verdicts_by_call):
+    """A reader that judges every sentence of a request at once; `verdicts_by_call[k]` answers the k-th request."""
+    seen = []
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "problem" in keys:
+            n = user.count("<<<") - (1 if "السؤال الذي يجيب عنه المساعد" in user else 0)
+            seen.append(n)
+            k = len(seen) - 1
+            verdicts = verdicts_by_call[k] if k < len(verdicts_by_call) else [False] * n
+            return json.dumps({"supported": verdicts if len(verdicts) == n else verdicts[:n]})
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps(TWO, ensure_ascii=False)
+    return Muhawir(CORPUS, ModelGenerator([("m", call)])), seen
+
+
+@pytest.mark.real_check
+def test_the_second_reading_reads_all_sentences_in_one_request():
+    m, seen = _batch_checker([[True, True]])
+    res = m.ask(QUESTION)
+    assert res.status == ANSWERED and len(res.claims) == 2
+    assert seen == [2]  # one request for both sentences, not one each
+
+
+@pytest.mark.real_check
+def test_a_rejected_sentence_is_read_once_more_before_it_is_dropped():
+    m, seen = _batch_checker([[True, False], [False]])
+    res = m.ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير."]
+    assert seen[:2] == [2, 1]  # the second reading is only for the rejected sentence
+
+
+def test_open_model_comes_before_gemini(monkeypatch):
+    for k in ("ANTHROPIC_API_KEY",):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "model")
+    monkeypatch.setenv("GEMINI_API_KEY", "x")
+    monkeypatch.setenv("GEMINI_MODEL", "g")
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://example.invalid/v1")
+    monkeypatch.setenv("OPENAI_COMPAT_MODEL", "o")
+    assert [name for name, _ in get_generator().calls] == ["open-model", "gemini"]

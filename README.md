@@ -24,7 +24,7 @@
 
 ## النموذج
 
-رابط التجربة يستعمل النموذج المفتوح **gpt-oss:120b** عبر واجهة Ollama السحابية. الإعدادات كلها في متغيرات بيئة (انظر `.env.example`)، ولا تُكتب المفاتيح في الشيفرة ولا في المستودع.
+رابط التجربة يستعمل النموذج المفتوح **gpt-oss:120b** عبر واجهة Ollama السحابية، وإن تعذّر أو نفد حدّه المجاني انتقل تلقائيًا إلى Gemini (الطبقة المجانية) احتياطًا. الإعدادات كلها في متغيرات بيئة (انظر `.env.example`)، ولا تُكتب المفاتيح في الشيفرة ولا في المستودع.
 
 ## التشغيل
 
@@ -36,7 +36,7 @@ uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:800
 
 مع `LLM_PROVIDER=model` و`OPENAI_COMPAT_BASE_URL=https://ollama.com/v1` و`OPENAI_COMPAT_MODEL=gpt-oss:120b` و`OPENAI_COMPAT_API_KEY` (مفتاح Ollama).
 
-**النشر على Render:** `render.yaml` يصف الخدمة على الخطة المجانية. في Render اختر New ثم Blueprint، واربط هذا المستودع، وأدخل مفتاح Ollama حين يُطلب.
+**النشر على Render:** `render.yaml` يصف الخدمة على الخطة المجانية. في Render اختر New ثم Blueprint، واربط هذا المستودع، وأدخل مفتاح Ollama حين يُطلب، ومفتاح Gemini للاحتياط إن وُجد.
 
 **الاختبارات:** `pip install -r requirements-dev.txt && python -m pytest -q` (على بيانات مصطنعة فقط).
 

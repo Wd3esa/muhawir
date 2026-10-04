@@ -6,8 +6,9 @@ retrieved passages only. The model never reproduces Quran or tafsir text: it
 cites passage ids, and the page shows those passages verbatim in source cards.
 Every draft still goes through the verifier; any failure means abstaining.
 
-Models, in this order when their settings are present: Claude, Gemini, then any
-OpenAI-compatible endpoint (e.g. gpt-oss through Ollama's cloud API). Keys come only
+Models, in this order when their settings are present: Claude, then any OpenAI-compatible
+endpoint (e.g. gpt-oss through Ollama's cloud API), then Gemini. When one fails or its quota
+is used up, the next one answers. Keys come only
 from environment variables.
 """
 from __future__ import annotations
@@ -338,6 +339,9 @@ EXPAND_SCHEMA = {
 
 log = logging.getLogger("muhawir")
 MAX_QUERIES = 10  # search phrases kept from the understanding step
+# The second reading reads all sentences of an answer in one request, to spend few requests of the free model
+# quota. Set MUHAWIR_READ_EACH_SENTENCE=1 for one request per sentence (stricter, about twice the requests).
+READ_EACH_SENTENCE = os.environ.get("MUHAWIR_READ_EACH_SENTENCE", "0") == "1"
 MAX_PARALLEL_CHECKS = 3  # readings of the second check made at the same time (hosted free models limit concurrency)
 
 
@@ -694,8 +698,8 @@ class ModelGenerator:
         the matter the question asks about? Catches paraphrase errors the quotation check cannot see (a negation
         turned around) and a passage that only shares a word with the question.
         `question` is the neutral standalone question made by the understanding step, never the user's own words.
-        Each sentence is read in its own call (a long batch makes the reader careless), several at a time;
-        an unusable reply (cut off, wrong number of verdicts) is asked for once more. None when a sentence
+        All sentences are read in one call (READ_EACH_SENTENCE reads each in its own call); an unusable reply
+        (cut off, wrong number of verdicts) is asked for once more, then each sentence is read on its own. None when a sentence
         still cannot be read; the caller then shows nothing (fail closed)."""
         self.last_check_reasons = []
         if not claims:
@@ -706,17 +710,27 @@ class ModelGenerator:
                 return self._read_example(claim, passages, question)
             return self._check_once([claim], passages, question) or self._check_once([claim], passages, question)
 
+        def read_all(group: list[Claim]) -> list | None:
+            """Readings of these sentences: all in one request, to spend few requests of the free model quota;
+            one request per sentence when READ_EACH_SENTENCE is set, or when a batched reply is unusable twice."""
+            if not READ_EACH_SENTENCE and not any(is_example(c.text) for c in group):
+                batch = self._check_once(group, passages, question) or self._check_once(group, passages, question)
+                if batch is not None:
+                    return [([ok], [why]) for ok, why in zip(*batch)]
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_CHECKS) as pool:
+                return list(pool.map(read, group))
+
         # The free cloud models answer the same question differently from one call to the next, and a good sentence
         # lost to a chance "no" leaves an answer incomplete. So a sentence is dropped only when two readings both
         # reject it: the second reading is made only for the sentences the first one rejected.
-        with ThreadPoolExecutor(max_workers=MAX_PARALLEL_CHECKS) as pool:
-            first = list(pool.map(read, claims))
-            if any(r is None for r in first):
-                return None
-            doubtful = [i for i, r in enumerate(first) if not r[0][0]]
-            second = dict(zip(doubtful, pool.map(read, [claims[i] for i in doubtful])))
-            if any(r is None for r in second.values()):
-                return None
+        first = read_all(claims)
+        if first is None or any(r is None for r in first):
+            return None
+        doubtful = [i for i, r in enumerate(first) if not r[0][0]]
+        again = read_all([claims[i] for i in doubtful]) if doubtful else []
+        if again is None or any(r is None for r in again):
+            return None
+        second = dict(zip(doubtful, again))
         verdicts = [r[0][0] or second[i][0][0] if i in second else r[0][0] for i, r in enumerate(first)]
         self.last_check_reasons = ["" if ok else first[i][1][0] for i, ok in enumerate(verdicts)]
         return verdicts
@@ -886,13 +900,13 @@ def get_generator() -> Generator:
     if os.environ.get("ANTHROPIC_API_KEY"):
         calls.append(("claude", anthropic_call(os.environ["ANTHROPIC_API_KEY"],
                                                os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5"))))
-    if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
-        calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
     if os.environ.get("OPENAI_COMPAT_BASE_URL") and os.environ.get("OPENAI_COMPAT_MODEL"):
         calls.append(("open-model", openai_compatible_call(
             os.environ["OPENAI_COMPAT_BASE_URL"], os.environ["OPENAI_COMPAT_MODEL"],
             os.environ.get("OPENAI_COMPAT_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300))))
+    if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
+        calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
     if not calls:
         raise RuntimeError("LLM_PROVIDER=model needs ANTHROPIC_API_KEY, or GEMINI_API_KEY with "
                            "GEMINI_MODEL, or OPENAI_COMPAT_BASE_URL with OPENAI_COMPAT_MODEL")

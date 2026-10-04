@@ -26,3 +26,8 @@ services:
         value: gpt-oss:120b
       - key: OPENAI_COMPAT_API_KEY
         sync: false          # the Ollama API key; Render asks for it when the blueprint is created
+      # Backup model when Ollama fails or its free quota is used up: Gemini's free tier (resets daily)
+      - key: GEMINI_API_KEY
+        sync: false          # the Gemini API key; leave empty to run without a backup
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
