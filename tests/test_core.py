@@ -232,17 +232,24 @@ def test_a_personal_case_names_official_fatwa_bodies(engine):
     assert any("alifta.gov.sa" in link["url"] for link in res.referral["links"])
 
 
-def test_contemporary_finance_points_to_the_fiqh_academy_first(engine):
+def test_contemporary_finance_points_to_the_official_fatwa_body(engine):
     res = engine.ask("ما حكم التداول بالعملات الرقمية؟")
-    assert res.referral["kind"] == "finance" and "iifa-aifi.org" in res.referral["links"][0]["url"]
+    assert res.referral["kind"] == "finance" and "alifta.gov.sa" in res.referral["links"][0]["url"]
     en = engine.ask("Is bitcoin trading halal?", lang="en")
-    assert en.referral["title"] == "Who to ask" and en.referral["links"][0]["label"].startswith("International")
+    assert en.referral["title"] == "Who to ask" and en.referral["links"][0]["label"].startswith("General Presidency")
+
+
+def test_only_saudi_bodies_are_listed():
+    from muhawir.referrals import card
+    for kind in ("fatwa", "finance", "crisis"):
+        for lang in ("ar", "en"):
+            assert all(link["where"].startswith(("السعودية", "Saudi Arabia")) for link in card(kind, lang)["links"])
 
 
 def test_a_crisis_points_to_people_and_support_lines(engine):
     res = engine.ask("أفكر في الانتحار")
     assert res.status == REFERRED and res.referral["kind"] == "crisis"
-    assert any("findahelpline.com" in link["url"] for link in res.referral["links"])
+    assert "رقم الطوارئ" in res.referral["intro"] and "moh.gov.sa" in res.referral["links"][0]["url"]
 
 
 def test_not_found_refers_to_a_scholar_but_an_ordinary_answer_has_no_card(engine):
