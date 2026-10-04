@@ -1,0 +1,36 @@
+# Runs the dialogue questions against the live Muhawir and saves the report.
+# Start it from the repository's Actions tab: "Live test" -> "Run workflow", and give the live link.
+name: Live test
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Live link of Muhawir, e.g. https://muhawir.onrender.com"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Wake the service
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf --max-time 60 "${{ inputs.url }}/api/health" && break
+            sleep 15
+          done
+      - name: Ask the questions
+        run: python scripts/try_questions.py --url "${{ inputs.url }}" --out muhawir_live_report.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: muhawir-live-report
+          path: muhawir_live_report.txt
