@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import bidaya, classify
+from . import bidaya, classify, referrals
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -69,6 +69,7 @@ class Response:
     why: str = ""  # with MUHAWIR_DEBUG=1: why there is no answer (never contains the question)
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
     follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
+    referral: dict = field(default_factory=dict)  # who to ask, when Muhawir refers the user on (see referrals.py)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -108,6 +109,22 @@ _REJECTED_BECAUSE = (
     ("no citation", "بلا مقطع تستند إليه"),
     ("is not named", "فيها اسم لم يرد في المقطع"),
 )
+
+
+def _referral_kind(res: Response, question: str) -> str:
+    """Which referral card a reply carries, if any: a crisis line, the fiqh academy, fatwa bodies, or a mosque."""
+    texts = {lang: TEXT[lang] for lang in TEXT}
+    if any(res.message.startswith(t["crisis"]) or res.message == t["care_note"] for t in texts.values()):
+        return "crisis"
+    if any(res.message == t["out_of_scope"] for t in texts.values()):
+        return "finance"
+    if res.status == REFERRED or (res.status == ABSTAINED and any(res.message == t["abstain"] for t in texts.values())):
+        return "fatwa"  # a personal case, or nothing in the sources: a scholar (not for «no reason of revelation»)
+    if res.status == ANSWERED and referrals.wants_to_become_muslim(question):
+        return "newcomer"
+    if res.status == ANSWERED and any(res.note == t["ruling_note"] for t in texts.values()):
+        return "fatwa"  # scholars' views on a ruling: for one's own case, a fatwa body
+    return ""
 
 
 def _feedback(rejected: list, incomplete: bool = False) -> str:
@@ -469,7 +486,16 @@ class Muhawir:
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
             history: list[dict] | None = None) -> Response:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
-        the answer itself still comes from retrieved passages alone."""
+        the answer itself still comes from retrieved passages alone. A referred reply names who to ask."""
+        res = self._respond(question, style, lang, history)
+        kind = _referral_kind(res, question)
+        if kind:
+            reply_text = " ".join([res.message, *(c.get("text", "") for c in res.claims)])
+            reply_lang = "ar" if _ARABIC.search(reply_text) else ("en" if reply_text.strip() else lang)
+            res.referral = referrals.card(kind, reply_lang)
+        return res
+
+    def _respond(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
         if question and classify.check(question[:MAX_QUESTION_CHARS * 2]).kind == classify.CRISIS:

@@ -684,6 +684,31 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   font-size:13px;
   margin-top:10px
 }
+.referral {
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));
+  background:color-mix(in srgb,var(--accent) 6%,transparent);
+  border-radius:12px;
+  padding:10px 14px;
+  margin-top:12px
+}
+.referral h3 {
+  margin:0 0 4px;
+  font-size:14px;
+  color:var(--accent)
+}
+.referral p {
+  margin:0 0 6px;
+  font-size:13px
+}
+.referral ul {
+  margin:0;
+  padding-inline-start:18px;
+  font-size:13px;
+  line-height:1.8
+}
+.referral .where {
+  color:var(--muted)
+}
 .views {
   border:1px dashed var(--line);
   border-radius:12px;
@@ -1561,6 +1586,10 @@ function answerText(res, includeSourcePassages = false) {
     lines.push(`${view.school}: ${view.text}${refs.length ? ` [${refs.join(", ")}]` : ""}`);
   }
   if (res.note) lines.push(res.note);
+  if (res.referral && res.referral.title) {
+    lines.push("", res.referral.title, res.referral.intro);
+    for (const link of res.referral.links || []) lines.push(`- ${link.label}${link.where ? ` (${link.where})` : ""}: ${link.url}`);
+  }
   if (res.follow_up) lines.push(res.follow_up);
   if ((res.sources || []).length) {
     lines.push("", UI[lang].sources + ":");
@@ -1701,6 +1730,24 @@ function renderAnswer(res, style, context) {
     next.type = "button"; next.dir = "auto";
     next.addEventListener("click", () => { $("q").value = res.follow_up; $("ask").requestSubmit(); });
     msg.append(next);
+  }
+  if (res.referral && res.referral.title) {  // who to ask when Muhawir refers on: official bodies, opened in a new tab
+    const box = el("section", "referral");
+    box.dir = "auto";
+    box.append(el("h3", "", res.referral.title), el("p", "", res.referral.intro));
+    if ((res.referral.links || []).length) {
+      const list = el("ul");
+      for (const link of res.referral.links) {
+        const item = el("li");
+        const a = el("a", "", link.label);
+        a.href = link.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        item.append(a);
+        if (link.where) item.append(el("span", "where", ` · ${link.where}`));
+        list.append(item);
+      }
+      box.append(list);
+    }
+    msg.append(box);
   }
   if ((res.sources || []).length) msg.append(el("div", "sources-title", t.sources));
   for (const s of res.sources || []) {

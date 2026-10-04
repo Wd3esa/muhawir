@@ -221,3 +221,40 @@ def test_category_questions_are_not_judging_a_person():
 def test_can_i_ask_is_not_a_personal_case():
     from muhawir import classify
     assert classify.check("Can I ask about the meaning of tawhid?").kind is None
+
+
+# --- referral: a referred reply names who to ask -------------------------------------------------
+
+def test_a_personal_case_names_official_fatwa_bodies(engine):
+    res = engine.ask("أنا في دولة كذا، هل يجوز لي فعل كذا في زواجي؟")
+    assert res.referral["kind"] == "fatwa" and res.referral["title"] == "من تسأل؟"
+    assert all(link["url"].startswith("https://") for link in res.referral["links"])
+    assert any("alifta.gov.sa" in link["url"] for link in res.referral["links"])
+
+
+def test_contemporary_finance_points_to_the_fiqh_academy_first(engine):
+    res = engine.ask("ما حكم التداول بالعملات الرقمية؟")
+    assert res.referral["kind"] == "finance" and "iifa-aifi.org" in res.referral["links"][0]["url"]
+    en = engine.ask("Is bitcoin trading halal?", lang="en")
+    assert en.referral["title"] == "Who to ask" and en.referral["links"][0]["label"].startswith("International")
+
+
+def test_a_crisis_points_to_people_and_support_lines(engine):
+    res = engine.ask("أفكر في الانتحار")
+    assert res.status == REFERRED and res.referral["kind"] == "crisis"
+    assert any("findahelpline.com" in link["url"] for link in res.referral["links"])
+
+
+def test_not_found_refers_to_a_scholar_but_an_ordinary_answer_has_no_card(engine):
+    assert engine.ask("ما عاصمة اليابان الاقتصادية؟").referral["kind"] == "fatwa"
+    assert engine.ask("ماذا تحتاج النخلة في الصيف؟").referral == {}
+    assert engine.ask("مرحبا").referral == {}
+
+
+def test_who_wants_to_become_muslim_is_pointed_to_a_mosque():
+    from muhawir.referrals import card, wants_to_become_muslim
+    for q in ("How do I become a Muslim?", "I want to convert to Islam", "كيف أسلم؟", "أريد أن أدخل في الإسلام"):
+        assert wants_to_become_muslim(q), q
+    for q in ("كيف أسلم عمر بن الخطاب؟", "What is Islam?", "ما الإسلام؟"):
+        assert not wants_to_become_muslim(q), q
+    assert card("newcomer", "en")["links"] == [] and "mosque" in card("newcomer", "en")["intro"]
