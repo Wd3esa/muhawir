@@ -1,11 +1,10 @@
 """Where to turn when Muhawir refers the user on: named, official bodies with their own websites.
 
-Muhawir does not answer a personal case, a contemporary financial ruling or a crisis itself. Instead of
+Muhawir does not answer a personal case or a contemporary financial ruling itself. Instead of
 only saying «ask a specialist», each referred reply carries a card that names who to ask, by kind of case:
 
   fatwa      a personal case, a ruling, or a question the sources do not answer: official fatwa bodies
   finance    contemporary financial matters: the official fatwa body
-  crisis     thoughts of self-harm or danger: emergency services and support lines, people first
   newcomer   someone who wants to become Muslim: a mosque or Islamic centre near them, people first
 
 Every link is the body's own official website, checked when it was added (4 October 2026). The list is
@@ -23,18 +22,10 @@ FATWA_BODIES = [
      "where_ar": "السعودية", "where_en": "Saudi Arabia", "url": "https://www.alifta.gov.sa"},
 ]
 
-# the Saudi Ministry of Health page lists this number (moh.gov.sa, «الصحة النفسية»)
-CRISIS_LINES = [
-    {"ar": "مركز الاستشارات النفسية بوزارة الصحة: 920033360", "en": "Ministry of Health psychological consultation centre: 920033360",
-     "where_ar": "السعودية، من 8 صباحًا إلى 8 مساءً", "where_en": "Saudi Arabia, 8 am to 8 pm",
-     "url": "https://www.moh.gov.sa/Ministry/Information-and-services/Pages/psychiatry.aspx"},
-]
-
 CARD = {
     "ar": {
         "fatwa": ("من تسأل؟", "اسأل جهة الفتوى الرسمية في بلدك. وفي السعودية:"),
         "finance": ("من تسأل؟", "القضايا المالية المعاصرة تبحثها جهات الفتوى الرسمية والمجامع الفقهية. اسأل جهة الفتوى الرسمية في بلدك. وفي السعودية:"),
-        "crisis": ("تحدّث مع أحد الآن", "إن كان أحد في خطر فاتصل الآن برقم الطوارئ في بلدك. وفي السعودية يمكنك أيضًا التواصل مع:"),
         "newcomer": ("تحدّث مع أحد", "تواصل مع أقرب مسجد أو مركز إسلامي إليك، فهم يرحبون بك ويساعدونك خطوة خطوة، "
                                     "ويجيبون عن أسئلتك وجهًا لوجه."),
     },
@@ -42,7 +33,6 @@ CARD = {
         "fatwa": ("Who to ask", "Ask the official fatwa body in your country. In Saudi Arabia:"),
         "finance": ("Who to ask", "Contemporary financial matters are studied by official fatwa bodies and fiqh academies. "
                                   "Ask the official fatwa body in your country. In Saudi Arabia:"),
-        "crisis": ("Talk to someone now", "If anyone is in danger, call your local emergency number now. In Saudi Arabia you can also reach:"),
         "newcomer": ("Talk to someone", "Contact the mosque or Islamic centre nearest to you: they will welcome you, help you "
                                        "step by step, and answer your questions in person."),
     },
@@ -66,6 +56,6 @@ def card(kind: str, lang: str) -> dict:
     lang = lang if lang in CARD else "ar"
     title, intro = CARD[lang][kind]
     bodies = {"fatwa": FATWA_BODIES, "finance": FATWA_BODIES,
-              "crisis": CRISIS_LINES, "newcomer": []}[kind]
+              "newcomer": []}[kind]
     links = [{"label": b[lang], "where": b[f"where_{lang}"], "url": b["url"]} for b in bodies]
     return {"kind": kind, "title": title, "intro": intro, "links": links}

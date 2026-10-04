@@ -241,15 +241,14 @@ def test_contemporary_finance_points_to_the_official_fatwa_body(engine):
 
 def test_only_saudi_bodies_are_listed():
     from muhawir.referrals import card
-    for kind in ("fatwa", "finance", "crisis"):
+    for kind in ("fatwa", "finance"):
         for lang in ("ar", "en"):
             assert all(link["where"].startswith(("السعودية", "Saudi Arabia")) for link in card(kind, lang)["links"])
 
 
-def test_a_crisis_points_to_people_and_support_lines(engine):
+def test_a_crisis_keeps_its_fixed_caring_reply_without_a_card(engine):
     res = engine.ask("أفكر في الانتحار")
-    assert res.status == REFERRED and res.referral["kind"] == "crisis"
-    assert "رقم الطوارئ" in res.referral["intro"] and "moh.gov.sa" in res.referral["links"][0]["url"]
+    assert res.status == REFERRED and "رقم الطوارئ" in res.message and res.referral == {}
 
 
 def test_not_found_refers_to_a_scholar_but_an_ordinary_answer_has_no_card(engine):

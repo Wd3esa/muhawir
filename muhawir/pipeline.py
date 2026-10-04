@@ -112,10 +112,10 @@ _REJECTED_BECAUSE = (
 
 
 def _referral_kind(res: Response, question: str) -> str:
-    """Which referral card a reply carries, if any: a crisis line, the fiqh academy, fatwa bodies, or a mosque."""
+    """Which referral card a reply carries, if any: the official fatwa body, or a mosque."""
     texts = {lang: TEXT[lang] for lang in TEXT}
     if any(res.message.startswith(t["crisis"]) or res.message == t["care_note"] for t in texts.values()):
-        return "crisis"
+        return ""  # the fixed caring reply already points to people and the emergency number; no card
     if any(res.message == t["out_of_scope"] for t in texts.values()):
         return "finance"
     if res.status == REFERRED or (res.status == ABSTAINED and any(res.message == t["abstain"] for t in texts.values())):
