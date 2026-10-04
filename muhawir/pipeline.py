@@ -17,14 +17,13 @@ from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
 from .messages import LANGS, STYLES, TEXT
-from .normalize import STOPWORDS, normalize
+from .normalize import normalize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
 from .verify import Rejected, verify
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
-MAX_HADITH = 3  # live hadith results offered to the model, in addition to the passages above
 
 MAX_QUESTION_CHARS = 500
 NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
@@ -237,33 +236,11 @@ def _strip_ids(text: str, ids: set[str]) -> str:
     return re.sub(r"\s+([.،,؛])", r"\1", text).strip()
 
 
-class _WithLive:
-    """The corpus plus passages fetched live for one question (e.g. dorar hadith results)."""
-
-    def __init__(self, corpus, live: list[Passage], sources: dict) -> None:
-        self.base, self.live, self.extra_sources = corpus, {p.id: p for p in live}, sources
-
-    def passage(self, pid: str):
-        return self.live.get(pid) or self.base.passage(pid)
-
-    def source_of(self, p):
-        return self.extra_sources.get(p.source_id) or self.base.source_of(p)
-
-
-def _search_words(text: str) -> str:
-    """The question without filler words, kept in their written form for an outside search."""
-    return " ".join(w for w in text.split() if normalize(w) and normalize(w) not in STOPWORDS)
-
-
 class Muhawir:
-    def __init__(self, corpus: Corpus, generator: Generator, retriever=None, hadith_search=None,
-                 hadith_source=None) -> None:
+    def __init__(self, corpus: Corpus, generator: Generator, retriever=None) -> None:
         self.corpus = corpus
         self.retriever = retriever or Retriever(corpus)
         self.generator = generator
-        # live hadith search (dorar.net); never used with synthetic test data or in extractive mode
-        self.hadith_search = hadith_search if not corpus.synthetic else None
-        self.hadith_source = hadith_source
         self.asbab = AsbabIndex(corpus, self.retriever)
         self.sections = SectionIndex(corpus)
 
@@ -372,15 +349,6 @@ class Muhawir:
                     have.add(q.id)
         return out
 
-    def _hadith(self, queries: list[str]) -> list[Passage]:
-        found: dict[str, Passage] = {}
-        for query in queries[:2]:
-            for p in self.hadith_search(_search_words(query)):
-                found.setdefault(p.id, p)
-            if len(found) >= MAX_HADITH:
-                break
-        return list(found.values())[:MAX_HADITH]
-
     @staticmethod
     def _understood(understand, question: str, turns: list[dict]) -> dict | None:
         """The understanding step, run twice at once. The model's recall of verses and hadith differs from one
@@ -430,8 +398,7 @@ class Muhawir:
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
         allowed = {p.id for p in passages}
-        live = [p for p in passages if self.corpus.passage(p.id) is None]
-        corpus = _WithLive(self.corpus, live, {self.hadith_source.id: self.hadith_source}) if live else self.corpus
+        corpus = self.corpus
         if hasattr(self.generator, "last_note"):
             self.generator.last_note = self.generator.last_raw = ""
             self.generator.last_as_list = False
@@ -590,9 +557,6 @@ class Muhawir:
             passages = [h.passage for h in hits if is_sufficient([h])]
         else:
             passages, queries = self._gather(question, original, queries)
-            if self.hadith_search:
-                live = self._hadith(queries)
-                passages += live
         extra = {k: v for k, v in (("previous", previous), ("kind", kind)) if v}
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
         if isinstance(written, Response):  # the model could not be reached, or the check could not run

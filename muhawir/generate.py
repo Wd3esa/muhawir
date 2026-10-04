@@ -6,8 +6,9 @@ retrieved passages only. The model never reproduces Quran or tafsir text: it
 cites passage ids, and the page shows those passages verbatim in source cards.
 Every draft still goes through the verifier; any failure means abstaining.
 
-Decision D1: Claude Sonnet 5.5 (Anthropic API) first, Gemini Flash (paid tier)
-as fallback. Keys come only from environment variables.
+Models, in this order when their settings are present: Claude, Gemini, then any
+OpenAI-compatible endpoint (e.g. gpt-oss through Ollama's cloud API). Keys come only
+from environment variables.
 """
 from __future__ import annotations
 

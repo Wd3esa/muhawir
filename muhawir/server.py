@@ -12,7 +12,6 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from . import dorar
 from .corpus import load_corpus
 from .generate import get_generator
 from .pipeline import MAX_QUESTION_CHARS, Muhawir
@@ -33,9 +32,6 @@ def build() -> Muhawir:
     """
     db = Path(os.environ.get("MUHAWIR_DB") or DEFAULT_DB)
     generator = get_generator()
-    # live hadith search from dorar.net: off unless MUHAWIR_DORAR=1 (dorar refused server requests;
-    # the two Sahih books in the database are the hadith source until dorar gives permission)
-    hadith = dorar.search if generator.name != "extractive" and os.environ.get("MUHAWIR_DORAR", "0") == "1" else None
     if db.exists() and not os.environ.get("MUHAWIR_CORPUS"):
         corpus = SqliteCorpus(db)
         retriever = SqliteRetriever(corpus)
@@ -43,8 +39,7 @@ def build() -> Muhawir:
             from .vectors import HybridRetriever, load_vectors
 
             retriever = HybridRetriever(retriever, load_vectors())
-        engine = Muhawir(corpus, generator, retriever, hadith_search=hadith,
-                         hadith_source=dorar.SOURCE)
+        engine = Muhawir(corpus, generator, retriever)
     else:
         corpus = load_corpus(os.environ.get("MUHAWIR_CORPUS") or DEFAULT_CORPUS)
         engine = Muhawir(corpus, generator)
