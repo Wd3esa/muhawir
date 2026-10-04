@@ -153,8 +153,16 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   width:20px;
   height:20px
 }
-.sidebar-close,.mobile-menu {
+.sidebar-close {
   display:none
+}
+.history-toggle {
+  display:inline-grid
+}
+@media(min-width:861px) {
+  .app-shell { transition:grid-template-columns .22s ease }
+  .app-shell.sidebar-collapsed { grid-template-columns:0 minmax(0,1fr) }
+  .app-shell.sidebar-collapsed .sidebar { display:none }
 }
 
   .new-chat {
@@ -685,21 +693,80 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   margin:6px 0
 }
 .tools {
-  margin-top:12px
+  margin-top:12px;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:4px
 }
+.action-btn {
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 8px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-size:12px;
+  cursor:pointer
+}
+.action-btn:hover,.action-btn[aria-expanded="true"],.action-btn[aria-pressed="true"] {
+  color:var(--ink);
+  background:color-mix(in srgb,var(--accent) 9%,transparent)
+}
+.action-btn:disabled { opacity:.5; cursor:wait }
+.action-icon,.action-icon svg {
+  width:17px;
+  height:17px;
+  flex:0 0 auto
+}
+.action-label { white-space:nowrap }
+.action-status {
+  min-height:20px;
+  color:var(--muted);
+  font-size:11px
+}
+.more-actions { position:relative }
+.more-actions > summary { list-style:none; cursor:pointer }
+.more-actions > summary::-webkit-details-marker { display:none }
+.more-menu {
+  position:absolute;
+  z-index:7;
+  inset-block-start:calc(100% + 5px);
+  inset-inline-end:0;
+  min-width:210px;
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel);
+  box-shadow:var(--shadow)
+}
+.more-item {
+  width:100%;
+  display:block;
+  border:0;
+  border-radius:8px;
+  padding:8px 10px;
+  background:transparent;
+  color:var(--ink);
+  text-align:start;
+  font:inherit;
+  font-size:12px;
+  cursor:pointer
+}
+.more-item:hover { background:color-mix(in srgb,var(--accent) 9%,transparent) }
 .no-voice {
   font-size:12px;
   color:var(--muted);
   margin-top:4px
 }
-.link-btn {
-  font:inherit;
-  font-size:12px;
-  background:none;
-  border:0;
-  padding:0;
-  color:var(--accent);
-  cursor:pointer
+@media(max-width:620px) {
+  .tools { gap:2px }
+  .action-btn { width:36px; min-width:36px; justify-content:center; padding:0 }
+  .action-label { display:none }
 }
 
   #ask {
@@ -917,7 +984,7 @@ a {
     background:rgba(22,34,29,.3);
     backdrop-filter:blur(2px)
   }
-  .sidebar-close,.mobile-menu {
+  .sidebar-close {
     display:inline-grid
   }
   .conversation-frame {
@@ -1129,7 +1196,7 @@ a {
     <div class="ambient" aria-hidden="true"></div>
     <header class="topbar">
       <div class="topbar-start">
-        <button class="icon-button mobile-menu" id="openHistory" type="button" aria-label="" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button class="icon-button history-toggle" id="openHistory" type="button" aria-label="" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h1 id="conversationTitle" data-t="newChat"></h1>
       </div>
       <div class="topbar-tools">
@@ -1169,12 +1236,12 @@ a {
 const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
-        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
+        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeKicker: "مساحة آمنة للتعلّم", welcomeHeading: "ما الذي تودّ أن تعرفه؟", welcomeCopy: "اسأل عن القرآن أو الفقه أو العقيدة، وتابع الحوار خطوةً خطوة. تظهر المراجع التي يدعمها النظام مع الإجابة.",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "عند استعمال الميكروفون قد يرسل متصفحك صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        listen: "🔊 استمع", stop: "⏹ إيقاف", pending: "يكتب…",
+        listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.",
@@ -1183,13 +1250,13 @@ const UI = {
         status: { answered: "إجابة من المصادر", abstained: "امتناع", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
-        newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
+        newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeKicker: "A thoughtful place to learn", welcomeHeading: "What would you like to know?", welcomeCopy: "Ask about the Quran, fiqh or aqidah, and continue the dialogue one step at a time. References supported by the system appear with each answer.",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        listen: "🔊 Listen", stop: "⏹ Stop", pending: "Typing…",
+        listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of personal fatwas.",
@@ -1248,6 +1315,7 @@ function renderConversation(conversation) {
   }
   updateConversationTitle();
   renderHistory();
+  syncRegenerateButtons();
   if (conversation.messages.length) $("thread").scrollTop = $("thread").scrollHeight;
 }
 
@@ -1273,16 +1341,47 @@ function startNewConversation() {
   if (window.matchMedia("(min-width: 861px)").matches) $("q").focus();
 }
 
+function isMobileLayout() {
+  return !window.matchMedia("(min-width: 861px)").matches;
+}
+
+function updateHistoryToggle() {
+  const mobile = isMobileLayout();
+  const open = mobile
+    ? $("appShell").classList.contains("drawer-open")
+    : !$("appShell").classList.contains("sidebar-collapsed");
+  const label = mobile ? (open ? UI[lang].closeHistory : UI[lang].openHistory)
+    : (open ? UI[lang].hideHistory : UI[lang].showHistory);
+  $("openHistory").setAttribute("aria-expanded", String(open));
+  $("openHistory").setAttribute("aria-label", label);
+  $("openHistory").title = label;
+}
+
 function openHistory() {
-  $("appShell").classList.add("drawer-open");
-  $("openHistory").setAttribute("aria-expanded", "true");
-  $("closeHistory").focus();
+  if (isMobileLayout()) {
+    $("appShell").classList.add("drawer-open");
+    $("closeHistory").focus();
+  } else {
+    $("appShell").classList.remove("sidebar-collapsed");
+  }
+  updateHistoryToggle();
 }
 
 function closeHistory() {
+  if (!isMobileLayout()) return;
   $("appShell").classList.remove("drawer-open");
-  $("openHistory").setAttribute("aria-expanded", "false");
-  if (!window.matchMedia("(min-width: 861px)").matches) $("openHistory").focus();
+  updateHistoryToggle();
+  $("openHistory").focus();
+}
+
+function toggleHistory() {
+  if (isMobileLayout()) {
+    if ($("appShell").classList.contains("drawer-open")) closeHistory();
+    else openHistory();
+    return;
+  }
+  $("appShell").classList.toggle("sidebar-collapsed");
+  updateHistoryToggle();
 }
 
 function applyLang() {
@@ -1296,8 +1395,8 @@ function applyLang() {
   $("lang").setAttribute("aria-label", t.lang);
   $("historySearch").placeholder = t.historySearch;
   $("historySearch").setAttribute("aria-label", t.historySearch);
-  $("openHistory").setAttribute("aria-label", t.openHistory);
   $("closeHistory").setAttribute("aria-label", t.closeHistory);
+  updateHistoryToggle();
   $("sidebar").setAttribute("aria-label", t.historyLabel);
   $("historyList").setAttribute("aria-label", t.recent);
   $("brandName").textContent = t.assistant;
@@ -1306,6 +1405,9 @@ function applyLang() {
   $("send").setAttribute("aria-label", t.send);
   $("conversationTitle").textContent = activeConversation.title;
   $("synthetic").textContent = t.synthetic;
+  conversations.forEach((conversation) => conversation.messages.forEach((message) => {
+    if (message?.responseActions) applyActionTranslations(message);
+  }));
   renderHistory();
 }
 
@@ -1346,22 +1448,87 @@ function pieces(text) {
   return text.split(/(?<=[.!?؟。\n])\s*/).map((x) => x.trim()).filter(Boolean);
 }
 
-function listenButton(res) {
+const ACTION_ICONS = {
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.5-4.5M8.2 13.2l7.5 4.5"/></svg>',
+  listen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M17 9a5 5 0 0 1 0 6m2.5-9a9 9 0 0 1 0 12"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4.7 9A7.5 7.5 0 0 1 18 6l2 6M4 17v-5h5m10.3 3A7.5 7.5 0 0 1 6 18l-2-6"/></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
+  sources: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h14v15H5zM8 8h8M8 12h8M8 16h5"/></svg>'
+};
+
+function actionIcon(name) {
+  const icon = el("span", "action-icon");
+  icon.setAttribute("aria-hidden", "true");
+  icon.innerHTML = ACTION_ICONS[name];
+  return icon;
+}
+
+function makeActionButton(label, iconName, className = "", labelKey = iconName) {
+  const button = el("button", `action-btn${className ? ` ${className}` : ""}`);
+  button.type = "button";
+  button.dataset.labelKey = labelKey;
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.append(actionIcon(iconName), el("span", "action-label", label));
+  return button;
+}
+
+function setActionStatus(status, key) {
+  status.dataset.statusKey = key;
+  status.textContent = UI[lang][key] || "";
+}
+
+function applyActionTranslations(message) {
+  const t = UI[lang];
+  message.responseActions.querySelectorAll("[data-label-key]").forEach((control) => {
+    const key = control.dataset.labelKey;
+    const label = key === "sources"
+      ? (control.getAttribute("aria-expanded") === "true" ? t.hideSources : t.showSources)
+      : t[key];
+    if (!label) return;
+    const text = control.querySelector(".action-label");
+    if (text) text.textContent = label;
+    control.setAttribute("aria-label", label);
+    control.title = label;
+  });
+  message.responseActions.querySelectorAll("[data-item-key]").forEach((item) => {
+    item.textContent = t[item.dataset.itemKey];
+  });
+  const statusKey = message.actionStatus.dataset.statusKey;
+  if (statusKey) message.actionStatus.textContent = t[statusKey] || "";
+}
+
+function listenButton(res, status) {
   const text = spokenText(res);
   if (!("speechSynthesis" in window) || !text) return null;
-  const speakLang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";  // the reply's own language, e.g. English on request
-  const box = el("div", "tools");
-  const btn = el("button", "link-btn", UI[speakLang].listen);
-  btn.type = "button";
-  const reset = () => { delete btn.dataset.playing; btn.textContent = UI[speakLang].listen; };
-  box.play = async () => {
+  const speakLang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";  // use the reply's language, e.g. English on request
+  const btn = makeActionButton(UI[lang].listen, "listen");
+  const label = btn.querySelector(".action-label");
+  const icon = btn.querySelector(".action-icon");
+  const reset = () => {
+    delete btn.dataset.playing;
+    btn.setAttribute("aria-pressed", "false");
+    btn.dataset.labelKey = "listen";
+    label.textContent = UI[lang].listen;
+    btn.setAttribute("aria-label", UI[lang].listen);
+    btn.title = UI[lang].listen;
+    icon.innerHTML = ACTION_ICONS.listen;
+  };
+  btn.play = async () => {
     speechSynthesis.cancel();
     const voice = pickVoice(await voicesReady(), speakLang);
-    if (!voice) {  // no voice for this language: say so instead of staying silent
-      if (!box.querySelector(".no-voice")) box.append(el("div", "no-voice", UI[speakLang].noVoice));
-      return;
-    }
-    btn.dataset.playing = "1"; btn.textContent = UI[speakLang].stop;
+    if (!voice) { status.textContent = UI[speakLang].noVoice; delete status.dataset.statusKey; return; }
+    status.textContent = "";
+    delete status.dataset.statusKey;
+    btn.dataset.playing = "1";
+    btn.setAttribute("aria-pressed", "true");
+    btn.dataset.labelKey = "stop";
+    label.textContent = UI[lang].stop;
+    btn.setAttribute("aria-label", UI[lang].stop);
+    btn.title = UI[lang].stop;
+    icon.innerHTML = ACTION_ICONS.stop;
     const parts = pieces(text);
     parts.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part);
@@ -1374,13 +1541,55 @@ function listenButton(res) {
   };
   btn.addEventListener("click", () => {
     if (btn.dataset.playing) { speechSynthesis.cancel(); reset(); return; }
-    box.play();
+    btn.play();
   });
-  box.append(btn);
-  return box;
+  return btn;
 }
 
-function renderAnswer(res, style) {
+function answerText(res, includeSourcePassages = false) {
+  const lines = [];
+  if (res.message) lines.push(res.message);
+  const sourceNumbers = new Map((res.sources || []).map((source, i) => [source.passage_id, i + 1]));
+  for (const claim of res.claims || []) {
+    const text = `${claim.label ? `${claim.label}: ` : ""}${claim.text}`;
+    const refs = [...new Set(claim.passage_ids || [])].map((id) => sourceNumbers.get(id)).filter(Boolean);
+    lines.push(`${claim.section ? `${claim.section}: ` : ""}${text}${refs.length ? ` [${refs.join(", ")}]` : ""}`);
+  }
+  for (const view of res.views || []) {
+    const refs = [...new Set(view.passage_ids || [])].map((id) => sourceNumbers.get(id)).filter(Boolean);
+    lines.push(`${view.school}: ${view.text}${refs.length ? ` [${refs.join(", ")}]` : ""}`);
+  }
+  if (res.note) lines.push(res.note);
+  if (res.follow_up) lines.push(res.follow_up);
+  if ((res.sources || []).length) {
+    lines.push("", UI[lang].sources + ":");
+    for (const [i, source] of res.sources.entries()) {
+      lines.push(`[${i + 1}] ${source.source_name || source.location}${source.location ? ` · ${source.location}` : ""}`);
+      if (includeSourcePassages && source.quote) lines.push(source.quote);
+    }
+  }
+  return lines.join("\n").trim();
+}
+
+async function writeClipboard(text) {
+  if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return; }
+  const field = el("textarea");
+  field.value = text;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("Clipboard unavailable");
+}
+
+function rememberable(res) {
+  return !["invalid", "declined", "abstained", "unavailable"].includes(res.status);
+}
+
+function renderAnswer(res, style, context) {
   const open = style === "extended";
   const t = UI[lang];
   const msg = el("div", "msg");
@@ -1398,6 +1607,7 @@ function renderAnswer(res, style) {
   // Sources are numbered; each sentence of the answer carries the numbers of the sources it rests on.
   const number = new Map((res.sources || []).map((s, i) => [s.passage_id, i + 1]));
   const cardFor = new Map();
+  const sourceCards = [];
   const quoted = new Set((res.sources || []).map((s) => `«${s.quote}»`));
   // A claim that only repeats a passage word for word is already shown in its source card.
   const shown = new Set();  // passages whose text is itself the answer stay open
@@ -1520,10 +1730,158 @@ function renderAnswer(res, style) {
     }
     card.append(meta);
     msg.append(card);
+    sourceCards.push(card);
   }
-  const listen = listenButton(res);
-  if (listen) { msg.append(listen); msg.listen = listen; }
+  const actions = el("div", "tools");
+  actions.setAttribute("role", "group");
+  actions.setAttribute("aria-label", t.responseActions);
+  const status = el("span", "action-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+
+  const copy = makeActionButton(t.copyAnswer, "copy", "", "copyAnswer");
+  copy.addEventListener("click", async () => {
+    try { await writeClipboard(answerText(res)); setActionStatus(status, "copied"); }
+    catch { setActionStatus(status, "copyFailed"); }
+  });
+  actions.append(copy);
+
+  const share = makeActionButton(t.shareAnswer, "share", "", "shareAnswer");
+  share.addEventListener("click", async () => {
+    const text = answerText(res);
+    try {
+      if (navigator.share) await navigator.share({ title: t.assistant, text });
+      else { await writeClipboard(text); setActionStatus(status, "shareFallback"); }
+    } catch (error) {
+      if (error?.name !== "AbortError") setActionStatus(status, "shareFailed");
+    }
+  });
+  actions.append(share);
+
+  const listen = listenButton(res, status);
+  if (listen) { actions.append(listen); msg.listen = listen; }
+
+  const regenerate = makeActionButton(t.regenerate, "regenerate", "", "regenerate");
+  regenerate.disabled = !context;
+  regenerate.addEventListener("click", () => regenerateAnswer(msg));
+  actions.append(regenerate);
+
+  const more = el("details", "more-actions");
+  const moreSummary = el("summary", "action-btn");
+  moreSummary.dataset.labelKey = "more";
+  moreSummary.setAttribute("aria-expanded", "false");
+  moreSummary.setAttribute("aria-label", t.more);
+  moreSummary.title = t.more;
+  moreSummary.append(actionIcon("more"), el("span", "action-label", t.more));
+  more.append(moreSummary);
+  const menu = el("div", "more-menu");
+  const copySources = el("button", "more-item", t.copyWithSources);
+  copySources.type = "button";
+  copySources.dataset.itemKey = "copyWithSources";
+  copySources.addEventListener("click", async () => {
+    try { await writeClipboard(answerText(res, true)); setActionStatus(status, "copied"); }
+    catch { setActionStatus(status, "copyFailed"); }
+    more.open = false;
+  });
+  const simplify = el("button", "more-item", t.simplifyAnswer);
+  simplify.type = "button";
+  simplify.dataset.itemKey = "simplifyAnswer";
+  simplify.addEventListener("click", () => {
+    more.open = false;
+    $("q").value = UI[lang].simplifyPrompt;
+    $("q").focus();
+    $("ask").requestSubmit();
+  });
+  menu.append(copySources, simplify);
+  more.append(menu);
+  more.addEventListener("toggle", () => moreSummary.setAttribute("aria-expanded", String(more.open)));
+  actions.append(more);
+
+  if (sourceCards.length) {
+    const sourcesButton = makeActionButton(sourceCards.every((card) => card.open) ? t.hideSources : t.showSources, "sources", "", "sources");
+    const label = sourcesButton.querySelector(".action-label");
+    const setSourceLabel = (expanded) => {
+      const current = UI[lang];
+      const text = expanded ? current.hideSources : current.showSources;
+      label.textContent = text;
+      sourcesButton.setAttribute("aria-label", text);
+      sourcesButton.title = text;
+      sourcesButton.setAttribute("aria-expanded", String(expanded));
+    };
+    setSourceLabel(sourceCards.every((card) => card.open));
+    sourcesButton.addEventListener("click", () => {
+      const expanded = !sourceCards.every((card) => card.open);
+      sourceCards.forEach((card) => { card.open = expanded; });
+      setSourceLabel(expanded);
+    });
+    actions.append(sourcesButton);
+  }
+
+  actions.append(status);
+  msg.append(actions);
+  msg.actionStatus = status;
+  msg.regenerateButton = regenerate;
+  msg.responseActions = actions;
+  msg.responseData = res;
+  msg.requestContext = context;
   return msg;
+}
+
+function syncRegenerateButtons(conversation) {
+  const targets = conversation ? [conversation] : conversations;
+  for (const item of targets) {
+    const latest = item.messages.at(-1);
+    for (const message of item.messages) {
+      if (message?.regenerateButton) message.regenerateButton.disabled = message !== latest || $("send").disabled;
+    }
+  }
+}
+
+async function regenerateAnswer(message) {
+  const context = message.requestContext;
+  const conversation = context?.conversation;
+  if (!context || !conversation || conversation.messages.at(-1) !== message || $("send").disabled) return;
+  const messageIndex = conversation.messages.indexOf(message);
+  if (messageIndex < 0) return;
+  const send = $("send");
+  send.disabled = true;
+  syncRegenerateButtons();
+  message.regenerateButton.disabled = true;
+  setActionStatus(message.actionStatus, "regenerating");
+  const pending = el("div", "msg pending typing");
+  pending.setAttribute("role", "status");
+  pending.setAttribute("aria-label", UI[lang].pending);
+  for (let i = 0; i < 3; i++) pending.append(el("span"));
+  conversation.messages.push(pending);
+  if (activeConversation === conversation) { $("thread").append(pending); scrollDown(); }
+  try {
+    const response = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: context.question, style: context.style, lang: context.lang, history: context.history }) });
+    if (!response.ok) throw new Error(response.status);
+    const res = await response.json();
+    const replacement = renderAnswer(res, context.style, context);
+    conversation.messages[messageIndex] = replacement;
+    conversation.messages = conversation.messages.filter((entry) => entry !== pending);
+    if (activeConversation === conversation) {
+      message.replaceWith(replacement);
+      pending.remove();
+    }
+    conversation.turns = context.history.slice();
+    if (rememberable(res)) {
+      remember(conversation, "user", res.understood || context.question);
+      remember(conversation, "assistant", [res.message, ...(res.claims || []).map((claim) => claim.text)].filter(Boolean).join(" "));
+    }
+    conversation.updatedAt = Date.now();
+    if (activeConversation === conversation) scrollDown();
+  } catch {
+    conversation.messages = conversation.messages.filter((entry) => entry !== pending);
+    if (activeConversation === conversation) pending.remove();
+    setActionStatus(message.actionStatus, "error");
+  } finally {
+    send.disabled = false;
+    syncRegenerateButtons();
+    renderHistory();
+  }
 }
 
 // A short distinctive phrase of a hadith for dorar's search: the Prophet's words when quoted, else the last words.
@@ -1544,13 +1902,17 @@ function scrollDown() { $("thread").scrollTo({ top: $("thread").scrollHeight, be
 
 $("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
 $("newChat").addEventListener("click", startNewConversation);
-$("openHistory").addEventListener("click", openHistory);
+$("openHistory").addEventListener("click", toggleHistory);
 $("closeHistory").addEventListener("click", closeHistory);
 $("sidebarScrim").addEventListener("click", closeHistory);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("appShell").classList.contains("drawer-open")) closeHistory();
 });
 $("historySearch").addEventListener("input", renderHistory);
+window.addEventListener("resize", () => {
+  if (!isMobileLayout()) $("appShell").classList.remove("drawer-open");
+  updateHistoryToggle();
+}, { passive: true });
 $("thread").addEventListener("click", (e) => {
   const suggestion = e.target.closest(".suggestion");
   if (!suggestion) return;
@@ -1567,8 +1929,12 @@ $("ask").addEventListener("submit", async (e) => {
   stopListening();
   const conversation = activeConversation;
   const style = $("style").value;
+  const requestLang = lang;
+  const requestHistory = conversation.turns.slice();
+  const context = { conversation, question, style, lang: requestLang, history: requestHistory };
   const send = $("send");
   send.disabled = true;
+  syncRegenerateButtons();
   $("empty")?.remove();
   const userMessage = el("div", "turn-user", question);
   userMessage.dir = "auto";
@@ -1585,33 +1951,37 @@ $("ask").addEventListener("submit", async (e) => {
   pending.setAttribute("role", "status"); pending.setAttribute("aria-label", UI[lang].pending);
   for (let i = 0; i < 3; i++) pending.append(el("span"));
   conversation.messages.push(pending);
+  syncRegenerateButtons();
   conversation.updatedAt = Date.now();
   $("thread").append(pending);
   $("q").value = "";
   scrollDown();
   try {
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, style, lang, history: conversation.turns }) });
+      body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }) });
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
-    const msg = renderAnswer(res, style);
+    const msg = renderAnswer(res, style, context);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
     pending.replaceWith(msg);
     if (askedBySpeech && msg.listen) msg.listen.play();  // spoken question: spoken reply
     // answers and Muhawir's offers (e.g. "shall I explain it more simply?") are remembered, so a follow-up
     // or a "yes" is understood; refusals, errors and "not found" are not answers to explain again
-    if (!["invalid", "declined", "abstained", "unavailable"].includes(res.status)) {
+    if (rememberable(res)) {
       remember(conversation, "user", res.understood || question);
       remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text)].filter(Boolean).join(" "));
     }
+    syncRegenerateButtons();
   } catch {
     const errorMessage = el("div", "msg", UI[lang].error);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
     pending.replaceWith(errorMessage);
+    syncRegenerateButtons();
   } finally {
     send.disabled = false;
+    syncRegenerateButtons();
     conversation.updatedAt = Date.now();
     renderHistory();
     if (activeConversation === conversation) {
