@@ -219,7 +219,7 @@ def test_a_sentence_whose_quoted_support_is_not_in_the_passage_is_dropped():
 def test_instructions_forbid_added_conclusions_book_structure_and_neighbouring_topics():
     s, c = generate.SYSTEM_PROMPT, generate.CHECK_PROMPT
     assert "وهذا يدل على" in s and "ترتيب الكتاب" in s and "مسألة مجاورة" in s
-    assert "لا يصف كيف تُؤدّى عبادة" in s
+    assert "ويُمنع المثال تمامًا إن كان: يصف كيف تُؤدّى عبادة" in s
     assert "استنتاج أو تعليق أو تقييم" in c and "ترتيب الكتاب" in c and "مثال يصف كيف تُؤدّى عبادة" in c
 
 
@@ -751,11 +751,15 @@ def test_any_present_tense_verb_after_a_demonstrative_begins_an_inference():
     assert _without_inference(keep) is keep  # «وهذا قول» is a statement about whose view it is, not an inference
 
 
-# --- everyday examples are switched off -------------------------------------------------------------
+# --- everyday examples: one from contemporary life, checked, marked, never near a ruling ---------------
 
-def _with_example(text):
+def _with_example(text, religious=False):
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
+        if "religious" in keys:  # the example check: does the example state religious information?
+            return json.dumps({"religious": religious})
+        if "problem" in keys:
+            return '{"supported": [true]}'
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -766,14 +770,37 @@ def _with_example(text):
     return Muhawir(CORPUS, ModelGenerator([("m", call)]))
 
 
-@pytest.mark.parametrize("example", ["مثلًا، إذا كان لديك لعبة كثيرة تعطي بعضها لأصدقائك.",
-                                     "مثال: إذا كان لديك تمر تعطي صاعًا للفقراء.",
-                                     "For example, if you have many toys you share them."])
-def test_an_everyday_example_is_dropped_because_examples_are_switched_off(example, monkeypatch):
-    monkeypatch.setattr(pipeline, "DEBUG", True)
+def test_a_contemporary_example_is_kept_and_marked_as_muhawirs_own():
+    example = "مثلًا، كما تحتاج بطارية الجوال إلى شحن أكثر في الحر."
     res = _with_example(example).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف.", example]
+    assert res.claims[1].get("example") is True and "example" not in res.claims[0]
+
+
+@pytest.mark.real_check
+@pytest.mark.parametrize("example", ["مثال: إذا كان لديك تمر تعطي صاعًا للفقراء.",
+                                     "For example, giving your toys is like paying zakat."])
+def test_an_example_with_religious_information_is_dropped(example, monkeypatch):
+    monkeypatch.setattr(pipeline, "DEBUG", True)
+    res = _with_example(example, religious=True).ask(QUESTION)
     assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
-    assert "examples are switched off" in res.why
+
+
+def test_an_answer_made_only_of_an_example_is_not_shown():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "religious" in keys:
+            return '{"religious": false}'
+        if "problem" in keys:
+            return '{"supported": [true]}'
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        if "queries" in keys:
+            return '{"queries": []}'
+        return json.dumps({"abstain": False, "claims": [
+            {"text": "مثلًا، كما يحتاج الطالب إلى الماء في يوم حار.", "passage_ids": ["test-a:1"]}]}, ensure_ascii=False)
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask(QUESTION)
+    assert res.claims == []
 
 
 def test_an_example_is_no_longer_exempt_from_the_topic_check_in_the_instructions():

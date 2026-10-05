@@ -217,10 +217,11 @@ def test_understanding_returns_the_question_kind():
     assert gen.understand("لماذا نصوم؟", [])["kind"] == "why"
 
 
-def test_everyday_examples_are_not_asked_for():
+def test_one_contemporary_example_is_allowed_with_its_limits():
     from muhawir.generate import SYSTEM_PROMPT, STYLE_GUIDE
-    assert "لا تكتب أمثلة من الحياة اليومية" in SYSTEM_PROMPT
-    assert "ولا تكتب مثالًا" in STYLE_GUIDE["kids"] and "ولا تكتب مثالًا" in STYLE_GUIDE["youth"]
+    assert "مثال واحد على الأكثر من الواقع المعاصر" in SYSTEM_PROMPT and "يبدأ بكلمة «مثلًا»" in SYSTEM_PROMPT
+    assert "يشبّه عبادة أو ركنًا أو عقيدة" in SYSTEM_PROMPT and "ولا مثال في سؤال عن حكم" in SYSTEM_PROMPT
+    assert "وفق الضابط 10" in STYLE_GUIDE["kids"] and "وفق الضابط 10" in STYLE_GUIDE["youth"]
 
 
 def test_worked_examples_show_the_target_style_without_usable_ids():

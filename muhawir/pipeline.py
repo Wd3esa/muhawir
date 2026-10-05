@@ -39,10 +39,14 @@ _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # a quotation of five words or more inside «» or "" or ﴿﴾: pasted from a source, not explained
 _COPIED = re.compile(r'«(?:[^»\s]+\s+){4,}[^»]*»|"(?:[^"\s]+\s+){4,}[^"]*"|“(?:[^”\s]+\s+){4,}[^”]*”|﴿(?:[^﴾\s]+\s+){4,}[^﴾]*﴾')
 MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not explained
-# Everyday examples («مثلًا إذا كان لديك…») are switched off. In every full test run the examples the model wrote
-# about acts of worship were wrong, likened the act to something worldly, or restated a ruling, and no check can
-# tell what an invented example implies about religion. Set True to allow them again (the checks for them stay).
-ALLOW_EXAMPLES = False
+# Everyday examples («مثلًا…») from contemporary life, at most one per answer, to illustrate a general idea in
+# the cited passage (the project owner's decision, 5 October 2026, after the user survey: 8 of 15 prefer answers
+# with everyday examples; docs/SURVEY.md). They were off before because examples the model invented about acts of
+# worship were wrong or likened worship to worldly things, so every example is still checked: it may state no
+# religious information (a separate model check), may not compare a religious matter to daily life, and is never
+# used in a ruling, a personal case, a contemporary financial matter or a reply to grief. It is shown marked as
+# Muhawir's own illustration. Set False to switch them off again.
+ALLOW_EXAMPLES = True
 _LATIN = re.compile(r"[A-Za-z]{2,}")
 # a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
 # or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
@@ -650,14 +654,17 @@ class Muhawir:
             answer = [c for c in answer if not classify.names_company(c.text)]
         # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
         answer = [c for c in answer if bayyinat.VERSE not in c.text]
-        if not any(c.passage_ids for c in answer):  # an answer must rest on the sources: explanation alone is not shown
+        if contemporary or personal or kind == "ruling" or feeling == "sad":  # no invented example near a ruling or grief
+            answer = [c for c in answer if not is_example(c.text)]
+        if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
             if contemporary:
                 return Response(REFERRED, t["out_of_scope"], synthetic=synthetic)
             return self._why(self._abstain(question, t, synthetic), f"{offered}; no sourced sentence (only views or Muhawir's own explanation)")
         claims = [{"text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids),
-                   **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {})}
+                   **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {}),
+                   **({"example": True} if is_example(c.text) else {})}
                   for c in answer]
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in kept if c.school]

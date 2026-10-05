@@ -674,6 +674,15 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   padding-inline-start:12px;
   border-inline-start:3px solid var(--accent)
 }
+.example-tag {
+  display:inline-block;
+  font-size:11px;
+  color:var(--muted);
+  border:1px solid var(--line, currentColor);
+  border-radius:6px;
+  padding:0 6px;
+  margin-inline-end:4px
+}
 .card blockquote.translation {
   margin-top:8px;
   font-style:italic
@@ -1271,7 +1280,7 @@ const UI = {
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "عند استعمال الميكروفون قد يرسل متصفحك صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…",
+        exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.",
@@ -1286,7 +1295,7 @@ const UI = {
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…",
+        exampleTag: "An illustration by Muhawir", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of personal fatwas.",
@@ -1669,6 +1678,8 @@ function renderAnswer(res, style, context) {
   // one sentence: an optional bold label («المقدار:»), the text, then its source numbers
   const fill = (node, c) => {
     if (c.label) node.append(el("strong", "", c.label + ": "));
+    // an everyday example is Muhawir's own illustration, not the source's words: it says so
+    if (c.example) node.append(el("span", "example-tag", t.exampleTag), " ");
     node.append(c.text);
     const sup = cite(c);
     if (sup.childNodes.length) node.append(sup);
