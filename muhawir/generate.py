@@ -917,10 +917,18 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
 
 
 def openai_compatible_call(base_url: str, model: str, api_key: str = "",
-                           timeout: float = 300.0) -> ModelCall:
+                           timeout: float = 300.0, reasoning: str = "") -> ModelCall:
     """Any server speaking the common chat-completions format: Ollama on your own computer
-    (base_url http://localhost:11434/v1), or hosted open models such as DeepSeek or Qwen."""
+    (base_url http://localhost:11434/v1), or hosted open models such as DeepSeek or Qwen.
+    `reasoning` (OPENAI_COMPAT_REASONING) asks a reasoning model to think less, in OpenRouter's format:
+    "off" turns its thinking off, "minimal"/"low"/"medium"/"high" sets the effort; empty sends nothing."""
     import httpx
+
+    extra = {}
+    if reasoning.strip().lower() in ("off", "none", "false", "0"):
+        extra = {"reasoning": {"enabled": False}}
+    elif reasoning.strip().lower() in ("minimal", "low", "medium", "high"):
+        extra = {"reasoning": {"effort": reasoning.strip().lower()}}
 
     def call(system: str, user: str, schema: dict) -> str:
         headers = {"content-type": "application/json"}
@@ -932,7 +940,7 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
             json={"model": model, "temperature": 0, "max_tokens": 8192,  # room for the whole JSON reply (a reasoning model's thinking counts too)
                   "response_format": {"type": "json_object"},
                   "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": user}]},
+                               {"role": "user", "content": user}], **extra},
             timeout=timeout)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"] or ""
@@ -953,7 +961,8 @@ def get_generator() -> Generator:
         calls.append(("open-model", openai_compatible_call(
             os.environ["OPENAI_COMPAT_BASE_URL"], os.environ["OPENAI_COMPAT_MODEL"],
             os.environ.get("OPENAI_COMPAT_API_KEY", ""),
-            float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300))))
+            float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
+            os.environ.get("OPENAI_COMPAT_REASONING", ""))))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
         calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
     if not calls:

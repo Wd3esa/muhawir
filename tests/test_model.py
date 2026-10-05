@@ -253,6 +253,11 @@ def test_open_model_request_shape(monkeypatch):
     assert sent["url"] == "http://localhost:11434/v1/chat/completions"
     assert "authorization" not in sent["headers"]
     assert sent["body"]["model"] == "qwen" and sent["body"]["messages"][0]["role"] == "system"
+    assert "reasoning" not in sent["body"]  # nothing extra unless asked for
+    generate.openai_compatible_call("http://x/v1", "m", reasoning="off")("s", "u", {})
+    assert sent["body"]["reasoning"] == {"enabled": False}
+    generate.openai_compatible_call("http://x/v1", "m", reasoning="Low")("s", "u", {})
+    assert sent["body"]["reasoning"] == {"effort": "low"}
 
 
 def test_open_model_selected_from_environment(monkeypatch):
