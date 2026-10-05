@@ -9,7 +9,7 @@ plus Sahih al-Bukhari and Sahih Muslim in Arabic from github.com/fawazahmed0/had
 (ara-bukhari.min.json, ara-muslim.min.json; public domain), and Ibn Rushd's
 «بداية المجتهد» and Ibn Hisham's «السيرة النبوية» from the OpenITI corpus (comparative fiqh and the
 Sira; CC BY-NC-SA 4.0) and the fatwa collections of Ibn Baz and Ibn Uthaymeen (OpenITI; contemporary
-works whose text rights remain with their holders, see LICENSES.md), and «بينات» (Osoul Center; its PDF,
+works whose text rights remain with their holders, see LICENSES.md), four creed books of the early scholars (OpenITI), and «بينات» (Osoul Center; its PDF,
 read from the folder), and writes data/muhawir.db. Run at deploy time so the copy is always current,
 as the Quranpedia licence asks; the database is never committed.
 
@@ -26,7 +26,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from . import bayyinat, bidaya, fatawa, sahihayn, sira
+from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, sira
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -67,6 +67,8 @@ def download_hadith(folder: Path) -> None:
     _fetch(list(bidaya.DOWNLOAD), folder / bidaya.FILE)
     _fetch(list(sira.DOWNLOAD), folder / sira.FILE)
     for book in fatawa.BOOKS.values():
+        _fetch(list(book["download"]), folder / book["file"])
+    for book in aqeedah.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
     if bayyinat.DOWNLOAD and not (folder / bayyinat.FILE).exists():
         _fetch(list(bayyinat.DOWNLOAD), folder / bayyinat.FILE)
@@ -121,6 +123,13 @@ def build(folder: Path, out: Path) -> int:
     else:
         print("note: the fatwa collections are not in this folder; add them with --get-hadith")
     del texts
+    texts = {sid: (folder / book["file"]).read_text(encoding="utf-8")
+             for sid, book in aqeedah.BOOKS.items() if (folder / book["file"]).exists()}
+    if texts:
+        aqeedah.add_to_corpus(corpus, texts)
+    else:
+        print("note: the creed books are not in this folder; add them with --get-hadith")
+    del texts
     if (folder / bayyinat.FILE).exists():
         bayyinat.add_to_corpus(corpus, folder / bayyinat.FILE)
     else:
@@ -136,6 +145,7 @@ def build(folder: Path, out: Path) -> int:
           f"bidaya {'yes' if corpus['_provenance'].get('bidaya_commit') else 'no'}, "
           f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'}, "
           f"fatawa {'yes' if corpus['_provenance'].get('fatawa_commit') else 'no'}, "
+          f"aqeedah {len(corpus['_provenance'].get('aqeedah_books', []))}, "
           f"bayyinat {'yes' if corpus['_provenance'].get('bayyinat_sha256') else 'no'})")
     return count
 

@@ -44,6 +44,7 @@ _PAGE = re.compile(r"PageV(\d+)P(\d+)")
 _ISSUE = re.compile(r"^(?:[وف]?أما\s+)?المسألة\s")
 _MILESTONE = re.compile(r"\bms\d+\b")
 _SPACES = re.compile(r"[ \t ]+")
+_TAG = re.compile(r"</?span\b[^>]*>")  # HTML left in some OpenITI files (e.g. <span class="matn">)
 
 
 class ImportError_(ValueError):
@@ -51,7 +52,7 @@ class ImportError_(ValueError):
 
 
 def _clean(text: str) -> str:
-    return _SPACES.sub(" ", _MILESTONE.sub("", text)).strip()
+    return _SPACES.sub(" ", _MILESTONE.sub("", _TAG.sub("", text))).strip()
 
 
 def _heading(line: str) -> str:
