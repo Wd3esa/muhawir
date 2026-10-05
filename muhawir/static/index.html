@@ -1273,7 +1273,7 @@ a {
   align-items:center;
   gap:8px;
   width:max-content;
-  max-width:min(100%,315px);
+  max-width:min(100%,420px);
   min-width:0;
   padding:7px 11px;
   white-space:normal
@@ -1281,11 +1281,14 @@ a {
 .rider-track {
   position:relative;
   display:block;
-  flex:0 0 108px;
-  width:108px;
+  flex:0 0 200px;
+  width:200px;
   height:62px;
   overflow:hidden;
   direction:ltr;
+  /* the rider fades in and out at the edges instead of being cut off */
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 14%,#000 86%,transparent);
+  mask-image:linear-gradient(to right,transparent,#000 14%,#000 86%,transparent);
   --rider-size:76px
 }
 .rider-runner {
@@ -1384,10 +1387,10 @@ a {
   animation:rider-rear .65s cubic-bezier(.2,.8,.2,1) both
 }
 @media(max-width:420px) {
-  .msg.pending.rider-status { max-width:100%; gap:7px; padding-inline:9px; }
-  .rider-track { flex-basis:88px; width:88px; height:52px; --rider-size:62px; }
+  .msg.pending.rider-status { width:100%; max-width:100%; gap:7px; padding-inline:9px; }
+  .rider-track { flex:1 1 150px; width:auto; min-width:120px; height:52px; --rider-size:62px; }
   .rider-runner { height:50px; }
-  .rider-status-copy { max-width:148px; font-size:12px; }
+  .rider-status-copy { flex:0 1 auto; max-width:130px; font-size:12px; }
 }
 @media(prefers-reduced-motion:reduce) {
   .rider-runner { left:calc((100% - var(--rider-size))/2)!important; animation:none!important; }
