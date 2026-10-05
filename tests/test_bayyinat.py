@@ -76,7 +76,7 @@ def test_a_question_is_split_into_its_parts_with_number_title_pages_and_keywords
     assert ps[0]["text"] == "السؤال: لماذا نؤمن بوجود إله؟"
     assert ps[2]["text"] == "فخلق السموات والأرض: (الآية) [يس: 40]، يدل على خالق.\nوهذا آخر الكلام."
     assert "هل هناك حاجة لرب مدبر؟" in ps[0]["keywords"] and "الإيمان بالله" in ps[0]["keywords"]
-    assert all(p["kind"] == "qa" and p["id"].startswith("b:") for p in ps)
+    assert all(p["kind"] == "qa" and p["id"].startswith("by:") for p in ps)
 
 
 def test_source_names_the_book_and_its_rights_and_a_short_file_is_refused():
@@ -92,3 +92,12 @@ def test_a_wrong_pdf_is_refused(tmp_path):
     pdf.write_bytes(b"%PDF-1.7 not the book")
     with pytest.raises(bayyinat.ImportError_):
         bayyinat.read_pdf(pdf)
+
+
+def test_every_importer_uses_its_own_id_prefix():
+    from muhawir import aqeedah, bidaya, fatawa, sahihayn, sira
+    prefixes = [bayyinat.PREFIX, bidaya.PREFIX, sira.PREFIX, "q", "t", "a",
+                *(b["prefix"] for b in sahihayn.BOOKS.values()),
+                *(b["prefix"] for b in fatawa.BOOKS.values()),
+                *(b["prefix"] for b in aqeedah.BOOKS.values())]
+    assert len(prefixes) == len(set(prefixes))

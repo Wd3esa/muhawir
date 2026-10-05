@@ -36,7 +36,7 @@ from collections import defaultdict
 from pathlib import Path
 
 SOURCE_ID = "bayyinat"
-PREFIX = "b"
+PREFIX = "by"  # "b" is Sahih al-Bukhari
 FILE = "bayyinat.pdf"
 SHA256 = "619b7201833419b8fbf86c463208462b9a2a7f02ad2306a2667490f3b410ad4e"
 DOWNLOAD = ("https://dawa.center/file/7937/download",)  # the package's own link; the file is checked by SHA256
