@@ -47,6 +47,21 @@ MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not e
 # used in a ruling, a personal case, a contemporary financial matter or a reply to grief. It is shown marked as
 # Muhawir's own illustration. Set False to switch them off again.
 ALLOW_EXAMPLES = True
+
+# Terms that look alike but name different matters. A chapter or passage headed by the first is offered only when
+# the user's own words name it: the model turning «القروض» (loans) into «القراض» (a profit-sharing partnership) in
+# its search phrases once brought a whole answer about the wrong contract (5 October 2026). Normalized spelling.
+CONFUSABLE = (
+    {"heading": ("القراض",), "user": ("قراض", "مقارض", "مقارضه", "مضاربه", "مضارب")},
+)
+
+
+def _confused(passage: Passage, user_words: str) -> bool:
+    """The passage is headed by a look-alike term the user did not use (see CONFUSABLE)."""
+    heading = normalize(f"{passage.location} {passage.keywords}")
+    words = normalize(user_words)
+    return any(any(h in heading for h in c["heading"]) and not any(u in words for u in c["user"])
+               for c in CONFUSABLE)
 _LATIN = re.compile(r"[A-Za-z]{2,}")
 # a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
 # or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
@@ -412,7 +427,8 @@ class Muhawir:
         for p in self._neighbours([h.passage for h in best.values()]):
             best.setdefault(p.id, Hit(p, 0.0, 1.0))
         # and whatever fiqh passage was found, the passage that opens its issue (the views) comes before it
-        return self._with_issue_openers([h.passage for h in best.values()]), queries
+        offered = self._with_issue_openers([h.passage for h in best.values()])
+        return [p for p in offered if not _confused(p, original or question)], queries
 
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
@@ -613,7 +629,7 @@ class Muhawir:
                                 synthetic=synthetic)
         if self.generator.strict_retrieval:
             hits = self.retriever.search(question)
-            passages = [h.passage for h in hits if is_sufficient([h])]
+            passages = [h.passage for h in hits if is_sufficient([h]) and not _confused(h.passage, original or question)]
         else:
             passages, queries = self._gather(question, original, queries)
         if contemporary:

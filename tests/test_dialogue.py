@@ -838,3 +838,38 @@ def test_the_switch_can_turn_examples_back_on(monkeypatch):
     monkeypatch.setattr(pipeline, "ALLOW_EXAMPLES", True)
     res = _with_example("مثلًا، تحتاج النخلة إلى سقي كما يحتاج العطشان إلى الماء.").ask(QUESTION)
     assert len(res.claims) == 2
+
+
+# --- look-alike terms: «القرض» (a loan) is not «القراض» (a profit-sharing partnership) -------------
+
+def test_a_loan_question_is_not_answered_from_the_chapter_on_qirad():
+    from muhawir.corpus import Passage
+    from muhawir.pipeline import _confused
+    qirad = Passage("f:1", "bidayat-al-mujtahid", "كتاب القراض، الباب الثاني في مسائل الشروط في القراض (ج4، ص23)",
+                    "نص", "fiqh", keywords="كتاب القراض")
+    loan = Passage("z:1", "fatawa-ibn-baz", "حديث «كل قرض جر نفعا فهو ربا» (ج19، ص293)", "نص", "fatwa")
+    assert _confused(qirad, "ماحكم القروض") and not _confused(loan, "ماحكم القروض")
+    assert not _confused(qirad, "ما حكم القراض؟") and not _confused(qirad, "ما هي المضاربة؟")
+
+
+def test_the_users_own_words_decide_even_when_the_search_phrase_says_qirad():
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "s", "name": "مصدر", "about": "تجريبي."}],
+                           "passages": [
+                               {"id": "f:1", "source_id": "s", "location": "كتاب القراض، الباب الأول",
+                                "kind": "fiqh", "text": "القراض أن يعطي الرجل الرجل المال يتجر به على جزء من الربح.",
+                                "keywords": "كتاب القراض"},
+                               {"id": "z:1", "source_id": "s", "location": "حكم القرض", "kind": "fatwa",
+                                "text": "القرض الحسن مستحب وفيه تفريج كربة المحتاج."}]})
+    seen = []
+
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if "queries" in keys:
+            return json.dumps({"question": "ما حكم القروض؟", "queries": ["القراض", "القرض"]}, ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        seen.append(user)
+        return json.dumps({"abstain": False, "claims": [{"text": "القرض الحسن مستحب.", "passage_ids": ["z:1"]}]},
+                          ensure_ascii=False)
+    Muhawir(corpus, ModelGenerator([("m", call)])).ask("ماحكم القروض")
+    assert seen and all("[f:1]" not in u for u in seen) and any("[z:1]" in u for u in seen)
