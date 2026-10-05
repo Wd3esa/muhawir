@@ -26,7 +26,9 @@
   --card:#F2F4FF;
   --mine:#E0D9FB;
   --shadow:0 10px 34px rgba(18,24,63,.09);
-  --focus:#6150EA
+  --focus:#6150EA;
+  --glow-mint:rgba(46,242,194,.36);
+  --glow-violet:rgba(97,80,234,.29)
 }
 
   @media(prefers-color-scheme:dark) {
@@ -50,7 +52,9 @@
     --card:#22325B;
     --mine:#344775;
     --shadow:0 10px 34px rgba(0,0,0,.22);
-    --focus:#2EF2C2
+    --focus:#55F0CD;
+    --glow-mint:rgba(85,240,205,.48);
+    --glow-violet:rgba(139,110,255,.55)
   }
 }
 
@@ -312,8 +316,50 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   position:absolute;
   inset:0;
   z-index:-1;
+  overflow:hidden;
   pointer-events:none;
-  background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.2),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(224,217,251,.72),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(97,80,234,.12),transparent 76%),linear-gradient(145deg,rgba(247,245,254,.58),transparent 43%)
+  background:radial-gradient(ellipse 60% 45% at 92% 8%,rgba(46,242,194,.16),transparent 78%),radial-gradient(ellipse 65% 54% at 5% 65%,rgba(97,80,234,.17),transparent 78%)
+}
+.ambient::before,.ambient::after {
+  content:"";
+  position:absolute;
+  width:min(92vw,860px);
+  height:min(65vh,680px);
+  border-radius:50%;
+  filter:blur(32px);
+  opacity:.34;
+  transition:opacity .65s ease
+}
+.ambient::before {
+  top:-26%;
+  right:-24%;
+  background:radial-gradient(ellipse,var(--glow-mint),transparent 72%)
+}
+.ambient::after {
+  bottom:-32%;
+  left:-24%;
+  background:radial-gradient(ellipse,var(--glow-violet),transparent 72%)
+}
+.workspace:has(.rider-status.is-searching) .ambient::before {
+  opacity:.92;
+  will-change:transform;
+  animation:ambient-drift-a 8s ease-in-out infinite alternate
+}
+.workspace:has(.rider-status.is-searching) .ambient::after {
+  opacity:.86;
+  will-change:transform;
+  animation:ambient-drift-b 10s ease-in-out infinite alternate
+}
+.workspace:has(.rider-status.is-searching) #ask {
+  box-shadow:var(--shadow),0 0 34px color-mix(in srgb,var(--accent) 20%,transparent)
+}
+@keyframes ambient-drift-a {
+  from { transform:translate3d(0,0,0) scale(1) }
+  to { transform:translate3d(-19vw,19vh,0) scale(1.2) }
+}
+@keyframes ambient-drift-b {
+  from { transform:translate3d(0,0,0) scale(1) }
+  to { transform:translate3d(19vw,-17vh,0) scale(1.18) }
 }
 .topbar {
   flex:0 0 auto;
@@ -814,7 +860,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   border-radius:21px;
   background:var(--panel);
   box-shadow:var(--shadow);
-  backdrop-filter:blur(18px)
+  backdrop-filter:blur(18px);
+  transition:box-shadow .65s ease
 }
 .composer-field {
   display:flex;
@@ -957,6 +1004,22 @@ textarea::placeholder {
 a {
   color:var(--accent)
 }
+@media(max-width:620px) {
+  .ambient::before,.ambient::after {
+    width:95vw;
+    height:55vh;
+    filter:blur(26px)
+  }
+  .ambient::before { right:-42%; top:-19% }
+  .ambient::after { left:-42%; bottom:-25% }
+}
+@media(prefers-reduced-motion:reduce) {
+  .workspace:has(.rider-status.is-searching) .ambient::before,
+  .workspace:has(.rider-status.is-searching) .ambient::after {
+    animation:none;
+    transform:none
+  }
+}
 @keyframes blink {
   0%,80%,100% {
     opacity:.25
@@ -1001,7 +1064,7 @@ a {
 
   @media(prefers-color-scheme:dark) {
   .ambient {
-    background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.12),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(97,80,234,.14),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(45,55,117,.2),transparent 76%),linear-gradient(145deg,rgba(255,255,255,.025),transparent 43%)
+    background:radial-gradient(ellipse 62% 52% at 94% 9%,rgba(85,240,205,.16),transparent 78%),radial-gradient(ellipse 67% 55% at 3% 67%,rgba(139,110,255,.20),transparent 78%)
   }
   .welcome-orbit {
     box-shadow:0 9px 24px rgba(0,0,0,.14)
