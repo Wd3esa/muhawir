@@ -1386,17 +1386,21 @@ a {
   opacity:1;
   animation:rider-rear .65s cubic-bezier(.2,.8,.2,1) both
 }
+/* the knight runs for everyone (owner's decision, 5 October 2026): the page-wide reduced-motion rule
+   shortens every animation, so the knight's own durations are restored here */
+@media(prefers-reduced-motion:reduce) {
+  .rider-status .rider-runner { animation-duration:2.1s!important }
+  .rider-status .rider-visual { animation-duration:.4s!important }
+  .rider-status .rider-strip { animation-duration:.8s!important }
+  .rider-status.is-found .rider-pose-rear { animation-duration:.65s!important }
+}
 @media(max-width:420px) {
   .msg.pending.rider-status { width:100%; max-width:100%; gap:7px; padding-inline:9px; }
   .rider-track { flex:1 1 150px; width:auto; min-width:120px; height:52px; --rider-size:62px; }
   .rider-runner { height:50px; }
   .rider-status-copy { flex:0 1 auto; max-width:130px; font-size:12px; }
 }
-@media(prefers-reduced-motion:reduce) {
-  .rider-runner { left:calc((100% - var(--rider-size))/2)!important; animation:none!important; }
-  .rider-visual, .rider-strip { animation:none!important; }
-  .rider-status.is-found .rider-pose-rear { animation:none!important; opacity:1; transform:none; }
-}
+
 </style>
 </head>
 <body>
@@ -1538,7 +1542,7 @@ async function completeRiderStatus(pending, response, locale) {
   const phrase = found ? t.found : t.settled;
   if (label) label.textContent = phrase;
   pending.setAttribute("aria-label", phrase);
-  if (!found || !pending.isConnected || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!found || !pending.isConnected) return;
   await new Promise((resolve) => setTimeout(resolve, 680));
 }
 
