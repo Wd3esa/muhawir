@@ -1803,14 +1803,26 @@ function applyLang() {
 function spokenText(res) {
   const parts = [];
   if (res.message) parts.push(res.message);
+  // a sentence that cites a verse quotes it between «», {}, ﴿﴾ or "" (English translation): every quotation in
+  // it is taken as the verse and replaced by «(آية)», so no synthetic voice ever reads the Quran
+  const verseIds = new Set((res.sources || []).filter((s) => s.kind === "quran" || s.kind === "tafsir")
+    .map((s) => s.passage_id));
+  const mark = /[\u0600-\u06FF]/.test(JSON.stringify(res.claims || [])) ? "(آية)" : "(verse)";
+  const safe = (text, ids) => {
+    let out = text.replace(/﴿[^﴾]*(?:﴾|$)/g, mark).replace(/\{[^}]*(?:\}|$)/g, mark);
+    if ((ids || []).some((id) => verseIds.has(id) || String(id).startsWith("q:"))) {
+      out = out.replace(/«[^»]*(?:»|$)/g, mark).replace(/"[^"]*(?:"|$)/g, mark).replace(/“[^”]*(?:”|$)/g, mark);
+    }
+    return out;
+  };
   let heading = "";
   for (const c of res.claims || []) {
     if (c.text.startsWith("«")) continue;
     if (c.section && c.section !== heading) { heading = c.section; parts.push(heading + "."); }
-    parts.push((c.label ? c.label + ": " : "") + c.text);
+    parts.push((c.label ? c.label + ": " : "") + safe(c.text, c.passage_ids));
   }
   if (res.follow_up) parts.push(res.follow_up);
-  for (const v of res.views || []) parts.push(`${v.school}: ${v.text}`);
+  for (const v of res.views || []) parts.push(`${v.school}: ${safe(v.text, v.passage_ids)}`);
   return parts.join("\n");
 }
 

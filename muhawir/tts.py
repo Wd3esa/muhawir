@@ -32,8 +32,11 @@ def configured() -> bool:
 
 
 def replace_verses(text: str, lang: str) -> str:
-    """Do not synthesize text marked as a Quran verse, even if its end is missing."""
-    return re.sub(r"﴿[^﴾]*(?:﴾|$)", "(آية)" if lang == "ar" else "(verse)", text)
+    """Do not synthesize text marked as a Quran verse, even if its end is missing: between ﴿﴾, or between {}
+    (the form the writing step uses for a verse). The page also removes the quotations in a sentence that
+    cites a verse, so this is the server's own second guard."""
+    mark = "(آية)" if lang == "ar" else "(verse)"
+    return re.sub(r"\{[^}]*(?:\}|$)", mark, re.sub(r"﴿[^﴾]*(?:﴾|$)", mark, text))
 
 
 def ssml(text: str, voice: str, lang: str) -> str:

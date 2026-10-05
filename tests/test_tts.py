@@ -82,3 +82,9 @@ def test_rate_limit_per_ip(monkeypatch, tmp_path):
     assert all(client.post("/tts", json=body).status_code == 200 for _ in range(20))
     assert client.post("/tts", json=body).status_code == 429
     _tts_calls.clear()
+
+
+def test_verse_between_braces_is_not_read():
+    from muhawir import tts
+    out = tts.replace_verses("الربا محرم، قال تعالى: {الَّذِينَ يَأْكُلُونَ الرِّبَا} وهذا وعيد.", "ar")
+    assert "يأكلون" not in out and "يَأْكُلُونَ" not in out and "(آية)" in out
