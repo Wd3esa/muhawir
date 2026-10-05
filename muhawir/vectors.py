@@ -173,8 +173,9 @@ def dimensions_of(model: str) -> int | None:
 
 
 class LocalEmbedder:
-    """An open embedding model run on this machine (sentence-transformers, CPU). Passages and
-    questions go through the same model and revision, so their vectors can be compared."""
+    """An open embedding model run on this machine (sentence-transformers). Passages and questions
+    go through the same model and revision, so their vectors can be compared. It runs on the CPU unless
+    MUHAWIR_EMBED_DEVICE names another device (e.g. "cuda" for a one-time build on a free GPU notebook)."""
 
     def __init__(self, model: str = LOCAL_MODEL, revision: str | None = None) -> None:
         try:
@@ -183,7 +184,8 @@ class LocalEmbedder:
             raise RuntimeError("the local embedder needs: pip install -r requirements-vectors.txt") from exc
         self.model_id = model
         self.revision = revision or os.environ.get("MUHAWIR_LOCAL_EMBED_REVISION") or self._latest_revision(model)
-        self.model = SentenceTransformer(model, revision=self.revision, device="cpu")
+        self.device = os.environ.get("MUHAWIR_EMBED_DEVICE", "cpu")
+        self.model = SentenceTransformer(model, revision=self.revision, device=self.device)
         self.model.max_seq_length = LOCAL_MAX_TOKENS
         self.dimensions = int(self.embed(["بسم الله"]).shape[1])  # works across library versions
         self.name = f"{LOCAL_PREFIX}{model}@{self.revision}"
@@ -204,7 +206,7 @@ class LocalEmbedder:
         return cls(model, revision or None)
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
-        vectors = self.model.encode(list(texts), batch_size=16, normalize_embeddings=True,
+        vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
                                     convert_to_numpy=True, show_progress_bar=False)
         return np.asarray(vectors, dtype=np.float32)
 
@@ -610,7 +612,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "build":
         try:
-            report = build_local_vectors() if args.backend == "local" else build_vectors()
+            batch = int(os.environ.get("MUHAWIR_EMBED_BATCH", "32"))  # more passages per step on a GPU
+            report = build_local_vectors(batch_size=batch) if args.backend == "local" else build_vectors()
         except Exception as exc:
             print(f"Build failed: {exc}", file=sys.stderr)
             return 2
