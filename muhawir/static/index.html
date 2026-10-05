@@ -14,7 +14,7 @@
   --ink:#0E153F;
   --muted:#4A5590;
   --muted-soft:#8E99CC;
-  --line:#D8DCEC;
+  --line:#7E8BAF;
   --accent:#6150EA;
   --accent-ink:#fff;
   --accent-soft:#E0D9FB;
@@ -26,31 +26,35 @@
   --card:#F2F4FF;
   --mine:#E0D9FB;
   --shadow:0 10px 34px rgba(18,24,63,.09);
-  --focus:#6150EA
+  --focus:#6150EA;
+  --glow-mint:rgba(46,242,194,.36);
+  --glow-violet:rgba(97,80,234,.29)
 }
 
   @media(prefers-color-scheme:dark) {
   :root {
     color-scheme:dark;
-    --bg:#0E153F;
-    --panel:#12183F;
-    --sidebar:#12183F;
-    --ink:#F7F5FE;
-    --muted:#8E99CC;
-    --muted-soft:#4A5590;
-    --line:#2D3775;
-    --accent:#2EF2C2;
+    --bg:#131E43;
+    --panel:#1B2850;
+    --sidebar:#19254B;
+    --ink:#FAFBFF;
+    --muted:#CDD6F1;
+    --muted-soft:#AAB9DF;
+    --line:#6074A5;
+    --accent:#55F0CD;
     --accent-ink:#0E153F;
-    --accent-soft:#2D3775;
-    --mint:#2EF2C2;
-    --deep:#0E153F;
-    --indigo:#4A5590;
-    --warn-bg:#2D3775;
-    --warn-ink:#F7F5FE;
-    --card:#12183F;
-    --mine:#2D3775;
+    --accent-soft:#294364;
+    --mint:#55F0CD;
+    --deep:#131E43;
+    --indigo:#AAB9DF;
+    --warn-bg:#344775;
+    --warn-ink:#FAFBFF;
+    --card:#22325B;
+    --mine:#344775;
     --shadow:0 10px 34px rgba(0,0,0,.22);
-    --focus:#2EF2C2
+    --focus:#55F0CD;
+    --glow-mint:rgba(85,240,205,.48);
+    --glow-violet:rgba(139,110,255,.55)
   }
 }
 
@@ -61,7 +65,7 @@ body {
   margin:0;
   background:var(--bg);
   color:var(--ink);
-  font:16px/1.75 "Segoe UI",Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",sans-serif
+  font:16px/1.75 system-ui,"Noto Sans Arabic",Tahoma,sans-serif
 }
 button,textarea,select {
   font:inherit
@@ -312,8 +316,50 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   position:absolute;
   inset:0;
   z-index:-1;
+  overflow:hidden;
   pointer-events:none;
-  background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.2),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(224,217,251,.72),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(97,80,234,.12),transparent 76%),linear-gradient(145deg,rgba(247,245,254,.58),transparent 43%)
+  background:radial-gradient(ellipse 60% 45% at 92% 8%,rgba(46,242,194,.16),transparent 78%),radial-gradient(ellipse 65% 54% at 5% 65%,rgba(97,80,234,.17),transparent 78%)
+}
+.ambient::before,.ambient::after {
+  content:"";
+  position:absolute;
+  width:min(92vw,860px);
+  height:min(65vh,680px);
+  border-radius:50%;
+  filter:blur(32px);
+  opacity:.34;
+  transition:opacity .65s ease
+}
+.ambient::before {
+  top:-26%;
+  right:-24%;
+  background:radial-gradient(ellipse,var(--glow-mint),transparent 72%)
+}
+.ambient::after {
+  bottom:-32%;
+  left:-24%;
+  background:radial-gradient(ellipse,var(--glow-violet),transparent 72%)
+}
+.workspace:has(.rider-status.is-searching) .ambient::before {
+  opacity:.92;
+  will-change:transform;
+  animation:ambient-drift-a 8s ease-in-out infinite alternate
+}
+.workspace:has(.rider-status.is-searching) .ambient::after {
+  opacity:.86;
+  will-change:transform;
+  animation:ambient-drift-b 10s ease-in-out infinite alternate
+}
+.workspace:has(.rider-status.is-searching) #ask {
+  box-shadow:var(--shadow),0 0 34px color-mix(in srgb,var(--accent) 20%,transparent)
+}
+@keyframes ambient-drift-a {
+  from { transform:translate3d(0,0,0) scale(1) }
+  to { transform:translate3d(-19vw,19vh,0) scale(1.2) }
+}
+@keyframes ambient-drift-b {
+  from { transform:translate3d(0,0,0) scale(1) }
+  to { transform:translate3d(19vw,-17vh,0) scale(1.18) }
 }
 .topbar {
   flex:0 0 auto;
@@ -495,9 +541,9 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   justify-content:space-between;
   gap:12px;
   padding:13px 15px;
-  border:1px solid color-mix(in srgb,var(--line) 85%,transparent);
+  border:1px solid var(--line);
   border-radius:16px;
-  background:color-mix(in srgb,var(--panel) 68%,transparent);
+  background:var(--panel);
   box-shadow:0 4px 16px rgba(45,70,58,.025);
   cursor:pointer;
   text-align:start;
@@ -521,8 +567,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   width:6px;
   height:6px;
   border-radius:50%;
-  background:var(--accent);
-  opacity:.7
+  background:var(--accent)
 }
 .suggestion-text {
   color:var(--ink);
@@ -811,17 +856,25 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   #ask {
   flex:0 0 auto;
   padding:9px;
-  border:1px solid color-mix(in srgb,var(--line) 89%,transparent);
+  border:1px solid var(--line);
   border-radius:21px;
-  background:color-mix(in srgb,var(--panel) 94%,transparent);
+  background:var(--panel);
   box-shadow:var(--shadow);
-  backdrop-filter:blur(18px)
+  backdrop-filter:blur(18px);
+  transition:box-shadow .65s ease
 }
 .composer-field {
   display:flex;
   align-items:flex-end;
   gap:9px;
-  padding:3px 4px 5px
+  padding:3px 4px 5px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--bg)
+}
+.composer-field:focus-within {
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 28%,transparent)
 }
 textarea {
   display:block;
@@ -835,7 +888,7 @@ textarea {
   border-radius:13px;
   padding:9px 11px;
   font:inherit;
-  font-size:14px;
+  font-size:16px;
   line-height:1.7;
   color:var(--ink);
   background:transparent
@@ -845,32 +898,35 @@ textarea:focus-visible {
 }
 textarea::placeholder {
   color:var(--muted);
-  opacity:.9
+  opacity:1
 }
 .composer-row {
   display:flex;
   min-height:43px;
   align-items:center;
   gap:8px;
-  padding:3px 5px 2px;
-  border-top:1px solid color-mix(in srgb,var(--line) 65%,transparent)
+  padding:8px 5px 2px
 }
 .style-wrap {
   display:inline-flex;
   align-items:center;
-  gap:7px;
-  color:var(--muted);
-  font-size:11px
+  gap:8px;
+  color:var(--ink);
+  font-size:14px;
+  font-weight:600
 }
 .style-wrap select {
-  border:0;
-  padding:5px 8px;
-  background:transparent;
-  font-size:11px
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:6px 10px;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:14px
 }
 .send {
-  width:39px;
-  height:39px;
+  width:44px;
+  height:44px;
   display:inline-grid;
   place-items:center;
   margin-inline-start:auto;
@@ -904,12 +960,13 @@ textarea::placeholder {
   display:inline-flex;
   align-items:center;
   gap:6px;
-  padding:6px 9px;
+  min-height:44px;
+  padding:6px 10px;
   border:1px solid var(--line);
   border-radius:11px;
-  background:transparent;
-  color:var(--muted);
-  font-size:11px;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:14px;
   cursor:pointer
 }
 .mic svg {
@@ -930,21 +987,38 @@ textarea::placeholder {
 .voice-note {
   padding:0 11px 7px;
   color:var(--muted);
-  font-size:10px
+  font-size:13px;
+  line-height:1.6
 }
 .disclaimer {
   flex:0 0 auto;
   margin:9px 0 10px;
   text-align:center;
   color:var(--muted);
-  font-size:10px;
-  line-height:1.5
+  font-size:13px;
+  line-height:1.6
 }
 .sidebar-scrim {
   display:none
 }
 a {
   color:var(--accent)
+}
+@media(max-width:620px) {
+  .ambient::before,.ambient::after {
+    width:95vw;
+    height:55vh;
+    filter:blur(26px)
+  }
+  .ambient::before { right:-42%; top:-19% }
+  .ambient::after { left:-42%; bottom:-25% }
+}
+@media(prefers-reduced-motion:reduce) {
+  .workspace:has(.rider-status.is-searching) .ambient::before,
+  .workspace:has(.rider-status.is-searching) .ambient::after {
+    animation:none;
+    transform:none
+  }
 }
 @keyframes blink {
   0%,80%,100% {
@@ -990,7 +1064,7 @@ a {
 
   @media(prefers-color-scheme:dark) {
   .ambient {
-    background:radial-gradient(ellipse 54% 43% at 87% 1%,rgba(46,242,194,.12),transparent 75%),radial-gradient(ellipse 47% 42% at 13% 12%,rgba(97,80,234,.14),transparent 78%),radial-gradient(ellipse 51% 38% at 69% 100%,rgba(45,55,117,.2),transparent 76%),linear-gradient(145deg,rgba(255,255,255,.025),transparent 43%)
+    background:radial-gradient(ellipse 62% 52% at 94% 9%,rgba(85,240,205,.16),transparent 78%),radial-gradient(ellipse 67% 55% at 3% 67%,rgba(139,110,255,.20),transparent 78%)
   }
   .welcome-orbit {
     box-shadow:0 9px 24px rgba(0,0,0,.14)
@@ -1070,7 +1144,7 @@ a {
 
   @media(max-width:620px) {
   body {
-    font-size:15px
+    font-size:16px
   }
   .topbar {
     height:64px;
@@ -1135,26 +1209,28 @@ a {
   }
   .welcome-copy {
     margin:8px auto 20px;
-    font-size:13px
+    font-size:16px;
+    line-height:1.75
   }
   .prompt-grid {
     grid-template-columns:1fr;
     gap:8px
   }
   .suggestion {
-    min-height:0;
+    min-height:52px;
     flex-direction:row;
     align-items:center;
-    justify-content:flex-start;
+    justify-content:space-between;
     gap:11px;
-    padding:10px 12px
+    padding:11px 13px
   }
   .suggestion-topic {
     flex:0 0 auto;
-    min-width:55px
+    min-width:55px;
+    font-size:14px
   }
   .suggestion-text {
-    font-size:11px
+    font-size:15px
   }
   .turn-user {
     max-width:90%;
@@ -1171,43 +1247,43 @@ a {
     margin-bottom:9px
   }
   #ask {
-    padding:7px;
+    padding:9px;
     border-radius:18px
   }
   .composer-field {
     gap:5px
   }
   textarea {
-    min-height:45px;
+    min-height:52px;
+    padding-inline:8px;
+    font-size:16px
+  }
+  .composer-row {
+    gap:8px;
+    min-height:44px
+  }
+  .style-wrap {
+    gap:8px;
+    font-size:14px
+  }
+  .style-wrap select {
+    max-width:170px;
     padding-inline:8px;
     font-size:14px
   }
-  .composer-row {
-    gap:5px;
-    min-height:40px
-  }
-  .style-wrap {
-    gap:2px;
-    font-size:10px
-  }
-  .style-wrap select {
-    max-width:130px;
-    padding-inline:4px;
-    font-size:10px
-  }
   .mic {
-    gap:4px;
-    padding:5px 6px;
-    font-size:10px
+    gap:6px;
+    padding:6px 9px;
+    font-size:14px
   }
   .send {
-    width:36px;
-    height:36px;
+    width:44px;
+    height:44px;
     border-radius:12px
   }
   .disclaimer {
-    margin-block:6px 8px;
-    font-size:9px
+    margin-block:8px 10px;
+    font-size:13px
   }
 }
 
@@ -1252,19 +1328,19 @@ a {
 }
 @media (max-width:620px) {
   .topbar h1 { font-size:16px; }
-  .topbar-tools select { font-size:13px; }
+  .topbar-tools select { font-size:14px; }
   .synthetic { font-size:13px; }
-  .welcome-copy { font-size:15px; }
-  .suggestion-text { font-size:13px; }
+  .welcome-copy { font-size:16px; }
+  .suggestion-text { font-size:15px; }
   .turn-user,.msg { font-size:15px; }
   textarea { font-size:16px; }
-  .style-wrap,.style-wrap select,.mic { font-size:12px; }
-  .disclaimer { font-size:12px; }
+  .style-wrap,.style-wrap select,.mic { font-size:14px; }
+  .disclaimer { font-size:13px; }
 }
-@media (max-width:400px) {
-  .composer-row { flex-wrap:wrap; row-gap:6px; }
-  .style-wrap { flex:1 1 100%; min-width:0; }
-  .style-wrap select { max-width:44vw; }
+@media (max-width:420px) {
+  .composer-row { flex-wrap:wrap; row-gap:8px; }
+  .style-wrap { flex:1 1 100%; min-width:0; justify-content:space-between; }
+  .style-wrap select { max-width:min(62vw,210px); }
 }
 
 /* Arabian knight status animation */
@@ -1497,10 +1573,10 @@ const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeKicker: "مساحة آمنة للتعلّم", welcomeHeading: "ما الذي تودّ أن تعرفه؟", welcomeCopy: "اسأل عن القرآن أو الفقه أو العقيدة، وتابع الحوار خطوةً خطوة. تظهر المراجع التي يدعمها النظام مع الإجابة.",
+        welcomeKicker: "اسأل، وتحقّق من المصادر", welcomeHeading: "ما الذي تودّ أن تعرفه؟", welcomeCopy: "اسأل عن القرآن والفقه والعقيدة. يعرض مُحاور المصادر عندما يجد إجابة مسندة، ويحيل أسئلة الفتوى الشخصية إلى مختص.",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
-        mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "عند استعمال الميكروفون قد يرسل متصفحك صوتك إلى خدمة خارجية لتحويله إلى نص.",
+        mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         views: "أقوال العلماء كما وردت في المصادر",
@@ -1511,7 +1587,7 @@ const UI = {
   en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
-        welcomeKicker: "A thoughtful place to learn", welcomeHeading: "What would you like to know?", welcomeCopy: "Ask about the Quran, fiqh or aqidah, and continue the dialogue one step at a time. References supported by the system appear with each answer.",
+        welcomeKicker: "Ask and check the sources", welcomeHeading: "What would you like to know?", welcomeCopy: "Ask about the Quran, fiqh, or aqidah. Muhawir shows sources when it can support an answer and refers personal fatwas to a specialist.",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
