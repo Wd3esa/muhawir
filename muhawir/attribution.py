@@ -143,7 +143,10 @@ def prefers(text: str) -> bool:
 def says_who(text: str, lang: str = "ar") -> bool:
     if lang == "en":
         return bool(_SAYS_EN.search(text))
-    return bool(set(normalize(text).split()) & _SAYS) or "ﷺ" in text
+    words = set(normalize(text).split())
+    # «وقال», «وسُئل», «فأجاب»: the same words with a joining letter in front
+    words |= {w[1:] for w in words if w[:1] in "وف" and len(w) > 3}
+    return bool(words & _SAYS) or "ﷺ" in text
 
 
 def credited(text: str, passage_ids, corpus, lang: str = "ar") -> str | None:

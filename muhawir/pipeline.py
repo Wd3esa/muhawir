@@ -68,7 +68,10 @@ def _labels_a_case(text: str) -> bool:
 
 
 # a view must be named after the jurist or school that holds it, as the source names them: «بعض العلماء» is no name
-_UNNAMED_SCHOOL = re.compile(r"^\s*(?:بعض|بعضهم|آخرون|اخرون|فريق|طائفة|قوم|غيرهم|some|others)\b|^\s*العلماء\b", re.IGNORECASE)
+_UNNAMED_SCHOOL = re.compile(r"^\s*(?:بعض|بعضهم|آخرون|اخرون|فريق|طائفة|قوم|غيرهم|some|others)\b|^\s*العلماء\b"
+                            # «القول الأول», «الرأي الثاني»: a number, not a name
+                            r"|^\s*(?:ال)?(?:قول|رأي|راي|مذهب|view|opinion)\s+(?:ال)?(?:اول|أول|ثاني|ثالث|رابع|خامس|first|second|third|fourth)",
+                            re.IGNORECASE)
 # a sentence about the scholars' disagreement: kept only when the question is about a ruling or the disagreement
 _DISAGREEMENT = re.compile(r"(?:ا|ي|ت)ختلف\s+(?:ال)?(?:علماء|فقهاء)|خلاف\s+بين\s+(?:ال)?(?:علماء|فقهاء)|\bscholars\s+(?:differ|disagree)",
                            re.IGNORECASE)

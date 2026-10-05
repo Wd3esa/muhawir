@@ -108,3 +108,14 @@ def test_meta_lead_with_inna():
 def test_short_sentence_that_says_its_thing_is_kept():
     for text in ("خمس صلوات.", "ماء كثير.", "يغسل الوجه ثلاثًا."):
         assert not _says_almost_nothing(text)
+
+
+def test_a_sentence_saying_who_with_a_joining_letter_is_not_credited_again():
+    for text in ("وقال في موضع آخر إن الغناء حرام.", "وسُئل عن الأغاني فأجاب بأنها حرام."):
+        assert attribution.credited(text, ("z:1",), CORPUS) == text
+
+
+def test_numbered_views_are_not_names():
+    views = [Claim("لا تجب", ("u:1",), school="القول الأول"), Claim("ركن", ("u:1",), school="القول الثاني"),
+             Claim("تجب", ("z:2",), school="الشيخ ابن باز")]
+    assert _named_views(views) == []
