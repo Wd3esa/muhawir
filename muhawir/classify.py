@@ -81,13 +81,26 @@ class Gate:
     rule: str = ""     # the pattern that matched, for logs and tests
 
 
-# Rulings on contemporary financial products need ijtihad by fatwa bodies and fiqh academies;
-# they are outside version 1 (EVALUATION.md, Q25 and Q26). Only questions asking for a ruling are stopped.
+# Rulings on contemporary financial products need ijtihad by fatwa bodies and fiqh academies. Muhawir never
+# judges them itself: it quotes the published fatwas in its sources, attributed to their authors, says plainly
+# that this is no ruling on the product asked about, and refers to the official fatwa body (EVALUATION.md, Q25, Q26).
 _OUT_OF_SCOPE = [re.compile(p) for p in (
+    r"\b(تابي|تمارا|tabby|tamara)\b",  # buy-now-pay-later companies, named
+    r"\b(التقسيط|بالتقسيط|تقسيط|الاقساط|اقساط)\b.*\b(حكم|حلال|حرام|يجوز|جائز|ربا|الربا|ربوي|ربويه)\b",
+    r"\b(حكم|حلال|حرام|يجوز|جائز|ربا|الربا|ربوي|ربويه)\b.*\b(التقسيط|بالتقسيط|تقسيط|الاقساط|اقساط)\b",
+    r"\b(buy now,? pay later|bnpl|instal?ments?)\b.*\b(halal|haram|permissible|allowed|riba|interest)\b",
     r"\b(حكم|حلال|حرام|يجوز|جائز)\b.*\b(البنوك?|بنكي[هة]?|المصارف|فوائد|عملات رقمي[هة]|العملات الرقمي[هة]|الرقمي[هة]|بيتكوين|البيتكوين|كريبتو|التداول|تداول|الفوركس|فوركس|الاسهم|اسهم|التامين|تامين)\b",
     r"\b(البنوك?|بنكي[هة]?|المصارف|فوائد|عملات رقمي[هة]|العملات الرقمي[هة]|بيتكوين|البيتكوين|كريبتو|التداول|تداول|الفوركس|فوركس|الاسهم|التامين)\b.*\b(حلال|حرام|يجوز|جائز)\b",
     r"\b(is|are)\b.*\b(bank interest|crypto|bitcoin|forex|stock trading|insurance)\b.*\b(halal|haram|permissible|allowed)\b",
 )]
+
+
+_COMPANY = re.compile(r"\b(تابي|تمارا|tabby|tamara)\b", re.IGNORECASE)
+
+
+def names_company(text: str) -> bool:
+    """A sentence naming a company asked about: in a quoted-fatwa reply it would apply the fatwa to that company."""
+    return bool(_COMPANY.search(normalize(text)))
 
 
 _SUICIDE_TOPIC = re.compile(r"انتحار|انتحر|\bsuicid")

@@ -27,6 +27,8 @@ TEXT = {
         "personal_case": "سؤالك عن حالة شخصية، والحكم فيها يحتاج فتوى من مختص يسمع تفاصيلها. "
                          "أنصحك بسؤال جهة فتوى مؤهلة في بلدك.",
         "personal_case_info": "هذه معلومات عامة من المصادر، وليست حكمًا في حالتك:",
+        "contemporary_info": "لا أحكم بنفسي على معاملة أو منتج بعينه، فهذا يحتاج فتوى ممن يعرف تفاصيل العقد. "
+                             "هذا ما وجدته في المصادر من فتاوى العلماء وأقوالهم، منقولًا عنهم كما ورد:",
         "judging_people": "لا أحكم على أشخاص أو جماعات بعينهم، فهذا خارج ما أقدّمه. "
                           "يمكنني أن أعرض لك ما تقوله المصادر المعتمدة عن المفاهيم نفسها.",
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
@@ -66,6 +68,8 @@ TEXT = {
                          "from a qualified scholar who hears the details. Please ask a qualified "
                          "fatwa body in your country.",
         "personal_case_info": "This is general information from the sources, not a ruling on your case:",
+        "contemporary_info": "I do not judge a specific transaction or product myself: that needs a fatwa from someone who "
+                             "knows the details of the contract. Here is what the scholars said in the sources, quoted as it is:",
         "judging_people": "I do not pass judgement on specific people or groups; that is outside what "
                           "I offer. I can show what the approved sources say about the concepts themselves.",
         "override_attempt": "I cannot change how I work: I answer only from approved sources and do not "

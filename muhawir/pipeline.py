@@ -116,7 +116,7 @@ def _referral_kind(res: Response, question: str) -> str:
     texts = {lang: TEXT[lang] for lang in TEXT}
     if any(res.message.startswith(t["crisis"]) or res.message == t["care_note"] for t in texts.values()):
         return ""  # the fixed caring reply already points to people and the emergency number; no card
-    if any(res.message == t["out_of_scope"] for t in texts.values()):
+    if any(res.message in (t["out_of_scope"], t["contemporary_info"]) for t in texts.values()):
         return "finance"
     if res.status == REFERRED or (res.status == ABSTAINED and any(res.message == t["abstain"] for t in texts.values())):
         return "fatwa"  # a personal case, or nothing in the sources: a scholar (not for «no reason of revelation»)
@@ -584,7 +584,10 @@ class Muhawir:
                 gate = own
         if gate.kind in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
             return Response(DECLINED, t[gate.kind], synthetic=synthetic)
-        if gate.kind == classify.OUT_OF_SCOPE:
+        # a contemporary financial matter: the published fatwas and the scholars' words are quoted, attributed,
+        # with no ruling of Muhawir's own on the product asked about; nothing found keeps the referral alone
+        contemporary = gate.kind == classify.OUT_OF_SCOPE
+        if contemporary and self.generator.strict_retrieval:  # no model to quote with care: refer, as before
             return Response(REFERRED, t["out_of_scope"], synthetic=synthetic)
 
         personal = gate.kind == classify.PERSONAL_CASE
@@ -598,6 +601,8 @@ class Muhawir:
             passages = [h.passage for h in hits if is_sufficient([h])]
         else:
             passages, queries = self._gather(question, original, queries)
+        if contemporary:
+            kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
         if isinstance(written, Response):  # the model could not be reached, or the check could not run
@@ -607,6 +612,8 @@ class Muhawir:
         if written is None:
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
+            if contemporary:
+                return self._why(Response(REFERRED, t["out_of_scope"], synthetic=synthetic), "search found no passage")
             return self._why(self._abstain(question, t, synthetic), "search found no passage")
         kept, rejected, passages, allowed, corpus = (written.kept, written.rejected, written.passages,
                                                      written.allowed, written.corpus)
@@ -618,6 +625,8 @@ class Muhawir:
             raw = getattr(self.generator, "last_raw", "")
             if personal:
                 return self._why(Response(REFERRED, t["personal_case"], synthetic=synthetic), f"{offered}; {reason}")
+            if contemporary:
+                return self._why(Response(REFERRED, t["out_of_scope"], synthetic=synthetic), f"{offered}; {reason}")
             return self._why(self._abstain(question, t, synthetic), f"{offered}; {reason}", raw)
         # the dropped sentences themselves are shown only in the debug reply, never written to the log
         dropped = (f"{len(rejected)} sentence(s) dropped: " + " ## ".join(
@@ -626,9 +635,13 @@ class Muhawir:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
         answer = [c for c in kept if not c.school]
+        if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
+            answer = [c for c in answer if not classify.names_company(c.text)]
         if not any(c.passage_ids for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
+            if contemporary:
+                return Response(REFERRED, t["out_of_scope"], synthetic=synthetic)
             return self._why(self._abstain(question, t, synthetic), f"{offered}; no sourced sentence (only views or Muhawir's own explanation)")
         claims = [{"text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids),
                    **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {})}
@@ -639,6 +652,8 @@ class Muhawir:
         note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
         if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage
             note = t["ruling_note"]
+        if contemporary:  # quoted fatwas, never Muhawir's own ruling on the product; the card names who to ask
+            return Response(REFERRED, t["contemporary_info"], claims, cards, synthetic, note, views)
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
             # the message already says this is no ruling on the case and to ask a qualified body:

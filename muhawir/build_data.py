@@ -8,7 +8,8 @@ Downloads (or reads from a folder) four files from https://quranpedia.net/dumps:
 plus Sahih al-Bukhari and Sahih Muslim in Arabic from github.com/fawazahmed0/hadith-api
 (ara-bukhari.min.json, ara-muslim.min.json; public domain), and Ibn Rushd's
 «بداية المجتهد» and Ibn Hisham's «السيرة النبوية» from the OpenITI corpus (comparative fiqh and the
-Sira; CC BY-NC-SA 4.0), and writes data/muhawir.db. Run at deploy time so the copy is always current,
+Sira; CC BY-NC-SA 4.0) and the fatwa collections of Ibn Baz and Ibn Uthaymeen (OpenITI; contemporary
+works whose text rights remain with their holders, see LICENSES.md), and writes data/muhawir.db. Run at deploy time so the copy is always current,
 as the Quranpedia licence asks; the database is never committed.
 
 Usage:
@@ -24,7 +25,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from . import bidaya, sahihayn, sira
+from . import bidaya, fatawa, sahihayn, sira
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -58,12 +59,14 @@ def _fetch(urls: list[str], target: Path) -> None:
 
 
 def download_hadith(folder: Path) -> None:
-    """The open-data books: the two Sahih books, «بداية المجتهد» and Ibn Hisham's Sira."""
+    """The open-data books: the two Sahih books, «بداية المجتهد», Ibn Hisham's Sira and the fatwa collections."""
     folder.mkdir(parents=True, exist_ok=True)
     for name in HADITH_FILES:
         _fetch([u.format(file=name) for u in sahihayn.DOWNLOAD], folder / name)
     _fetch(list(bidaya.DOWNLOAD), folder / bidaya.FILE)
     _fetch(list(sira.DOWNLOAD), folder / sira.FILE)
+    for book in fatawa.BOOKS.values():
+        _fetch(list(book["download"]), folder / book["file"])
 
 
 def download(folder: Path) -> None:
@@ -108,6 +111,13 @@ def build(folder: Path, out: Path) -> int:
         sira.add_to_corpus(corpus, (folder / sira.FILE).read_text(encoding="utf-8"))
     else:
         print("note: Ibn Hisham's Sira is not in this folder; add it with --get-hadith")
+    texts = {sid: (folder / book["file"]).read_text(encoding="utf-8")
+             for sid, book in fatawa.BOOKS.items() if (folder / book["file"]).exists()}
+    if texts:
+        fatawa.add_to_corpus(corpus, texts)
+    else:
+        print("note: the fatwa collections are not in this folder; add them with --get-hadith")
+    del texts
     out.parent.mkdir(parents=True, exist_ok=True)
     count = build_db(corpus, out)
     print(f"{count} passages written to {out} "
@@ -117,7 +127,8 @@ def build(folder: Path, out: Path) -> int:
           f"bukhari {corpus['_provenance'].get('bukhari_entries', 0)}, "
           f"muslim {corpus['_provenance'].get('muslim_entries', 0)}, "
           f"bidaya {'yes' if corpus['_provenance'].get('bidaya_commit') else 'no'}, "
-          f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'})")
+          f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'}, "
+          f"fatawa {'yes' if corpus['_provenance'].get('fatawa_commit') else 'no'})")
     return count
 
 
