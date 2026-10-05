@@ -92,6 +92,14 @@ _META_TAIL = re.compile(
     r"\s+(?:في|عن)\s+(?:ال)?(?:فتوى|فتاوى|فقه|فقهاء|حديث|كتاب|شرح|مصدر|مقطع|نص|جواب|باب)[^.،,]*\.?\s*$")
 
 
+# «الآية تأمر بـ…», «الآية الكريمة تنبه إلى…»: the verse as the subject; the rule (generate.SYSTEM_PROMPT) is
+# «يخبرنا الله تعالى أن…», so the speaker is named: «يأمر الله تعالى بـ…» (live answer «الربا», 6 October 2026)
+_VERSE_LEAD = re.compile(r"^\s*(?:و|ف)?(?:هذه\s+)?الآية(?:\s+الكريمة)?\s+(تأمر|تنهى|تنبه|تنبّه|تبين|تبيّن|توضح|توضّح|تذكر|تحذر|تحذّر|تخبر|تقول)\s+")
+_VERSE_VERB = {"تأمر": "يأمر", "تنهى": "ينهى", "تنبه": "ينبّه", "تنبّه": "ينبّه", "تبين": "يبيّن", "تبيّن": "يبيّن",
+               "توضح": "يوضّح", "توضّح": "يوضّح", "تذكر": "يذكر", "تحذر": "يحذّر", "تحذّر": "يحذّر", "تخبر": "يخبر",
+               "تقول": "يقول"}
+
+
 def without_meta(text: str, passage_ids, corpus, lang: str = "ar") -> str:
     """The sentence with the text named as its own subject replaced by who said it, when that is one person or
     book («الفتوى توضح أن X» → «بيّن الشيخ ابن باز أن X»), and a closing «وهذا ما ورد في الفتوى» removed.
@@ -101,6 +109,9 @@ def without_meta(text: str, passage_ids, corpus, lang: str = "ar") -> str:
     tail = _META_TAIL.search(text)
     if tail and tail.start() > 0:
         text = text[:tail.start()].rstrip(" ،,") + "."
+    verse = _VERSE_LEAD.match(text)
+    if verse:
+        return f"{_VERSE_VERB[verse.group(1)]} الله تعالى {text[verse.end():]}"
     lead = _META_LEAD.match(text)
     if lead:
         names = credits(passage_ids, corpus)

@@ -119,3 +119,10 @@ def test_numbered_views_are_not_names():
     views = [Claim("لا تجب", ("u:1",), school="القول الأول"), Claim("ركن", ("u:1",), school="القول الثاني"),
              Claim("تجب", ("z:2",), school="الشيخ ابن باز")]
     assert _named_views(views) == []
+
+
+def test_the_verse_as_subject_names_allah():
+    assert attribution.without_meta("الآية تأمر بترك ما بقي من الربا إن كنتم مؤمنين.", ("z:1",), CORPUS) \
+        == "يأمر الله تعالى بترك ما بقي من الربا إن كنتم مؤمنين."
+    assert attribution.without_meta("الآية تنبه إلى أن من لا يترك الربا فليأذن بحرب.", ("z:1",), CORPUS) \
+        == "ينبّه الله تعالى إلى أن من لا يترك الربا فليأذن بحرب."
