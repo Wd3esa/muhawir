@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from . import attribution
 from .corpus import Corpus
 from .normalize import normalize, tokenize
 
@@ -143,7 +144,8 @@ def verify(claims: list[Claim], corpus: Corpus,
         if bad:
             rejected.append(Rejected(claim, f"quotation not found verbatim: {bad}"))
             continue
-        if claim.school and not any(is_named(claim.school, corpus.passage(pid).text)
+        # a fatwa does not name its mufti in its own text: the source list says who he is («الشيخ ابن باز»)
+        if claim.school and not attribution.names_speaker(claim.school, claim.passage_ids, corpus) and not any(is_named(claim.school, corpus.passage(pid).text)
                                     or any(name in normalize(corpus.passage(pid).text) for name in school_names(claim.school))
                                     for pid in claim.passage_ids):
             rejected.append(Rejected(claim, f"'{claim.school}' is not named in the cited passage"))

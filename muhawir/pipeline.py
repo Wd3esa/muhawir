@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import bayyinat, bidaya, classify, referrals, sections
+from . import attribution, bayyinat, bidaya, classify, referrals, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -79,6 +79,12 @@ _LEADING_LINK = re.compile(r"^\s*(?:كما|وكذلك|كذلك|وأيضًا|وأ
 def _named_views(views: list) -> list:
     """Views whose school is a real name; with fewer than two named ones left, none (a lone view is no comparison)."""
     named = [v for v in views if not _UNNAMED_SCHOOL.search(v.school)]
+    # one name over different views (a mufti listing the views of others, «بعض أصحاب مالك» three times): whose
+    # each view is cannot be told, so none of them is shown
+    count = {}
+    for v in named:
+        count[normalize(v.school)] = count.get(normalize(v.school), 0) + 1
+    named = [v for v in named if count[normalize(v.school)] == 1]
     return named if len(named) >= 2 else []
 
 
@@ -157,6 +163,8 @@ _REJECTED_BECAUSE = (
     ("ruling word", "ذكرتَ نوعًا من الحكم (وجوبًا أو جوازًا أو تحريمًا أو استحبابًا…) غير الذي في المقطع"),
     ("no citation", "بلا مقطع تستند إليه"),
     ("is not named", "فيها اسم لم يرد في المقطع"),
+    ("starts with a conclusion", "بدأتَها باستنتاج من عندك («وبالتالي»، «إذن»)"),
+    ("says almost nothing", "جملة ناقصة لا تقول شيئًا"),
 )
 
 
@@ -268,6 +276,36 @@ def _without_conclusion(claim):
     return _cut_at(claim, _CONCLUSION_STARTS)
 
 
+# a sentence that opens with a conclusion of its own («وبالتالي، …», «Thus, …»): `_cut_at` keeps the first words of a
+# sentence, so a conclusion at the very start is not cut but rejected (5 October 2026 evaluation, Q01 and Q18)
+_OPENING_CONCLUSION = tuple(seq for seq in _INFERENCE_STARTS if seq[0] not in (normalize("ما"), normalize("مما")))
+_OPENING_CONCLUSION_EN = re.compile(r"^\s*(?:thus|therefore|hence|consequently)\b", re.IGNORECASE)
+
+
+def _opens_with_conclusion(text: str) -> bool:
+    if _OPENING_CONCLUSION_EN.match(text):
+        return True
+    plain = [normalize(w) for w in text.split()]
+    return any(tuple(plain[:len(seq)]) == seq for seq in _OPENING_CONCLUSION)
+
+
+# a sentence that only points at something it does not say («سبب الاختلاف في ذلك.»): fewer than MIN_CONTENT_WORDS
+# words besides particles, ending on a pointer («في ذلك») that stands for the rest (5 October 2026 evaluation, Q22).
+# «ويزداد ذلك في الصيف» points back at the sentence before it and says something of it: kept.
+# A short sentence that says its thing («خمس صلوات.», «يغسل الوجه ثلاثًا.») has no pointer and is kept.
+MIN_CONTENT_WORDS = 3
+_POINTERS = frozenset(normalize(w) for w in ("ذلك", "هذا", "هذه", "تلك", "this", "that"))
+_EMPTY_WORDS = _POINTERS | frozenset(normalize(w) for w in (
+    "في", "من", "على", "إلى", "عن", "هو", "هي", "و", "ف", "ثم", "أو", "the", "a", "an", "of", "in", "is", "it",
+    "and", "to"))
+
+
+def _says_almost_nothing(text: str) -> bool:
+    plain = normalize(text).split()
+    words = [w for w in plain if w not in _EMPTY_WORDS]
+    return len(words) < MIN_CONTENT_WORDS and bool(plain) and plain[-1] in _POINTERS
+
+
 # words that turn an everyday example into a comparison with a religious matter («هذا يشبه الزكاة»)
 _COMPARES = re.compile(r"(يشبه|تشبه|يشابه|تشابه|مثلما|كما لو|تماما مثل)")
 
@@ -341,7 +379,11 @@ class Muhawir:
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = ""):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
         second reading against the cited passages and the question. None when the second reading could not run."""
-        kept, rejected = verify(draft, corpus, allowed)
+        shape = [Rejected(c, "starts with a conclusion of its own") for c in draft if _opens_with_conclusion(c.text)]
+        shape += [Rejected(c, "says almost nothing") for c in draft
+                  if not _opens_with_conclusion(c.text) and _says_almost_nothing(c.text)]
+        kept, rejected = verify([c for c in draft if c not in [r.claim for r in shape]], corpus, allowed)
+        rejected = shape + rejected
         if self.generator.name != "extractive":  # the model must explain, not paste the sources
             translations = tuple(" ".join(p.translation.split()).lower() for p in passages if p.translation)
             copied = [c for c in kept if _copies_a_source(c.text, translations)]
@@ -717,6 +759,13 @@ class Muhawir:
         if kind not in ("ruling", "contemporary") and style != "extended" and not personal:
             # a question on a meaning, kinds or wisdom gets what the sources agree on, not the disagreement
             answer = [c for c in answer if not _DISAGREEMENT.search(c.text)]
+        # who said it, from the source list: «الفتوى توضح أن…» names the mufti, «وهذا ما ورد في الفتوى» goes; a ruling
+        # that names no one is credited to the sources it cites, or dropped if it cites only verses or hadith
+        answer = [replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang)) for c in answer]
+        rules = contemporary or personal or kind == "ruling"
+        answer = [replace(c, text=t) for c in answer
+                  for t in [c.text if is_example(c.text) or not (rules or attribution.prefers(c.text))
+                            else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
         if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
             answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
@@ -729,7 +778,8 @@ class Muhawir:
                    **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {}),
                    **({"example": True} if is_example(c.text) else {})}
                   for c in answer]
-        named = _named_views([c for c in kept if c.school])
+        named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
+                              for c in kept if c.school])
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in named]
         cards = self._cards([pid for c in answer + named for pid in c.passage_ids], corpus,
