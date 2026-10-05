@@ -12,12 +12,12 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import bayyinat, bidaya, classify, referrals
+from . import bayyinat, bidaya, classify, referrals, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
 from .messages import LANGS, STYLES, TEXT
-from .normalize import normalize
+from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
 from .verify import Rejected, verify
@@ -413,6 +413,9 @@ class Muhawir:
                 best[pid] = Hit(p, 0.0, 1.0)
         expand = getattr(self.generator, "expand", None)
         extra = queries if queries is not None else (expand(question) if expand else [])
+        # the book's own name for a topic the user named otherwise («المضاربة» → «القراض»)
+        said = set(tokenize(f"{original} {question}"))
+        extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
         lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if h.coverage >= MODEL_MIN_COVERAGE
                   and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]

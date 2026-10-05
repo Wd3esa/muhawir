@@ -873,3 +873,20 @@ def test_the_users_own_words_decide_even_when_the_search_phrase_says_qirad():
                           ensure_ascii=False)
     Muhawir(corpus, ModelGenerator([("m", call)])).ask("ماحكم القروض")
     assert seen and all("[f:1]" not in u for u in seen) and any("[z:1]" in u for u in seen)
+
+
+def test_mudaraba_finds_the_chapter_the_book_calls_qirad():
+    from muhawir.sections import SectionIndex
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "bidayat-al-mujtahid", "name": "بداية المجتهد",
+                                                           "about": "تجريبي."}],
+                           "passages": [{"id": "f:1", "source_id": "bidayat-al-mujtahid", "kind": "fiqh",
+                                         "location": "كتاب القراض، الباب الأول في محل القراض",
+                                         "text": "أجمعوا على أن صفته أن يعطي الرجل الرجل المال يتجر به.",
+                                         "keywords": "كتاب القراض؛ الباب الأول في محل القراض"}]})
+    assert SectionIndex(corpus).match(["ما هي المضاربة؟"]) == ["f:1"]
+
+
+def test_a_summary_of_the_views_is_written_only_when_asked_for():
+    s, u = generate.SYSTEM_PROMPT, generate.UNDERSTAND_PROMPT
+    assert "إلا إن طلب السائل التلخيص أو الخلاصة" in s and "«خلاصة أقوال العلماء:»" in s and "بلا ترجيح" in s
+    assert "لخّص أقوال العلماء في حكم القراض" in u

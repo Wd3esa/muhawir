@@ -17,13 +17,16 @@ SOURCE_ID = "bidayat-al-mujtahid"
 _HEADING_WORDS = frozenset(tokenize(
     "كتاب الجملة الباب الفصل القسم المسألة معرفة الأول الأولى الثاني الثانية الثالث الثالثة الرابع "
     "الرابعة الخامس الخامسة السادس السادسة السابع السابعة الثامن الثامنة فيه فيها وهو وهي هذه"))
+# a word users say for a topic the book names otherwise: «المضاربة» is what «بداية المجتهد» calls «القراض»
+SYNONYMS = {"مضاربه": "قراض", "مقارضه": "قراض"}
 MAX_SECTIONS = 2
 MAX_CHAPTERS = 2
 MIN_SHARED = 2
 
 
 def _topic(text: str) -> set[str]:
-    return {t for t in tokenize(text) if t not in _HEADING_WORDS}
+    words = {t for t in tokenize(text) if t not in _HEADING_WORDS}
+    return words | {SYNONYMS[t] for t in words if t in SYNONYMS}
 
 
 class SectionIndex:
