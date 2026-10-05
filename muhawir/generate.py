@@ -382,6 +382,7 @@ EXPAND_SCHEMA = {
 
 log = logging.getLogger("muhawir")
 MAX_QUERIES = 10  # search phrases kept from the understanding step
+TIMING = os.environ.get("MUHAWIR_TIMING", "") == "1"  # log each open-model call's time and token counts
 # The second reading reads each sentence in its own request: read together, sentences are judged leniently
 # (in a live test a hadith merged from two narrations passed a batched reading). MUHAWIR_READ_EACH_SENTENCE=0
 # reads all sentences of an answer in one request instead, to spend fewer requests of the model quota.
@@ -932,6 +933,7 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         extra = {"reasoning": {"effort": reasoning.strip().lower()}}
 
     def call(system: str, user: str, schema: dict) -> str:
+        started = time.time()
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
@@ -944,7 +946,14 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
                                {"role": "user", "content": user}], **extra},
             timeout=timeout)
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"] or ""
+        data = r.json()
+        if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
+            usage = data.get("usage") or {}
+            thought = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+            log.warning("timing %s %.1fs in=%s out=%s reasoning=%s step=%s", model, time.time() - started,
+                        usage.get("prompt_tokens"), usage.get("completion_tokens"), thought,
+                        " ".join(system.split())[:40])
+        return data["choices"][0]["message"]["content"] or ""
     return call
 
 
