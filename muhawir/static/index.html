@@ -1303,6 +1303,8 @@ a {
 }
 
 
+.recitation { white-space:nowrap; margin-bottom:4px; }
+.recitation-row { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
 /* Readability and zoom support */
 @media (min-width:621px) {
   .trust-pill { font-size:13px; }
@@ -1592,7 +1594,7 @@ const UI = {
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
+        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
         views: "أقوال العلماء كما وردت في المصادر",
@@ -1608,7 +1610,7 @@ const UI = {
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        exampleTag: "An illustration by Muhawir", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Fathoming the question…", "Exploring the sources…", "Gathering supporting passages…", "Preparing the answer…"], found: "Supporting passages found", settled: "Review complete",
+        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Fathoming the question…", "Exploring the sources…", "Gathering supporting passages…", "Preparing the answer…"], found: "Supporting passages found", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
         views: "Scholars' views as stated in the sources",
@@ -2060,6 +2062,34 @@ function listenButton(res, status) {
   return group;
 }
 
+// a verse is heard only in a reciter's real voice: Mishary Alafasy's recording of that ayah from everyayah.com,
+// played from their server (nothing is copied here); never a synthetic voice
+let activeRecitation = null;
+function recitationButton(surah, ayah) {
+  const t = UI[lang] || UI.ar;
+  const btn = el("button", "action-btn recitation", "▶ " + t.recite);
+  btn.type = "button";
+  const src = `https://everyayah.com/data/Alafasy_128kbps/${String(surah).padStart(3, "0")}${String(ayah).padStart(3, "0")}.mp3`;
+  const stop = () => {
+    if (activeRecitation) { activeRecitation.audio.pause(); activeRecitation.btn.textContent = "▶ " + t.recite; }
+    activeRecitation = null;
+  };
+  btn.addEventListener("click", () => {
+    if (activeRecitation && activeRecitation.btn === btn) { stop(); return; }
+    stop();
+    if (typeof stopReadAloud === "function") stopReadAloud();
+    const audio = new Audio(src);
+    activeRecitation = { audio, btn };
+    btn.textContent = "⏹ " + t.stop;
+    audio.addEventListener("ended", stop, { once: true });
+    audio.addEventListener("error", () => { stop(); btn.textContent = t.reciteFailed; }, { once: true });
+    audio.play().catch(() => { stop(); btn.textContent = t.reciteFailed; });
+  });
+  const wrap = el("div", "meta recitation-row");
+  wrap.append(btn, el("div", "", t.reciter));
+  return wrap;
+}
+
 function answerText(res, includeSourcePassages = false) {
   const lines = [];
   if (res.message) lines.push(res.message);
@@ -2253,6 +2283,8 @@ function renderAnswer(res, style, context) {
     card.append(summary);
     card.append(el("div", "about", s.source_about));
     card.append(el("blockquote", "", s.quote));
+    const ayah = s.kind === "quran" && /^q:(\d{1,3}):(\d{1,3})$/.exec(s.passage_id || "");
+    if (ayah) card.append(recitationButton(+ayah[1], +ayah[2]));
     if (s.translation) {  // the approved English translation of the verse's meaning (King Fahd Complex)
       const tr = el("blockquote", "translation", s.translation);
       tr.dir = "ltr"; tr.lang = "en";
