@@ -22,6 +22,7 @@ CREATE TABLE passages (
     rid INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, source_id TEXT NOT NULL REFERENCES sources(id),
     location TEXT NOT NULL, kind TEXT NOT NULL, grade TEXT NOT NULL, text TEXT NOT NULL,
     keywords TEXT NOT NULL, tokens TEXT NOT NULL);
+CREATE TABLE translations (passage_id TEXT PRIMARY KEY, text TEXT NOT NULL);
 CREATE VIRTUAL TABLE passages_fts USING fts5(tokens, content='passages', content_rowid='rid',
                                              tokenize='unicode61 remove_diacritics 0');
 """
@@ -38,7 +39,9 @@ def build_db(corpus_data: dict, path: str | Path) -> int:
         con.executescript(SCHEMA)
         con.executemany("INSERT INTO meta VALUES (?, ?)", [
             ("synthetic", json.dumps(corpus.synthetic)),
-            ("provenance", json.dumps(corpus_data.get("_provenance", {}), ensure_ascii=False))])
+            ("provenance", json.dumps(corpus_data.get("_provenance", {}), ensure_ascii=False)),
+            ("translation_name", corpus.translation_name)])
+        con.executemany("INSERT INTO translations VALUES (?, ?)", sorted(corpus.translations.items()))
         con.executemany("INSERT INTO sources VALUES (?, ?, ?, ?)",
                         [(s.id, s.name, s.about, s.url) for s in corpus.sources.values()])
         con.executemany(
@@ -66,6 +69,7 @@ class SqliteCorpus:
         self.provenance = json.loads(meta.get("provenance", "{}"))
         self.sources = {r[0]: Source(*r) for r in self.con.execute("SELECT id, name, about, url FROM sources")}
         self.count = self.con.execute("SELECT count(*) FROM passages").fetchone()[0]
+        self.translation_name = meta.get("translation_name", "")
 
     @property
     def passages(self) -> range:  # only its length is used outside this module
@@ -83,6 +87,14 @@ class SqliteCorpus:
 
     def source_of(self, passage: Passage) -> Source:
         return self.sources[passage.source_id]
+
+    def translation(self, passage_id: str) -> str:
+        """A verse's approved English translation, or "" (also for a database built before translations)."""
+        try:
+            r = self.con.execute("SELECT text FROM translations WHERE passage_id = ?", (passage_id,)).fetchone()
+        except sqlite3.OperationalError:
+            return ""
+        return r[0] if r else ""
 
 
 MAX_PHRASE_HITS = 8     # passages that contain the search words one after the other, listed before the rest

@@ -35,6 +35,7 @@ class Passage:
     kind: str = "other"
     grade: str = ""  # hadith grading as stated by the source, if any
     keywords: str = ""  # search-only terms (e.g. topic names); never shown as the quote
+    translation: str = ""  # a verse's approved English translation, attached when needed (translation.py)
 
 
 @dataclass
@@ -42,6 +43,8 @@ class Corpus:
     sources: dict[str, Source]
     passages: list[Passage]
     synthetic: bool = False
+    translations: dict[str, str] = field(default_factory=dict)
+    translation_name: str = ""
     _by_id: dict[str, Passage] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
@@ -52,6 +55,9 @@ class Corpus:
 
     def source_of(self, passage: Passage) -> Source:
         return self.sources[passage.source_id]
+
+    def translation(self, passage_id: str) -> str:
+        return self.translations.get(passage_id, "")
 
 
 def _require(obj: dict, keys: tuple[str, ...], where: str) -> None:
@@ -87,7 +93,14 @@ def parse_corpus(data: dict) -> Corpus:
                                 kind, raw.get("grade", ""), raw.get("keywords", "")))
     if not passages:
         raise CorpusError("corpus has no passages")
-    return Corpus(sources, passages, bool(data.get("synthetic", False)))
+    translations = data.get("_translations") or {}
+    if not isinstance(translations, dict) or not all(isinstance(v, str) for v in translations.values()):
+        raise CorpusError("_translations must map passage ids to text")
+    unknown = [pid for pid in translations if pid not in seen]
+    if unknown:
+        raise CorpusError(f"translation for unknown passage '{unknown[0]}'")
+    return Corpus(sources, passages, bool(data.get("synthetic", False)), dict(translations),
+                  str(data.get("_translation_name", "")))
 
 
 def load_corpus(path: str | Path) -> Corpus:

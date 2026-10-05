@@ -415,6 +415,8 @@ class Muhawir:
         """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
+        if lang == "en":  # an English answer quotes the approved translation of a verse, never its own
+            passages = [replace(p, translation=self._translation(p)) if p.kind == "quran" else p for p in passages]
         allowed = {p.id for p in passages}
         corpus = self.corpus
         if hasattr(self.generator, "last_note"):
@@ -472,16 +474,25 @@ class Muhawir:
         second.retried = True
         return second
 
-    def _cards(self, passage_ids: list[str], corpus=None) -> list[dict]:
+    def _cards(self, passage_ids: list[str], corpus=None, lang: str = "ar") -> list[dict]:
         corpus = corpus or self.corpus
         cards = []
         for pid in dict.fromkeys(passage_ids):
             p = corpus.passage(pid)
             s = corpus.source_of(p)
-            cards.append({"passage_id": p.id, "quote": p.text, "location": p.location,
-                          "kind": p.kind, "grade": p.grade, "topics": p.keywords, "source_name": s.name,
-                          "source_about": s.about, "source_url": s.url})
+            card = {"passage_id": p.id, "quote": p.text, "location": p.location,
+                    "kind": p.kind, "grade": p.grade, "topics": p.keywords, "source_name": s.name,
+                    "source_about": s.about, "source_url": s.url}
+            translation = self._translation(p, corpus) if p.kind == "quran" and lang == "en" else ""
+            if translation:
+                card["translation"] = translation
+                card["translation_name"] = getattr(corpus, "translation_name", "")
+            cards.append(card)
         return cards
+
+    def _translation(self, passage: Passage, corpus=None) -> str:
+        lookup = getattr(corpus or self.corpus, "translation", None)
+        return lookup(passage.id) if lookup else ""
 
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
             history: list[dict] | None = None) -> Response:
@@ -650,7 +661,8 @@ class Muhawir:
                   for c in answer]
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in kept if c.school]
-        cards = self._cards([pid for c in answer + [v for v in kept if v.school] for pid in c.passage_ids], corpus)
+        cards = self._cards([pid for c in answer + [v for v in kept if v.school] for pid in c.passage_ids], corpus,
+                            lang)
         note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
         if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage
             note = t["ruling_note"]

@@ -26,7 +26,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, sira
+from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, sira, translation
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -70,6 +70,7 @@ def download_hadith(folder: Path) -> None:
         _fetch(list(book["download"]), folder / book["file"])
     for book in aqeedah.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
+    _fetch(list(translation.DOWNLOAD), folder / translation.FILE)
     if not (folder / bayyinat.FILE).exists():
         try:  # one site: if it cannot be reached, the other sources are still built
             _fetch(list(bayyinat.DOWNLOAD), folder / bayyinat.FILE)
@@ -127,6 +128,10 @@ def build(folder: Path, out: Path) -> int:
     else:
         print("note: the fatwa collections are not in this folder; add them with --get-hadith")
     del texts
+    if (folder / translation.FILE).exists():
+        translation.add_to_corpus(corpus, (folder / translation.FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: the English translation of the Quran is not in this folder; add it with --get-hadith")
     texts = {sid: (folder / book["file"]).read_text(encoding="utf-8")
              for sid, book in aqeedah.BOOKS.items() if (folder / book["file"]).exists()}
     if texts:
@@ -153,6 +158,7 @@ def build(folder: Path, out: Path) -> int:
           f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'}, "
           f"fatawa {'yes' if corpus['_provenance'].get('fatawa_commit') else 'no'}, "
           f"aqeedah {len(corpus['_provenance'].get('aqeedah_books', []))}, "
+          f"translation {len(corpus.get('_translations', {}))}, "
           f"bayyinat {'yes' if corpus['_provenance'].get('bayyinat_sha256') else 'no'})")
     return count
 

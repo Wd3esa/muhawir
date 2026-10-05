@@ -548,3 +548,35 @@ def test_by_default_each_sentence_is_read_in_its_own_request():
     m, seen = _batch_checker([[True], [True]])
     res = m.ask(QUESTION)
     assert res.status == ANSWERED and seen == [1, 1]
+
+
+def test_an_english_answer_sees_and_shows_the_approved_translation_of_a_verse():
+    from muhawir.corpus import parse_corpus
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "quran", "name": "القرآن", "about": "مصحف."}],
+                           "passages": [{"id": "q:112:1", "source_id": "quran", "kind": "quran",
+                                         "location": "الإخلاص 1", "text": "قل هو الله أحد",
+                                         "keywords": "Allah One"}],
+                           "_translations": {"q:112:1": "Say: He is Allah, (the) One."},
+                           "_translation_name": "The Noble Quran (Hilali & Khan)"})
+    users = []
+
+    def make(claim):
+        def call(system, user, schema=None):
+            users.append(user)
+            keys = json.dumps(schema or {})
+            if "problem" in keys:
+                return '{"supported": [true]}'
+            if "verdict" in keys:
+                return '{"verdict": "yes"}'
+            if "queries" in keys:
+                return '{"queries": []}'
+            return json.dumps({"abstain": False, "claims": [{"text": claim, "passage_ids": ["q:112:1"]}]},
+                              ensure_ascii=False)
+        return call
+
+    res = Muhawir(corpus, ModelGenerator([("m", make("Allah is One."))])).ask("Is Allah One?", lang="en")
+    assert any("Say: He is Allah, (the) One." in u and "الترجمة الإنجليزية المعتمدة" in u for u in users)
+    card = res.sources[0]
+    assert card["translation"] == "Say: He is Allah, (the) One." and "Hilali" in card["translation_name"]
+    arabic = Muhawir(corpus, ModelGenerator([("m", make("الله أحد."))])).ask("قل هو الله أحد")
+    assert arabic.sources and all("translation" not in c for c in arabic.sources)

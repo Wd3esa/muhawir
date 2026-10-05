@@ -674,6 +674,10 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   padding-inline-start:12px;
   border-inline-start:3px solid var(--accent)
 }
+.card blockquote.translation {
+  margin-top:8px;
+  font-style:italic
+}
 .card .meta {
   color:var(--muted);
   font-size:11px;
@@ -1763,6 +1767,12 @@ function renderAnswer(res, style, context) {
     card.append(summary);
     card.append(el("div", "about", s.source_about));
     card.append(el("blockquote", "", s.quote));
+    if (s.translation) {  // the approved English translation of the verse's meaning (King Fahd Complex)
+      const tr = el("blockquote", "translation", s.translation);
+      tr.dir = "ltr"; tr.lang = "en";
+      card.append(tr);
+      if (s.translation_name) card.append(el("div", "meta", s.translation_name));
+    }
     if (s.topics) card.append(el("div", "meta", `${t.topics}: ${s.topics}`));
     const meta = el("div", "meta", `${t.location}: ${s.location}` + (s.grade ? ` · ${t.grade}: ${s.grade}` : ""));
     if (s.source_url) {

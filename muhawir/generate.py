@@ -428,13 +428,17 @@ def build_user_prompt(question: str, passages: list[Passage], style: str, lang: 
     for p in passages:
         grade = f" — حكم المحدث: {p.grade}" if p.grade else ""
         lines.append(f"[{p.id}] ({KIND_AR.get(p.kind, 'نص')} — {p.location}{grade})\n{p.text}")
+        if lang == "en" and p.translation:
+            lines.append(f"الترجمة الإنجليزية المعتمدة لهذه الآية (الهلالي ومحسن خان، مجمع الملك فهد): \"{p.translation}\"")
     lines.append("")
     lines.append(f"أسلوب الشرح: {STYLE_GUIDE.get(style, STYLE_GUIDE['youth'])}")
     if kind in KIND_GUIDE:
         lines.append(f"نوع السؤال: {KIND_GUIDE[kind]}")
     if feeling == "sad":
         lines.append(f"حال السائل: {SAD_GUIDE}")
-    lines.append("لغة الجواب: " + ("الإنجليزية. لا تقدّم ترجمتك على أنها نص القرآن." if lang == "en"
+    lines.append("لغة الجواب: " + ("الإنجليزية. لا تقدّم ترجمتك على أنها نص القرآن. إن ذكرت معنى آية لها ترجمة معتمدة "
+                                   "في المقاطع فانقل الترجمة المعتمدة بنصها بين علامتي تنصيص ولا تترجم الآية بنفسك، "
+                                   "واكتب أنها ترجمة للمعاني (a translation of the meaning)." if lang == "en"
                                    else "العربية الفصحى السهلة."))
     if personal:
         lines.append("السؤال عن حالة شخصية: اذكر المعلومات العامة الواردة في المقاطع فقط، "
