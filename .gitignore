@@ -7,6 +7,7 @@
 secrets/
 # بيانات مستخدمين (لا تُنشر)
 data/private/
+data/tts-cache/
 *.csv
 # بناء وأدوات
 node_modules/
