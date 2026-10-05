@@ -813,6 +813,19 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   color:var(--muted);
   font-size:11px
 }
+.listen-group { display:inline-flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:100% }
+.listen-controls { display:inline-flex; align-items:center; gap:4px }
+.voice-choice { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--muted) }
+.voice-choice select {
+  min-height:34px;
+  padding:3px 7px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--panel);
+  color:var(--ink);
+  font:inherit
+}
+.listen-note { font-size:11px; line-height:1.5; color:var(--muted); max-width:350px }
 .more-actions { position:relative }
 .more-actions > summary { list-style:none; cursor:pointer }
 .more-actions > summary::-webkit-details-marker { display:none }
@@ -851,6 +864,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   .tools { gap:2px }
   .action-btn { width:36px; min-width:36px; justify-content:center; padding:0 }
   .action-label { display:none }
+  .listen-group .action-btn { width:auto; min-width:42px; padding:0 7px }
+  .listen-group .action-label { display:inline }
 }
 
   #ask {
@@ -1579,6 +1594,7 @@ const UI = {
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
+        maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
         views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
@@ -1594,6 +1610,7 @@ const UI = {
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Fathoming the question…", "Exploring the sources…", "Gathering supporting passages…", "Preparing the answer…"], found: "Supporting passages found", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
+        maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
         views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of personal fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
@@ -1693,6 +1710,7 @@ function selectConversation(conversation) {
   activeConversation = conversation;
   $("q").value = "";
   renderConversation(conversation);
+  document.querySelectorAll(".voice-choice select").forEach((choice) => { choice.value = selectedSpeechVoice; });
   closeHistory();
 }
 
@@ -1818,6 +1836,12 @@ function pieces(text) {
   return text.split(/(?<=[.!?؟。\n])\s*/).map((x) => x.trim()).filter(Boolean);
 }
 
+let selectedSpeechVoice = "female";
+try { if (localStorage.getItem("muhawir-speech-voice") === "male") selectedSpeechVoice = "male"; }
+catch { /* storage may be disabled */ }
+let activeReadAloud = null;
+function stopReadAloud() { if (activeReadAloud) activeReadAloud.stop(); }
+
 const ACTION_ICONS = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.5-4.5M8.2 13.2l7.5 4.5"/></svg>',
@@ -1871,12 +1895,38 @@ function applyActionTranslations(message) {
 }
 
 function listenButton(res, status) {
-  const text = spokenText(res);
-  if (!("speechSynthesis" in window) || !text) return null;
-  const speakLang = /[\u0600-\u06FF]/.test(text) ? "ar" : "en";  // use the reply's language, e.g. English on request
+  const rawText = spokenText(res);
+  if (!rawText) return null;
+  const withoutVerses = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, "");
+  const speakLang = /[\u0600-\u06FF]/.test(withoutVerses) ? "ar" :
+    (withoutVerses.trim() ? "en" : lang);
+  const text = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, speakLang === "ar" ? "(آية)" : "(verse)");
+  const group = el("span", "listen-group");
+  const row = el("span", "listen-controls");
   const btn = makeActionButton(UI[lang].listen, "listen");
   const label = btn.querySelector(".action-label");
   const icon = btn.querySelector(".action-icon");
+  const choice = el("label", "voice-choice");
+  const choiceLabel = el("span", "", UI[lang].voiceChoice);
+  choiceLabel.dataset.itemKey = "voiceChoice";
+  const select = el("select");
+  for (const [value, key] of [["female", "femaleVoice"], ["male", "maleVoice"]]) {
+    const option = el("option", "", UI[lang][key]);
+    option.value = value;
+    option.dataset.itemKey = key;
+    select.append(option);
+  }
+  select.value = selectedSpeechVoice;
+  choice.append(choiceLabel, select);
+  select.addEventListener("change", () => {
+    selectedSpeechVoice = select.value;
+    try { localStorage.setItem("muhawir-speech-voice", selectedSpeechVoice); }
+    catch { /* preference remains available for this page */ }
+    document.querySelectorAll(".voice-choice select").forEach((other) => { other.value = selectedSpeechVoice; });
+    stopReadAloud();
+  });
+  const note = el("small", "listen-note", UI[lang].azureNotice);
+  note.dataset.itemKey = "azureNotice";
   const reset = () => {
     delete btn.dataset.playing;
     btn.setAttribute("aria-pressed", "false");
@@ -1886,12 +1936,7 @@ function listenButton(res, status) {
     btn.title = UI[lang].listen;
     icon.innerHTML = ACTION_ICONS.listen;
   };
-  btn.play = async () => {
-    speechSynthesis.cancel();
-    const voice = pickVoice(await voicesReady(), speakLang);
-    if (!voice) { status.textContent = UI[speakLang].noVoice; delete status.dataset.statusKey; return; }
-    status.textContent = "";
-    delete status.dataset.statusKey;
+  const setPlaying = () => {
     btn.dataset.playing = "1";
     btn.setAttribute("aria-pressed", "true");
     btn.dataset.labelKey = "stop";
@@ -1899,21 +1944,108 @@ function listenButton(res, status) {
     btn.setAttribute("aria-label", UI[lang].stop);
     btn.title = UI[lang].stop;
     icon.innerHTML = ACTION_ICONS.stop;
+  };
+  const browserFallback = async (playback) => {
+    if (playback.fallbackStarted) return;
+    playback.fallbackStarted = true;
+    if (!("speechSynthesis" in window)) {
+      playback.stop();
+      status.textContent = UI[speakLang].noVoice;
+      delete status.dataset.statusKey;
+      return;
+    }
+    const voice = pickVoice(await voicesReady(), speakLang);
+    if (activeReadAloud !== playback) return;
+    if (!voice) {
+      playback.stop();
+      status.textContent = UI[speakLang].noVoice;
+      delete status.dataset.statusKey;
+      return;
+    }
+    status.textContent = "";
+    delete status.dataset.statusKey;
+    setPlaying();
     const parts = pieces(text);
     parts.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part);
       u.lang = voice.lang;
       try { u.voice = voice; } catch { /* the language tag alone still picks it */ }
-      if (i === parts.length - 1) u.onend = reset;
-      u.onerror = reset;
+      if (i === parts.length - 1) u.onend = () => playback.stop();
+      u.onerror = () => playback.stop();
       speechSynthesis.speak(u);
     });
   };
+  btn.play = async () => {
+    stopReadAloud();
+    const controller = new AbortController();
+    const playback = {
+      button: btn, audio: null, url: null, ready: false, fallbackStarted: false,
+      stop() {
+        controller.abort();
+        if ("speechSynthesis" in window) speechSynthesis.cancel();
+        if (this.audio) { this.audio.pause(); this.audio.removeAttribute("src"); this.audio.load(); }
+        if (this.url) URL.revokeObjectURL(this.url);
+        if (activeReadAloud === this) activeReadAloud = null;
+        if (["voiceLoading", "voiceTap"].includes(status.dataset.statusKey)) {
+          status.textContent = "";
+          delete status.dataset.statusKey;
+        }
+        reset();
+      }
+    };
+    activeReadAloud = playback;
+    setPlaying();
+    setActionStatus(status, "voiceLoading");
+    try {
+      const response = await fetch("/tts", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: selectedSpeechVoice, lang: speakLang }),
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error("Azure speech unavailable");
+      const blob = await response.blob();
+      if (activeReadAloud !== playback) return;
+      playback.url = URL.createObjectURL(blob);
+      playback.audio = new Audio(playback.url);
+      playback.audio.addEventListener("ended", () => playback.stop(), { once: true });
+      playback.audio.addEventListener("error", () => {
+        if (activeReadAloud === playback) {
+          playback.audio.pause();
+          URL.revokeObjectURL(playback.url);
+          playback.url = null;
+          playback.audio = null;
+          browserFallback(playback);
+        }
+      }, { once: true });
+      await playback.audio.play();
+      if (activeReadAloud === playback) { status.textContent = ""; delete status.dataset.statusKey; }
+    } catch (error) {
+      if (activeReadAloud !== playback) return;
+      if (error.name === "NotAllowedError" && playback.audio) {
+        playback.ready = true;
+        reset();
+        setActionStatus(status, "voiceTap");
+      } else {
+        await browserFallback(playback);  // includes 503, timeouts and network failures
+      }
+    }
+  };
   btn.addEventListener("click", () => {
-    if (btn.dataset.playing) { speechSynthesis.cancel(); reset(); return; }
+    if (activeReadAloud?.ready && activeReadAloud.button === btn) {
+      const playback = activeReadAloud;
+      playback.ready = false;
+      setPlaying();
+      playback.audio.play().then(() => { status.textContent = ""; delete status.dataset.statusKey; })
+        .catch(() => browserFallback(playback));
+      return;
+    }
+    if (btn.dataset.playing) { stopReadAloud(); return; }
     btn.play();
   });
-  return btn;
+  row.append(btn, choice);
+  group.append(row, note);
+  group.play = btn.play;
+  return group;
 }
 
 function answerText(res, includeSourcePassages = false) {
@@ -2404,7 +2536,7 @@ if (Recognition) {
     recognizer.lang = lang === "ar" ? "ar-SA" : "en-US";
     recognizer.interimResults = true;
     recognizer.continuous = false;
-    window.speechSynthesis?.cancel();  // stop reading the last reply while the user speaks
+    stopReadAloud();  // stop reading the last reply while the user speaks
     const before = $("q").value.trim();
     let heard = false;
     recognizer.onresult = (ev) => {
