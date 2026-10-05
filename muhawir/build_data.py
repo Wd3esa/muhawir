@@ -70,8 +70,12 @@ def download_hadith(folder: Path) -> None:
         _fetch(list(book["download"]), folder / book["file"])
     for book in aqeedah.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
-    if bayyinat.DOWNLOAD and not (folder / bayyinat.FILE).exists():
-        _fetch(list(bayyinat.DOWNLOAD), folder / bayyinat.FILE)
+    if not (folder / bayyinat.FILE).exists():
+        try:  # one site: if it cannot be reached, the other sources are still built
+            _fetch(list(bayyinat.DOWNLOAD), folder / bayyinat.FILE)
+        except Exception as exc:  # noqa: BLE001
+            (folder / bayyinat.FILE).unlink(missing_ok=True)
+            print(f"note: «بينات» could not be downloaded ({exc}); put its PDF in the folder as {bayyinat.FILE}")
 
 
 def download(folder: Path) -> None:
@@ -131,7 +135,10 @@ def build(folder: Path, out: Path) -> int:
         print("note: the creed books are not in this folder; add them with --get-hadith")
     del texts
     if (folder / bayyinat.FILE).exists():
-        bayyinat.add_to_corpus(corpus, folder / bayyinat.FILE)
+        try:
+            bayyinat.add_to_corpus(corpus, folder / bayyinat.FILE)
+        except (bayyinat.ImportError_, ImportError) as exc:  # another file, or PyMuPDF missing
+            print(f"note: «بينات» left out: {exc}")
     else:
         print(f"note: «بينات» is not in this folder; put its PDF there as {bayyinat.FILE}")
     out.parent.mkdir(parents=True, exist_ok=True)
