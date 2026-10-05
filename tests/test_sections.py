@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from muhawir.corpus import Passage, load_corpus, parse_corpus
+from muhawir.corpus import load_corpus, parse_corpus
 from muhawir.generate import ExtractiveGenerator, ModelGenerator
 from muhawir.pipeline import ANSWERED, Muhawir
 from muhawir.sections import SectionIndex

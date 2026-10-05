@@ -52,16 +52,26 @@ ALLOW_EXAMPLES = True
 # the user's own words name it: the model turning «القروض» (loans) into «القراض» (a profit-sharing partnership) in
 # its search phrases once brought a whole answer about the wrong contract (5 October 2026). Normalized spelling.
 CONFUSABLE = (
-    {"heading": ("القراض",), "user": ("قراض", "مقارض", "مقارضه", "مضاربه", "مضارب")},
+    {"heading": ("القراض",), "user": ("قراض", "مقارض", "مقارضه", "مضاربه", "مضارب", "مضاربات",
+                                      "qirad", "mudaraba", "mudarabah", "muqarada")},
 )
+
+
+# an example that ends by naming what the case is («…، فهذا مثال على المضاربة», «…, this is riba»): that names a
+# particular case with a religious term, which is a ruling on it, so the example is dropped
+_EXAMPLE_LABEL = re.compile(r"(?:[،,؛:]\s*[فو]?(?:هذا|هذه|ذلك|تلك)|[,;:]\s*(?:so\s+|and\s+)?(?:this|that)\s+is)"
+                            r"(?:\s+\S+){1,6}\s*[.!]?\s*$", re.IGNORECASE)
+
+
+def _labels_a_case(text: str) -> bool:
+    return bool(_EXAMPLE_LABEL.search(text))
 
 
 def _confused(passage: Passage, user_words: str) -> bool:
     """The passage is headed by a look-alike term the user did not use (see CONFUSABLE)."""
     heading = normalize(f"{passage.location} {passage.keywords}")
-    words = normalize(user_words)
-    return any(any(h in heading for h in c["heading"]) and not any(u in words for u in c["user"])
-               for c in CONFUSABLE)
+    words = set(tokenize(user_words))  # whole words: «الإقراض» (lending) is not «القراض»
+    return any(any(h in heading for h in c["heading"]) and not words & set(c["user"]) for c in CONFUSABLE)
 _LATIN = re.compile(r"[A-Za-z]{2,}")
 # a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
 # or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
@@ -254,10 +264,14 @@ def _asks_for_kinds(*questions: str) -> bool:
     return any(_ASKS_FOR_KINDS.search(normalize(q)) for q in questions if q)
 
 
-def _copies_a_source(text: str) -> bool:
+def _copies_a_source(text: str, translations: tuple[str, ...] = ()) -> bool:
     """The sentence is mostly a long quotation (five words or more). A short quotation inside the model's own
-    explanation is fine: the source card shows the text, and the sentence explains it."""
-    quoted = sum(len(m.group(0).split()) for m in _COPIED.finditer(text))
+    explanation is fine: the source card shows the text, and the sentence explains it. A quotation of a verse's
+    approved English translation is what an English answer is asked to do, so it does not count."""
+    def approved(quote: str) -> bool:
+        inner = " ".join(quote.strip('"“”').split()).lower()
+        return bool(inner) and any(inner in t for t in translations)
+    quoted = sum(len(m.group(0).split()) for m in _COPIED.finditer(text) if not approved(m.group(0)))
     return quoted > 0 and quoted / max(1, len(text.split())) > MAX_QUOTED_SHARE
 
 
@@ -309,13 +323,17 @@ class Muhawir:
         second reading against the cited passages and the question. None when the second reading could not run."""
         kept, rejected = verify(draft, corpus, allowed)
         if self.generator.name != "extractive":  # the model must explain, not paste the sources
-            copied = [c for c in kept if _copies_a_source(c.text)]
+            translations = tuple(" ".join(p.translation.split()).lower() for p in passages if p.translation)
+            copied = [c for c in kept if _copies_a_source(c.text, translations)]
             rejected += [Rejected(c, "copied a source sentence instead of explaining it") for c in copied]
             kept = [c for c in kept if c not in copied]
             if not ALLOW_EXAMPLES:
                 examples = [c for c in kept if is_example(c.text)]
                 rejected += [Rejected(c, "an everyday example: examples are switched off") for c in examples]
                 kept = [c for c in kept if c not in examples]
+            labelled = [c for c in kept if is_example(c.text) and _labels_a_case(c.text)]
+            rejected += [Rejected(c, "an example that names the case with a religious term") for c in labelled]
+            kept = [c for c in kept if c not in labelled]
             compared = [c for c in kept if _compares_to_daily_life(c.text)]
             rejected += [Rejected(c, "an example that compares a religious matter to daily life") for c in compared]
             kept = [c for c in kept if c not in compared]
@@ -431,7 +449,8 @@ class Muhawir:
             best.setdefault(p.id, Hit(p, 0.0, 1.0))
         # and whatever fiqh passage was found, the passage that opens its issue (the views) comes before it
         offered = self._with_issue_openers([h.passage for h in best.values()])
-        return [p for p in offered if not _confused(p, original or question)], queries
+        # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
+        return [p for p in offered if not _confused(p, f"{original} {question}")], queries
 
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
@@ -632,7 +651,7 @@ class Muhawir:
                                 synthetic=synthetic)
         if self.generator.strict_retrieval:
             hits = self.retriever.search(question)
-            passages = [h.passage for h in hits if is_sufficient([h]) and not _confused(h.passage, original or question)]
+            passages = [h.passage for h in hits if is_sufficient([h]) and not _confused(h.passage, f"{original} {question}")]
         else:
             passages, queries = self._gather(question, original, queries)
         if contemporary:

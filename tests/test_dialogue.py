@@ -890,3 +890,51 @@ def test_a_summary_of_the_views_is_written_only_when_asked_for():
     s, u = generate.SYSTEM_PROMPT, generate.UNDERSTAND_PROMPT
     assert "إلا إن طلب السائل التلخيص أو الخلاصة" in s and "«خلاصة أقوال العلماء:»" in s and "بلا ترجيح" in s
     assert "لخّص أقوال العلماء في حكم القراض" in u
+
+
+# --- a definition comes first; an example never names the case ---------------------------------------
+
+@pytest.mark.parametrize("example", [
+    "مثلًا، إذا أعطيت شخصًا مالًا ليستثمره في مشروع واتفقتما على أن يشاركك بالربح بنصف إذا نجح، فهذا مثال على المضاربة.",
+    "For example, if you lend a friend money and ask for more back, this is riba."])
+def test_an_example_that_names_the_case_is_dropped(example):
+    res = _with_example(example).ask(QUESTION)
+    assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
+
+
+def test_an_example_that_only_illustrates_is_kept():
+    example = "مثلًا، كما يحتاج الطالب إلى ماء أكثر في يوم حار في المدرسة."
+    assert [c["text"] for c in _with_example(example).ask(QUESTION).claims][-1] == example
+
+
+def test_every_style_puts_the_definition_first_and_keeps_why_before_what_for_commands():
+    g = generate
+    assert "اجعل الجملة الأولى التعريف نفسه" in g.KIND_GUIDE["what"] and "لا فائدته ولا حكمه" in g.KIND_GUIDE["what"]
+    assert "وفي سؤال «ما هو» ابدأ بالتعريف نفسه" in g.STYLE_GUIDE["youth"]
+    assert "وفي الأوامر والأحكام وضّح «لماذا» قبل «ماذا»" in g.STYLE_GUIDE["youth"]
+    assert "وفي الأوامر والأحكام قدّم السبب قبل الأمر" in g.STYLE_GUIDE["kids"]
+    assert all("«لماذا» قبل «ماذا»" not in g.STYLE_GUIDE[s] for s in ("kids", "extended", "newcomer"))
+    assert "ولا تذكر حكمًا لم يسأل عنه السائل" in g.SYSTEM_PROMPT
+    assert "لا «فهذا مثال على المضاربة»" in g.SYSTEM_PROMPT and "فهذا مثال على المضاربة" in g.EXAMPLE_PROMPT
+
+
+def test_the_look_alike_guard_reads_whole_words_follow_ups_and_english():
+    from muhawir.corpus import Passage
+    from muhawir.pipeline import _confused
+    qirad = Passage("f:1", "bidayat-al-mujtahid", "كتاب القراض، الباب الأول", "نص", "fiqh", keywords="كتاب القراض")
+    assert _confused(qirad, "ما حكم الإقراض؟")  # lending is not qirad
+    assert not _confused(qirad, "وما شروطها؟ ما شروط المضاربة")  # a follow-up, with the understood question
+    assert not _confused(qirad, "What is mudaraba (qirad)?")
+
+
+def test_quoting_the_approved_translation_is_not_copying():
+    from muhawir.pipeline import _copies_a_source
+    verse = "and perform as-salat, and give zakat, and bow down along with ar-raki'un."
+    sentence = 'Allah tells us, in a translation of the meaning: "And perform As-Salat, and give Zakat, and bow down along with Ar-Raki\'un."'
+    assert not _copies_a_source(sentence, (verse,)) and _copies_a_source(sentence)
+
+
+def test_an_example_is_dropped_only_when_it_ends_by_naming_the_case():
+    from muhawir.pipeline import _labels_a_case
+    assert _labels_a_case("مثلًا، إذا أعطيت شخصًا مالًا ليستثمره، فهذا مثال على المضاربة.")
+    assert not _labels_a_case("مثلًا إذا وعدت صديقك بموعد، وهذا يحدث كثيرًا فعليك أن تفي به في وقته دون تأخير ولا تقصير أبدًا.")

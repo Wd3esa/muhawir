@@ -141,7 +141,6 @@ def test_translation_request_gets_a_translation_not_a_sourced_answer():
 
 
 def test_translation_target_defaults_to_the_other_language():
-    from muhawir.generate import TRANSLATE_PROMPT
     prompts = []
     gen = ModelGenerator([("m", lambda s, u, schema=None: (prompts.append(s), json.dumps(
         {"question": "x", "translate": "prayer", "answer_lang": "", "queries": []}

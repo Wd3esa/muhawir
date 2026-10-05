@@ -179,7 +179,7 @@ def parse(lines: list[dict]) -> list[dict]:
     in_keywords = False
     last_y = last_page = None
     for line in lines:
-        font, size, text = line["font"], line["size"], line["text"]
+        font, text = line["font"], line["text"]
         if font == "AbdoLine":  # a question title, maybe on two lines
             if in_title and current is not None:
                 current["title"] += " " + text
