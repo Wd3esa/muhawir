@@ -1307,6 +1307,35 @@ a {
   display:block
 }
 .rider-status[dir="rtl"] .rider-facing { transform:scaleX(-1) }
+/* dust kicked up behind the hind hooves while galloping; it turns with the horse */
+.rider-facing::before,
+.rider-facing::after {
+  content:"";
+  position:absolute;
+  left:6%;
+  bottom:2px;
+  width:16px;
+  height:8px;
+  border-radius:50%;
+  background:var(--accent);
+  opacity:0;
+  animation:rider-dust .8s ease-out infinite
+}
+.rider-facing::after {
+  left:0;
+  bottom:5px;
+  width:9px;
+  height:5px;
+  animation-delay:.4s
+}
+@keyframes rider-dust {
+  0%   { opacity:.45; transform:translate(0,0) scale(.6) }
+  100% { opacity:0; transform:translate(-16px,-4px) scale(1.7) }
+}
+.rider-status.is-found .rider-facing::before,
+.rider-status.is-found .rider-facing::after,
+.rider-status.is-settled .rider-facing::before,
+.rider-status.is-settled .rider-facing::after { animation:none; opacity:0 }
 .rider-visual { animation:rider-bounce .4s ease-in-out infinite alternate }
 .rider-pose-gallop { overflow:hidden }
 .rider-strip {
@@ -1392,6 +1421,7 @@ a {
   .rider-status .rider-runner { animation-duration:2.1s!important }
   .rider-status .rider-visual { animation-duration:.4s!important }
   .rider-status .rider-strip { animation-duration:.8s!important }
+  .rider-status .rider-facing::before, .rider-status .rider-facing::after { animation-duration:.8s!important }
   .rider-status.is-found .rider-pose-rear { animation-duration:.65s!important }
 }
 @media(max-width:420px) {
