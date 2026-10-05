@@ -12,7 +12,7 @@
 
 ## المصادر
 
-القرآن الكريم، وتفسير الطبري، و«المحرر في أسباب النزول» (من بيانات الموسوعة القرآنية quranpedia.net)، وصحيحا البخاري ومسلم (بيانات hadith-api)، و«بداية المجتهد» لابن رشد للفقه المقارن (مدونة OpenITI): نحو 45 ألف مقطع. التفاصيل والطبعات وشروط الاستخدام في [SOURCES.md](SOURCES.md)، والتراخيص في [LICENSES.md](LICENSES.md). النصوص لا تُحفظ في المستودع، بل تُنزَّل وتُبنى في قاعدة SQLite عند النشر.
+القرآن الكريم، وتفسير الطبري، و«المحرر في أسباب النزول» (من بيانات الموسوعة القرآنية quranpedia.net)، وصحيحا البخاري ومسلم (بيانات hadith-api)، و«بداية المجتهد» لابن رشد للفقه المقارن، و«السيرة النبوية» لابن هشام (مدونة OpenITI): نحو 48 ألف مقطع. التفاصيل والطبعات وشروط الاستخدام في [SOURCES.md](SOURCES.md)، والتراخيص في [LICENSES.md](LICENSES.md). النصوص لا تُحفظ في المستودع، بل تُنزَّل وتُبنى في قاعدة SQLite عند النشر.
 
 ## كيف يعمل
 
@@ -69,4 +69,4 @@ uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:800
 
 ---
 
-**English summary.** Muhawir is a dialogue assistant about Islam, in Arabic and English, by text or voice. It explains in its own words like a calm teacher, re-explains more simply on request, answers objections without judging the person, and comforts the grieving. Every sentence rests on a passage from approved sources (Quran, al-Tabari, al-Muharrar on reasons of revelation, Sahih al-Bukhari and Muslim, Ibn Rushd's Bidayat al-Mujtahid), shown verbatim under the answer, and it abstains or refers to a specialist when the sources are not enough. It may never fabricate or distort a verse, hadith or saying, or search outside its sources.
+**English summary.** Muhawir is a dialogue assistant about Islam, in Arabic and English, by text or voice. It explains in its own words like a calm teacher, re-explains more simply on request, answers objections without judging the person, and comforts the grieving. Every sentence rests on a passage from approved sources (Quran, al-Tabari, al-Muharrar on reasons of revelation, Sahih al-Bukhari and Muslim, Ibn Rushd's Bidayat al-Mujtahid, Ibn Hisham's Sira), shown verbatim under the answer, and it abstains or refers to a specialist when the sources are not enough. It may never fabricate or distort a verse, hadith or saying, or search outside its sources.

@@ -7,14 +7,14 @@ Downloads (or reads from a folder) four files from https://quranpedia.net/dumps:
   asbab-book-460.json.gz   al-Muzaini, "al-Muharrar fi Asbab Nuzul al-Quran" (reasons of revelation)
 plus Sahih al-Bukhari and Sahih Muslim in Arabic from github.com/fawazahmed0/hadith-api
 (ara-bukhari.min.json, ara-muslim.min.json; public domain), and Ibn Rushd's
-«بداية المجتهد» from the OpenITI corpus (comparative fiqh; CC BY-NC-SA 4.0),
-and writes data/muhawir.db. Run at deploy time so the copy is always current,
+«بداية المجتهد» and Ibn Hisham's «السيرة النبوية» from the OpenITI corpus (comparative fiqh and the
+Sira; CC BY-NC-SA 4.0), and writes data/muhawir.db. Run at deploy time so the copy is always current,
 as the Quranpedia licence asks; the database is never committed.
 
 Usage:
   python -m muhawir.build_data --download            # hosting / first run
   python -m muhawir.build_data --from-dir data/dumps  # files already downloaded
-  python -m muhawir.build_data --from-dir data/dumps --get-hadith  # add the two Sahih books and «بداية المجتهد» to an existing folder
+  python -m muhawir.build_data --from-dir data/dumps --get-hadith  # add the two Sahih books, «بداية المجتهد» and the Sira to an existing folder
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from . import bidaya, sahihayn
+from . import bidaya, sahihayn, sira
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -58,11 +58,12 @@ def _fetch(urls: list[str], target: Path) -> None:
 
 
 def download_hadith(folder: Path) -> None:
-    """The open-data books: the two Sahih books and «بداية المجتهد»."""
+    """The open-data books: the two Sahih books, «بداية المجتهد» and Ibn Hisham's Sira."""
     folder.mkdir(parents=True, exist_ok=True)
     for name in HADITH_FILES:
         _fetch([u.format(file=name) for u in sahihayn.DOWNLOAD], folder / name)
     _fetch(list(bidaya.DOWNLOAD), folder / bidaya.FILE)
+    _fetch(list(sira.DOWNLOAD), folder / sira.FILE)
 
 
 def download(folder: Path) -> None:
@@ -103,6 +104,10 @@ def build(folder: Path, out: Path) -> int:
         bidaya.add_to_corpus(corpus, (folder / bidaya.FILE).read_text(encoding="utf-8"))
     else:
         print("note: «بداية المجتهد» is not in this folder; add it with --get-hadith")
+    if (folder / sira.FILE).exists():
+        sira.add_to_corpus(corpus, (folder / sira.FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: Ibn Hisham's Sira is not in this folder; add it with --get-hadith")
     out.parent.mkdir(parents=True, exist_ok=True)
     count = build_db(corpus, out)
     print(f"{count} passages written to {out} "
@@ -111,7 +116,8 @@ def build(folder: Path, out: Path) -> int:
           f"asbab {corpus['_provenance']['asbab_version']}, "
           f"bukhari {corpus['_provenance'].get('bukhari_entries', 0)}, "
           f"muslim {corpus['_provenance'].get('muslim_entries', 0)}, "
-          f"bidaya {'yes' if corpus['_provenance'].get('bidaya_commit') else 'no'})")
+          f"bidaya {'yes' if corpus['_provenance'].get('bidaya_commit') else 'no'}, "
+          f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'})")
     return count
 
 
@@ -121,7 +127,7 @@ def main(argv: list[str] | None = None) -> None:
     group.add_argument("--download", action="store_true", help="download the dumps into data/dumps")
     group.add_argument("--from-dir", type=Path, help="folder that already holds the dumps")
     parser.add_argument("--get-hadith", action="store_true",
-                        help="download only the two Sahih books and «بداية المجتهد» into the folder, then build")
+                        help="download only the two Sahih books, «بداية المجتهد» and the Sira into the folder, then build")
     parser.add_argument("--out", type=Path, default=Path("data/muhawir.db"))
     args = parser.parse_args(argv)
     folder = args.from_dir or Path("data/dumps")
