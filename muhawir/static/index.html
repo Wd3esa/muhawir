@@ -1210,6 +1210,63 @@ a {
     font-size:9px
   }
 }
+
+
+/* Readability and zoom support */
+@media (min-width:621px) {
+  .trust-pill { font-size:13px; }
+}
+@media (max-width:860px) {
+  .sidebar { overflow-y:auto; overscroll-behavior:contain; }
+}
+.brand-caption,
+.history-heading,
+.history-search input,
+.history-item,
+.history-empty,
+.sidebar-note,
+.topbar select,
+.synthetic,
+.welcome-kicker,
+.welcome-copy,
+.suggestion-topic,
+.suggestion-text,
+.example-tag,
+.answer-brand,
+.status,
+.cite,
+.sources-title,
+.card summary,
+.card .about,
+.card .meta,
+.action-btn,
+.action-status,
+.more-item,
+.no-voice,
+.style-wrap,
+.style-wrap select,
+.mic,
+.voice-note,
+.disclaimer {
+  font-size:max(13px,.875em);
+}
+@media (max-width:620px) {
+  .topbar h1 { font-size:16px; }
+  .topbar-tools select { font-size:13px; }
+  .synthetic { font-size:13px; }
+  .welcome-copy { font-size:15px; }
+  .suggestion-text { font-size:13px; }
+  .turn-user,.msg { font-size:15px; }
+  textarea { font-size:16px; }
+  .style-wrap,.style-wrap select,.mic { font-size:12px; }
+  .disclaimer { font-size:12px; }
+}
+@media (max-width:400px) {
+  .composer-row { flex-wrap:wrap; row-gap:6px; }
+  .style-wrap { flex:1 1 100%; min-width:0; }
+  .style-wrap select { max-width:44vw; }
+}
+
 </style>
 </head>
 <body>
