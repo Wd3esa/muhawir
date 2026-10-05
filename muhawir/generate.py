@@ -387,7 +387,9 @@ TIMING = os.environ.get("MUHAWIR_TIMING", "") == "1"  # log each open-model call
 # (in a live test a hadith merged from two narrations passed a batched reading). MUHAWIR_READ_EACH_SENTENCE=0
 # reads all sentences of an answer in one request instead, to spend fewer requests of the model quota.
 READ_EACH_SENTENCE = os.environ.get("MUHAWIR_READ_EACH_SENTENCE", "1") != "0"
-MAX_PARALLEL_CHECKS = 3  # readings of the second check made at the same time (hosted free models limit concurrency)
+# readings of the second check made at the same time: 3 for the free hosts, which limit concurrency; a paid host
+# (OpenRouter) takes more, so an answer's sentences are read together instead of three by three (MUHAWIR_PARALLEL_CHECKS)
+MAX_PARALLEL_CHECKS = max(1, int(os.environ.get("MUHAWIR_PARALLEL_CHECKS") or 3))
 
 
 def describe(exc: Exception) -> str:
