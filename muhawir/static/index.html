@@ -1430,32 +1430,47 @@ function el(tag, cls, text) {
 }
 
 
-const RIDER_ART = `<svg class="rider-art" viewBox="0 0 96 72" aria-hidden="true" focusable="false">
+const RIDER_ART = `<svg class="rider-art" viewBox="0 0 128 96" role="img" aria-label="Knight riding a horse">
   <g class="rider-pose-gallop">
-    <path d="M14 35c-5-2-8-7-7-12 2 4 5 6 9 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-    <path d="M13 34c6-7 21-10 37-7 8 2 14 7 15 13-6 7-20 10-35 8-11-1-17-6-17-14Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
-    <path d="M52 33c4-9 6-17 12-22l8 2c-3 5-2 10 1 14l-5 12-13 4Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-    <path d="m64 11 2-7 5 6 5-1 7 5-7 5-8-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
-    <circle cx="76" cy="14" r="1.2" fill="currentColor"/>
-    <g class="rider-leg-set">
-    <path d="M19 40c-1 5-3 9-7 12m13-7c1 4 0 7-2 10m22-8c-3 4-3 8-2 11m8-12c3 3 5 6 5 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+    <!-- flowing tail and the horse's galloping body -->
+    <path d="M34 55C23 48 18 43 12 46c7 1 9 7 14 12-7-2-12-1-17 4 10-3 16 2 24 8Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M28 45c13-9 35-10 51-4 9 3 14 10 12 18-10 8-31 10-49 5-11-3-17-9-14-19Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M73 45c5-9 8-17 15-24l10 3c-4 7-3 12 2 17l-8 15-17 5Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="m86 23 4-10 5 8 7-2 9 7-9 7-10-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="M101 29 114 33l-13 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="103" cy="25" r="1.5" fill="currentColor"/>
+    <path d="M83 29c-8 9-15 17-26 21l-5-4c9-8 14-18 18-27Z" fill="var(--accent)" opacity=".82"/>
+    <g class="rider-leg-set" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m38 58-5 13-8 9m24-14-1 13 6 6m22-15 7 11-1 9m4-22 12 8 5 8"/>
     </g>
-    <path d="M29 30c5-4 12-5 18-3l5 8-8 5-10-2Z" fill="var(--mint)" stroke="currentColor" stroke-width="2"/>
-    <path d="M34 27c-2-6 0-11 5-14l6 2 4 10-4 7-8-1Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
-    <circle cx="41" cy="10" r="5" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.2"/>
-    <path d="M35 10c1-5 9-8 14-3l-1 4-4-2-3 3Z" fill="var(--mint)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-    <path d="m46 22 8 9m-10-1 10 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <!-- saddle and armored rider -->
+    <path d="M40 42c7-6 18-7 25-2l7 12-12 8-19-6Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="m43 44 18 4m-15 2 17 5" stroke="currentColor" stroke-width="1.3" opacity=".75"/>
+    <path d="M46 38c-4-8-1-17 6-22l10 1 8 13-5 14-13 3Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M45 19c4-9 19-12 27-3l-2 8-10-4-12 5Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 15c-5 0-9 3-11 7l8 1m19-9 7 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="58" cy="24" r="1.4" fill="var(--mint)"/>
+    <!-- raised curved sword -->
+    <path d="m49 35-8-13m-2-3 15-18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M54 2 64 0 44 21" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linecap="round"/>
   </g>
   <g class="rider-pose-rear">
-    <path d="M15 39c6-8 19-13 32-11 8 1 14 6 15 12-7 8-20 11-34 8-7-1-11-4-13-9Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
-    <path d="M52 37c4-12 3-21 10-29l8 1c-2 7 0 11 4 14l-6 15-13 5Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-    <path d="m64 10 2-7 5 6 5-1 7 5-7 5-8-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M28 46c-2 5-2 9-1 13m15-12c-1 4 0 8 2 11m17-47c4-5 9-7 14-8m-8 9c7-4 13-4 18 0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
-    <path d="M30 30c5-4 12-5 18-2l5 8-8 5-10-3Z" fill="var(--mint)" stroke="currentColor" stroke-width="2"/>
-    <path d="M35 28c-3-5-3-10 1-14l6-2 7 7-2 9-6 4Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
-    <circle cx="40" cy="9" r="5" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.2"/>
-    <path d="M34 9c2-5 10-8 15-3l-1 4-4-2-4 3Z" fill="var(--mint)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-    <path d="m46 23 10 8m-12-2 10 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M35 56c-10-7-15-11-22-8 6 3 9 8 14 12-8-1-13 2-18 7 10-2 16 3 23 8Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M28 48c13-10 34-12 49-6 8 4 13 10 12 17-10 9-29 11-47 6-11-3-17-9-14-17Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M73 50c-1-13-4-25 5-36l9 1c-2 10 2 15 9 20l-4 18-15 8Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="m77 15 3-11 6 9 7-2 9 7-9 7-10-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="M94 22 109 26l-14 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="97" cy="18" r="1.5" fill="currentColor"/>
+    <g class="rider-leg-set" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m36 59-2 14 5 10m17-17 3 14 8 7m11-35 12-12 7-13m-2 22 12-9 5-13"/>
+    </g>
+    <path d="M42 44c8-7 18-8 25-2l6 12-13 8-20-6Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 40c-5-8-3-17 4-22l10-1 9 12-4 15-12 5Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M47 21c4-10 19-13 27-4l-2 8-10-4-12 5Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="59" cy="25" r="1.4" fill="var(--mint)"/>
+    <path d="m50 35-7-14m-2-3L55 2" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M55 2 65 0 45 21" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M57 42 71 48m-13-1 12 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </g>
 </svg>`;
 
