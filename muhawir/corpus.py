@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "seerah", "fatwa", "other"})
+KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "seerah", "fatwa", "qa", "other"})
 
 
 class CorpusError(ValueError):

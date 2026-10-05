@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import bidaya, classify, referrals
+from . import bayyinat, bidaya, classify, referrals
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -637,6 +637,8 @@ class Muhawir:
         answer = [c for c in kept if not c.school]
         if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
             answer = [c for c in answer if not classify.names_company(c.text)]
+        # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
+        answer = [c for c in answer if bayyinat.VERSE not in c.text]
         if not any(c.passage_ids for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)

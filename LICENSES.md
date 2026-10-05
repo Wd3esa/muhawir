@@ -11,6 +11,7 @@
 | HTTPX | 0.28.1 | الاتصال بواجهة النموذج | BSD-3-Clause | https://github.com/encode/httpx |
 | Uvicorn | 0.46.0 | تشغيل الخادم | BSD-3-Clause | https://github.com/encode/uvicorn |
 | NumPy | 2.x | البحث بالمتجهات (اختياري، مُطفأ افتراضيًا) | BSD-3-Clause | https://github.com/numpy/numpy |
+| PyMuPDF | 1.28.2 | قراءة ملف «بينات» (PDF) عند بناء البيانات فقط، ولا يُعدَّل | GNU AGPL 3.0 (أو رخصة تجارية من Artifex) | https://github.com/pymupdf/PyMuPDF |
 | sentence-transformers وPyTorch (اختياريان، `requirements-vectors.txt`) | 6.x | تشغيل نموذج التضمين المحلي للبحث بالمتجهات | Apache-2.0 وBSD-3-Clause | https://github.com/UKPLab/sentence-transformers |
 | BAAI/bge-m3 (نموذج تضمين، اختياري) | النسخة مسجلة مع الفهرس | تحويل المقاطع والسؤال إلى متجهات | MIT | https://huggingface.co/BAAI/bge-m3 |
 | pytest (للتطوير) | 9.1.1 | الاختبارات | MIT | https://github.com/pytest-dev/pytest |
@@ -37,6 +38,7 @@
 | hadith-api (fawazahmed0)، الملفان ara-bukhari وara-muslim | نص صحيح البخاري وصحيح مسلم بالعربية | The Unlicense (ملكية عامة) | https://github.com/fawazahmed0/hadith-api |
 | OpenITI (KITAB)، نسخة «بداية المجتهد» Shamela0021739، ونسخة «السيرة النبوية» لابن هشام Shamela0023833 | نص «بداية المجتهد» لابن رشد (الفقه المقارن)، ونص «السيرة النبوية» لابن هشام | CC BY-NC-SA 4.0: استعمال غير تجاري مع ذكر المصدر، ويُنشر ما يُشتق من البيانات نفسها بالرخصة ذاتها. يُذكر: Nigst, Romanov, Savant, Seydi, Verkinderen, OpenITI 2025.1.9, DOI 10.5281/zenodo.17767721. لا يُحفظ النص في المستودع، بل يُنزَّل عند بناء البيانات | https://github.com/OpenITI/0600AH، https://github.com/OpenITI/0225AH |
 | OpenITI (KITAB)، نسخ «مجموع فتاوى ابن باز» Shamela0021537، و«مجموع فتاوى ورسائل ابن عثيمين» Shamela0012293، و«فتاوى أركان الإسلام» Shamela0009924 | فتاوى الشيخين، تُنقل منسوبة إليهما | ترميز OpenITI بالرخصة CC BY-NC-SA 4.0 كما سبق. **أما النص فأعمال معاصرة، وحقوقه لأصحابها وناشريها** (منهم دار الوطن ودار الثريا)، والرخصة المفتوحة للمدونة لا تعني إذنهم. يُعرض كل مقطع منسوبًا إلى صاحبه مع الجزء والصفحة، ويُطلب إذن أصحاب الحقوق، فإن لم يُؤذن أُزيل المصدر. لا يُحفظ النص في المستودع، بل يُنزَّل عند بناء البيانات | https://github.com/OpenITI/1425AH |
+| «بينات: أسئلة منتقاة حول الإسلام»، مركز أصول (ملف PDF الذي تسميه الحزمة العلمية) | أجوبة الأسئلة والشبهات | عمل معاصر، حقوقه لمركز أصول وناشره (جمعية الدعوة والإرشاد وتوعية الجاليات بالربوة). مذكور في الحزمة العلمية للتحدي مصدرًا للشبهات والأسئلة المتكررة. يُعرض كل مقطع منسوبًا إليهم مع رقم الصفحة، ولا يُحفظ النص ولا الملف في المستودع | https://dawa.center/file/7937 |
 
 ## أدوات التطوير
 
