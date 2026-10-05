@@ -1265,6 +1265,111 @@ a {
   .composer-row { flex-wrap:wrap; row-gap:6px; }
   .style-wrap { flex:1 1 100%; min-width:0; }
   .style-wrap select { max-width:44vw; }
+/* Arabian knight status animation */
+.msg.pending.rider-status {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:min(100%,390px);
+  max-width:100%;
+  min-width:0;
+  padding:8px 13px;
+  white-space:normal
+}
+.rider-track {
+  position:relative;
+  flex:0 1 188px;
+  width:min(188px,52%);
+  min-width:120px;
+  height:58px;
+  overflow:hidden;
+  direction:ltr
+}
+.rider-runner {
+  position:absolute;
+  left:0;
+  bottom:0;
+  display:block;
+  width:54px;
+  height:54px;
+  animation:rider-patrol 2.55s ease-in-out infinite
+}
+.rider-art {
+  display:block;
+  width:100%;
+  height:100%;
+  overflow:visible;
+  color:var(--accent)
+}
+.rider-pose-gallop {
+  transform-origin:50% 85%;
+  animation:rider-bounce .34s ease-in-out infinite alternate
+}
+.rider-pose-rear {
+  opacity:0;
+  transform:translateY(5px) scale(.94);
+  transform-origin:50% 90%
+}
+.rider-leg-set {
+  transform-box:fill-box;
+  transform-origin:50% 0;
+  animation:rider-legs .32s ease-in-out infinite alternate
+}
+.rider-status-copy {
+  flex:1 1 auto;
+  min-width:0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.4;
+  text-align:start
+}
+@keyframes rider-patrol {
+  0%,100% { left:0; transform:scaleX(1) }
+  45% { left:calc(100% - 54px); transform:scaleX(1) }
+  50% { left:calc(100% - 54px); transform:scaleX(-1) }
+  95% { left:0; transform:scaleX(-1) }
+}
+@keyframes rider-bounce {
+  from { transform:translateY(0) }
+  to { transform:translateY(-2px) }
+}
+@keyframes rider-legs {
+  from { transform:rotate(-3deg) }
+  to { transform:rotate(3deg) }
+}
+@keyframes rider-rear {
+  0% { opacity:0; transform:translateY(5px) scale(.94) }
+  65% { opacity:1; transform:translateY(-3px) scale(1.04) }
+  100% { opacity:1; transform:translateY(0) scale(1) }
+}
+.rider-status.is-found .rider-runner,
+.rider-status.is-settled .rider-runner {
+  animation-play-state:paused
+}
+.rider-status.is-found .rider-pose-gallop {
+  opacity:0;
+  animation-play-state:paused
+}
+.rider-status.is-found .rider-pose-rear {
+  opacity:1;
+  animation:rider-rear .44s cubic-bezier(.2,.8,.2,1) both
+}
+.rider-status.is-settled .rider-pose-gallop,
+.rider-status.is-settled .rider-leg-set {
+  animation-play-state:paused
+}
+.rider-status.is-settled .rider-pose-rear {
+  opacity:0
+}
+@media(max-width:420px) {
+  .msg.pending.rider-status { width:min(100%,340px); gap:7px; padding-inline:10px; }
+  .rider-track { flex-basis:140px; width:140px; min-width:112px; }
+  .rider-status-copy { font-size:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .rider-runner { left:calc(50% - 27px)!important; animation:none!important; }
+  .rider-pose-gallop,.rider-leg-set { animation:none!important; }
+  .rider-status.is-found .rider-pose-rear { animation:none!important; opacity:1; transform:none; }
 }
 
 </style>
@@ -1337,7 +1442,7 @@ const UI = {
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "عند استعمال الميكروفون قد يرسل متصفحك صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…",
+        exampleTag: "مثال توضيحي من مُحاور", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة تعريفية مسندة إلى مصادر معتمدة، وليس مصدرًا للفتوى الشخصية.",
@@ -1352,7 +1457,7 @@ const UI = {
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        exampleTag: "An illustration by Muhawir", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…",
+        exampleTag: "An illustration by Muhawir", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Fathoming the question…", "Exploring the sources…", "Gathering supporting passages…", "Preparing the answer…"], found: "Supporting passages found", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of personal fatwas.",
@@ -1376,6 +1481,82 @@ function el(tag, cls, text) {
   if (cls) node.className = cls;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+
+const RIDER_ART = `<svg class="rider-art" viewBox="0 0 128 96" role="img" aria-label="Knight riding a horse">
+  <g class="rider-pose-gallop">
+    <!-- flowing tail and the horse's galloping body -->
+    <path d="M34 55C23 48 18 43 12 46c7 1 9 7 14 12-7-2-12-1-17 4 10-3 16 2 24 8Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M28 45c13-9 35-10 51-4 9 3 14 10 12 18-10 8-31 10-49 5-11-3-17-9-14-19Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M73 45c5-9 8-17 15-24l10 3c-4 7-3 12 2 17l-8 15-17 5Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="m86 23 4-10 5 8 7-2 9 7-9 7-10-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="M101 29 114 33l-13 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="103" cy="25" r="1.5" fill="currentColor"/>
+    <path d="M83 29c-8 9-15 17-26 21l-5-4c9-8 14-18 18-27Z" fill="var(--accent)" opacity=".82"/>
+    <g class="rider-leg-set" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m38 58-5 13-8 9m24-14-1 13 6 6m22-15 7 11-1 9m4-22 12 8 5 8"/>
+    </g>
+    <!-- saddle and armored rider -->
+    <path d="M40 42c7-6 18-7 25-2l7 12-12 8-19-6Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="m43 44 18 4m-15 2 17 5" stroke="currentColor" stroke-width="1.3" opacity=".75"/>
+    <path d="M46 38c-4-8-1-17 6-22l10 1 8 13-5 14-13 3Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M45 19c4-9 19-12 27-3l-2 8-10-4-12 5Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 15c-5 0-9 3-11 7l8 1m19-9 7 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="58" cy="24" r="1.4" fill="var(--mint)"/>
+    <!-- raised curved sword -->
+    <path d="m49 35-8-13m-2-3 15-18" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M54 2 64 0 44 21" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g class="rider-pose-rear">
+    <path d="M35 56c-10-7-15-11-22-8 6 3 9 8 14 12-8-1-13 2-18 7 10-2 16 3 23 8Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M28 48c13-10 34-12 49-6 8 4 13 10 12 17-10 9-29 11-47 6-11-3-17-9-14-17Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M73 50c-1-13-4-25 5-36l9 1c-2 10 2 15 9 20l-4 18-15 8Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="m77 15 3-11 6 9 7-2 9 7-9 7-10-2Z" fill="var(--accent-soft)" stroke="currentColor" stroke-width="2.7" stroke-linejoin="round"/>
+    <path d="M94 22 109 26l-14 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="97" cy="18" r="1.5" fill="currentColor"/>
+    <g class="rider-leg-set" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m36 59-2 14 5 10m17-17 3 14 8 7m11-35 12-12 7-13m-2 22 12-9 5-13"/>
+    </g>
+    <path d="M42 44c8-7 18-8 25-2l6 12-13 8-20-6Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 40c-5-8-3-17 4-22l10-1 9 12-4 15-12 5Z" fill="var(--accent)" stroke="currentColor" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M47 21c4-10 19-13 27-4l-2 8-10-4-12 5Z" fill="var(--mint)" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="59" cy="25" r="1.4" fill="var(--mint)"/>
+    <path d="m50 35-7-14m-2-3L55 2" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M55 2 65 0 45 21" fill="none" stroke="var(--mint)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M57 42 71 48m-13-1 12 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>`;
+
+let riderPhraseCounter = 0;
+function createRiderStatus(locale) {
+  const t = UI[locale] || UI.en;
+  const phrase = t.thinking[riderPhraseCounter % t.thinking.length];
+  riderPhraseCounter += 1;
+  const pending = el("div", "msg pending rider-status is-searching");
+  pending.setAttribute("role", "status");
+  pending.setAttribute("aria-label", phrase);
+  pending.dir = locale === "ar" ? "rtl" : "ltr";
+  const track = el("span", "rider-track");
+  track.setAttribute("aria-hidden", "true");
+  const runner = el("span", "rider-runner");
+  runner.innerHTML = RIDER_ART;
+  track.append(runner);
+  pending.append(track, el("span", "rider-status-copy", phrase));
+  return pending;
+}
+
+async function completeRiderStatus(pending, response, locale) {
+  const t = UI[locale] || UI.en;
+  const found = response.status === "answered" && Array.isArray(response.sources) && response.sources.length > 0;
+  pending.classList.remove("is-searching");
+  pending.classList.add(found ? "is-found" : "is-settled");
+  const label = pending.querySelector(".rider-status-copy");
+  const phrase = found ? t.found : t.settled;
+  if (label) label.textContent = phrase;
+  pending.setAttribute("aria-label", phrase);
+  if (!found || !pending.isConnected || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  await new Promise((resolve) => setTimeout(resolve, 480));
 }
 
 function renderHistory() {
@@ -1974,10 +2155,7 @@ async function regenerateAnswer(message) {
   syncRegenerateButtons();
   message.regenerateButton.disabled = true;
   setActionStatus(message.actionStatus, "regenerating");
-  const pending = el("div", "msg pending typing");
-  pending.setAttribute("role", "status");
-  pending.setAttribute("aria-label", UI[lang].pending);
-  for (let i = 0; i < 3; i++) pending.append(el("span"));
+  const pending = createRiderStatus(context.lang || lang);
   conversation.messages.push(pending);
   if (activeConversation === conversation) { $("thread").append(pending); scrollDown(); }
   try {
@@ -1985,6 +2163,7 @@ async function regenerateAnswer(message) {
       body: JSON.stringify({ question: context.question, style: context.style, lang: context.lang, history: context.history }) });
     if (!response.ok) throw new Error(response.status);
     const res = await response.json();
+    await completeRiderStatus(pending, res, context.lang || lang);
     const replacement = renderAnswer(res, context.style, context);
     conversation.messages[messageIndex] = replacement;
     conversation.messages = conversation.messages.filter((entry) => entry !== pending);
@@ -2073,9 +2252,7 @@ $("ask").addEventListener("submit", async (e) => {
     renderHistory();
   }
   $("thread").append(userMessage);
-  const pending = el("div", "msg pending typing");  // a typing indicator, no words
-  pending.setAttribute("role", "status"); pending.setAttribute("aria-label", UI[lang].pending);
-  for (let i = 0; i < 3; i++) pending.append(el("span"));
+  const pending = createRiderStatus(requestLang);
   conversation.messages.push(pending);
   syncRegenerateButtons();
   conversation.updatedAt = Date.now();
@@ -2087,6 +2264,7 @@ $("ask").addEventListener("submit", async (e) => {
       body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }) });
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
+    await completeRiderStatus(pending, res, requestLang);
     const msg = renderAnswer(res, style, context);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
