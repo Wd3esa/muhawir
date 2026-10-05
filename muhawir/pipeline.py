@@ -67,6 +67,26 @@ def _labels_a_case(text: str) -> bool:
     return bool(_EXAMPLE_LABEL.search(text))
 
 
+# a view must be named after the jurist or school that holds it, as the source names them: «بعض العلماء» is no name
+_UNNAMED_SCHOOL = re.compile(r"^\s*(?:بعض|بعضهم|آخرون|اخرون|فريق|طائفة|قوم|غيرهم|some|others)\b|^\s*العلماء\b", re.IGNORECASE)
+# a sentence about the scholars' disagreement: kept only when the question is about a ruling or the disagreement
+_DISAGREEMENT = re.compile(r"(?:ا|ي|ت)ختلف\s+(?:ال)?(?:علماء|فقهاء)|خلاف\s+بين\s+(?:ال)?(?:علماء|فقهاء)|\bscholars\s+(?:differ|disagree)",
+                           re.IGNORECASE)
+# a connective that only makes sense after an earlier sentence: never the first word shown
+_LEADING_LINK = re.compile(r"^\s*(?:كما|وكذلك|كذلك|وأيضًا|وأيضا|أيضًا|أيضا|ثم|وكما|also,?|moreover,?)\s+", re.IGNORECASE)
+
+
+def _named_views(views: list) -> list:
+    """Views whose school is a real name; with fewer than two named ones left, none (a lone view is no comparison)."""
+    named = [v for v in views if not _UNNAMED_SCHOOL.search(v.school)]
+    return named if len(named) >= 2 else []
+
+
+def _without_leading_link(text: str) -> str:
+    rest = _LEADING_LINK.sub("", text, count=1)
+    return rest[:1].upper() + rest[1:] if rest != text and rest[:1].isascii() else rest
+
+
 def _confused(passage: Passage, user_words: str) -> bool:
     """The passage is headed by a look-alike term the user did not use (see CONFUSABLE)."""
     heading = normalize(f"{passage.location} {passage.keywords}")
@@ -694,6 +714,11 @@ class Muhawir:
         answer = [c for c in answer if bayyinat.VERSE not in c.text]
         if contemporary or personal or kind == "ruling" or feeling == "sad":  # no invented example near a ruling or grief
             answer = [c for c in answer if not is_example(c.text)]
+        if kind not in ("ruling", "contemporary") and style != "extended" and not personal:
+            # a question on a meaning, kinds or wisdom gets what the sources agree on, not the disagreement
+            answer = [c for c in answer if not _DISAGREEMENT.search(c.text)]
+        if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
+            answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
@@ -704,9 +729,10 @@ class Muhawir:
                    **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {}),
                    **({"example": True} if is_example(c.text) else {})}
                   for c in answer]
+        named = _named_views([c for c in kept if c.school])
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
-                 for c in kept if c.school]
-        cards = self._cards([pid for c in answer + [v for v in kept if v.school] for pid in c.passage_ids], corpus,
+                 for c in named]
+        cards = self._cards([pid for c in answer + named for pid in c.passage_ids], corpus,
                             lang)
         note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
         if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage

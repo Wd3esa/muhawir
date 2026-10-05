@@ -243,7 +243,7 @@ def test_only_saudi_bodies_are_listed():
     from muhawir.referrals import card
     for kind in ("fatwa", "finance"):
         for lang in ("ar", "en"):
-            assert all(link["where"].startswith(("السعودية", "Saudi Arabia")) for link in card(kind, lang)["links"])
+            assert all(link["where"] in ("المملكة العربية السعودية", "Saudi Arabia") for link in card(kind, lang)["links"])
 
 
 def test_a_crisis_keeps_its_fixed_caring_reply_without_a_card(engine):

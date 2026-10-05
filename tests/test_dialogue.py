@@ -938,3 +938,29 @@ def test_an_example_is_dropped_only_when_it_ends_by_naming_the_case():
     from muhawir.pipeline import _labels_a_case
     assert _labels_a_case("مثلًا، إذا أعطيت شخصًا مالًا ليستثمره، فهذا مثال على المضاربة.")
     assert not _labels_a_case("مثلًا إذا وعدت صديقك بموعد، وهذا يحدث كثيرًا فعليك أن تفي به في وقته دون تأخير ولا تقصير أبدًا.")
+
+
+# --- answer shape guards ------------------------------------------------------------------------
+
+def test_views_without_a_named_school_are_not_shown():
+    from muhawir.generate import Claim
+    from muhawir.pipeline import _named_views
+    vague = [Claim("استحبوا الجهر.", ("f:1",), school="بعض العلماء (المستحبون الجهر)"),
+             Claim("كرهوا الجهر.", ("f:1",), school="بعض العلماء (المستحبون الإسرار)")]
+    named = [Claim("يجهر بها.", ("f:1",), school="الشافعي"), Claim("لا يجهر بها.", ("f:1",), school="أبو حنيفة")]
+    assert _named_views(vague) == [] and _named_views(named) == named
+    assert _named_views(named[:1] + vague) == []  # one named view alone is no comparison
+
+
+def test_a_kinds_answer_does_not_open_with_the_disagreement_or_a_connective():
+    from muhawir.pipeline import _DISAGREEMENT, _without_leading_link
+    assert _DISAGREEMENT.search("يختلف العلماء في بعض الأنواع.") and not _DISAGREEMENT.search("الزكاة حق في المال.")
+    assert _without_leading_link("كما تشمل الزكاة عروض التجارة.") == "تشمل الزكاة عروض التجارة."
+    assert _without_leading_link("Also, zakat is due on trade goods.") == "Zakat is due on trade goods."
+
+
+def test_the_referral_card_does_not_assume_where_the_user_lives():
+    from muhawir.referrals import card
+    ar, en = card("fatwa", "ar"), card("fatwa", "en")
+    assert "وفي السعودية" not in ar["intro"] and "في بلدك" in ar["intro"]
+    assert "In Saudi Arabia:" not in en["intro"] and ar["links"][0]["where"] == "المملكة العربية السعودية"

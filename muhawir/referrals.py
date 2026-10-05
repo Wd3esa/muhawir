@@ -19,20 +19,20 @@ from .normalize import normalize
 
 FATWA_BODIES = [
     {"ar": "الرئاسة العامة للبحوث العلمية والإفتاء", "en": "General Presidency of Scholarly Research and Ifta",
-     "where_ar": "السعودية", "where_en": "Saudi Arabia", "url": "https://www.alifta.gov.sa"},
+     "where_ar": "المملكة العربية السعودية", "where_en": "Saudi Arabia", "url": "https://www.alifta.gov.sa"},
 ]
 
 CARD = {
     "ar": {
-        "fatwa": ("من تسأل؟", "اسأل جهة الفتوى الرسمية في بلدك. وفي السعودية:"),
-        "finance": ("من تسأل؟", "القضايا المالية المعاصرة تبحثها جهات الفتوى الرسمية والمجامع الفقهية. اسأل جهة الفتوى الرسمية في بلدك. وفي السعودية:"),
+        "fatwa": ("من تسأل؟", "اسأل جهة الفتوى الرسمية في بلدك، ومن هذه الجهات:"),
+        "finance": ("من تسأل؟", "القضايا المالية المعاصرة تبحثها جهات الفتوى الرسمية والمجامع الفقهية. اسأل جهة الفتوى الرسمية في بلدك، ومن هذه الجهات:"),
         "newcomer": ("تحدّث مع أحد", "تواصل مع أقرب مسجد أو مركز إسلامي إليك، فهم يرحبون بك ويساعدونك خطوة خطوة، "
                                     "ويجيبون عن أسئلتك وجهًا لوجه."),
     },
     "en": {
-        "fatwa": ("Who to ask", "Ask the official fatwa body in your country. In Saudi Arabia:"),
+        "fatwa": ("Who to ask", "Ask the official fatwa body in your country, for example:"),
         "finance": ("Who to ask", "Contemporary financial matters are studied by official fatwa bodies and fiqh academies. "
-                                  "Ask the official fatwa body in your country. In Saudi Arabia:"),
+                                  "Ask the official fatwa body in your country, for example:"),
         "newcomer": ("Talk to someone", "Contact the mosque or Islamic centre nearest to you: they will welcome you, help you "
                                        "step by step, and answer your questions in person."),
     },
