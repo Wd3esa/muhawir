@@ -2142,7 +2142,26 @@ function kidsIcon(text) {
   return hit ? hit[1] : "⭐";
 }
 
+// «المقاطع» is the word the model is given for the retrieved texts; the reader knows them as the sources.
+// Only Muhawir's own words are changed: a quote («…») and the source cards stay exactly as written.
+const PLAIN_WORDS = [[/(^|[^\p{L}])(و?[بلف]?)المقاطع(?![\p{L}])/gu, "$1$2المصادر"], [/(^|[^\p{L}])(و?[بلف]?)المقطع(?![\p{L}])/gu, "$1$2المصدر"],
+                     [/(^|[^\p{L}])(و?[بلف]?)مقاطع(?![\p{L}])/gu, "$1$2مصادر"], [/\bthe passages\b/gi, "the sources"], [/\bthe passage\b/gi, "the source"]];
+function plainText(text) {
+  if (!text) return text;
+  return PLAIN_WORDS.reduce((t, [from, to]) => t.replace(from, to), text);
+}
+function plainWords(res) {
+  res.message = plainText(res.message);
+  res.follow_up = plainText(res.follow_up);
+  for (const c of res.claims || []) {
+    if (c.text && !c.text.startsWith("«")) c.text = plainText(c.text);
+    if (c.label) c.label = plainText(c.label);
+  }
+  return res;
+}
+
 function renderAnswer(res, style, context) {
+  plainWords(res);
   const open = style === "extended";
   const t = UI[lang];
   const msg = el("div", "msg");

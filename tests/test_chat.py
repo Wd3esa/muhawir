@@ -449,3 +449,12 @@ def test_a_rating_is_counted_and_asks_no_model():
     assert client.post("/api/feedback", json={"verdict": "unclear"}).json() == {"ok": True}
     assert client.get("/api/health").json()["usage"]["rated_unclear"] == before + 1
     assert client.post("/api/feedback", json={"verdict": "anything"}).status_code == 422
+
+
+def test_a_contemporary_financial_topic_alone_is_always_referred():
+    # live site, 6 October 2026: «العملات الرقميه» was referred one time and «not found» the next
+    from muhawir import classify
+    for topic in ("العملات الرقميه", "العملات الرقمية؟", "البيتكوين", "فوائد البنوك", "التأمين", "Bitcoin"):
+        assert classify.check(topic).kind == classify.OUT_OF_SCOPE, topic
+    for other in ("الزكاة", "الصيام", "الربا", "تعلم التداول", "المقاطعة"):
+        assert classify.check(other).kind is None, other
