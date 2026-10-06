@@ -807,6 +807,27 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   color:var(--ink);
   font-weight:600
 }
+.confirm-choices {
+  display:flex;
+  gap:8px;
+  margin:4px 0 10px
+}
+.confirm-choices button {
+  min-width:72px;
+  min-height:40px;
+  padding:6px 16px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--bg);
+  color:var(--ink);
+  font:inherit;
+  cursor:pointer
+}
+.confirm-choices .confirm-yes {
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink)
+}
 .general-info {
   margin-top:12px;
   border:1px solid var(--line);
@@ -1545,7 +1566,7 @@ const UI = {
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
-        generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", views: "أقوال العلماء كما وردت في المصادر",
+        generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
@@ -1561,7 +1582,7 @@ const UI = {
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
-        generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", views: "Scholars' views as stated in the sources",
+        generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
@@ -2234,11 +2255,18 @@ function renderAnswer(res, style, context) {
   msg.append(heading);
   // the question as Muhawir understood it, when it differs from what was typed (a typo such as «ضيام», or a
   // follow-up such as «ولماذا؟» made whole): the reader sees what was answered, with no new request
+  // A first question that was reworded (a typo such as «ضيام») asks «هل تقصد…؟ نعم / لا» before the answer is
+  // shown; a follow-up («ولماذا؟») only says what was understood. The answer is already here: no new request.
+  let understoodLine = null;
+  const confirmFirst = Boolean(res.understood) && !(context?.history || []).length
+    && ["answered", "referred", "abstained"].includes(res.status);
   if (res.understood) {
-    const u = el("p", "understood");
-    u.dir = "auto";
-    u.append(el("span", "understood-label", t.understoodAs + " "), el("strong", "", res.understood));
-    msg.append(u);
+    understoodLine = el("p", "understood");
+    understoodLine.dir = "auto";
+    const label = el("span", "understood-label", (confirmFirst ? t.didYouMean : t.understoodAs) + " ");
+    understoodLine.append(label, el("strong", "", res.understood));
+    understoodLine.label = label;
+    msg.append(understoodLine);
   }
   // A referral answers first: the referral line and who to ask; what the sources say in general follows, folded,
   // under a question the user opens (already in the reply: no new request).
@@ -2541,6 +2569,36 @@ function renderAnswer(res, style, context) {
   msg.responseActions = actions;
   msg.responseData = res;
   msg.requestContext = context;
+  if (confirmFirst) {
+    const body = el("div", "confirm-body");
+    body.hidden = true;
+    while (understoodLine.nextSibling) body.append(understoodLine.nextSibling);
+    msg.append(body);
+    const statusTag = heading.querySelector(".status");  // «إحالة إلى مختص» waits for the answer too
+    if (statusTag) statusTag.hidden = true;
+    const choices = el("div", "confirm-choices");
+    choices.setAttribute("role", "group");
+    const yes = el("button", "confirm-yes", t.yes); yes.type = "button";
+    const no = el("button", "confirm-no", t.no); no.type = "button";
+    choices.append(yes, no);
+    understoodLine.after(choices);
+    yes.addEventListener("click", () => {
+      choices.remove();
+      understoodLine.label.textContent = UI[lang].understoodAs + " ";
+      body.hidden = false;
+      if (statusTag) statusTag.hidden = false;
+    });
+    no.addEventListener("click", () => {
+      choices.remove();
+      body.remove();
+      const ask = el("p", "", UI[lang].whatDidYouMean); ask.dir = "auto";
+      msg.append(ask);
+      // the answer to a question the user did not mean is not kept for the next one
+      const turns = context?.conversation?.turns;
+      if (turns && turns.length >= 2 && turns[turns.length - 2].text === res.understood) turns.splice(-2, 2);
+      $("q").focus();
+    });
+  }
   return msg;
 }
 
@@ -2794,7 +2852,7 @@ $("ask").addEventListener("submit", async (e) => {
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
     pending.replaceWith(msg);
-    if (askedBySpeech && msg.listen) msg.listen.play();  // spoken question: spoken reply
+    if (askedBySpeech && msg.listen && !msg.querySelector(".confirm-body[hidden]")) msg.listen.play();  // spoken question: spoken reply
     // answers and Muhawir's offers (e.g. "shall I explain it more simply?") are remembered, so a follow-up
     // or a "yes" is understood; refusals, errors and "not found" are not answers to explain again
     if (rememberable(res)) {
