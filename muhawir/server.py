@@ -5,6 +5,7 @@ Run: uvicorn muhawir.server:app
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import threading
 import time
@@ -25,6 +26,7 @@ from .store import SqliteCorpus, SqliteRetriever
 from . import tts
 
 ROOT = Path(__file__).resolve().parent
+PIPELINE_REVISION = hashlib.sha256((ROOT / "pipeline.py").read_bytes()).hexdigest()[:12]
 DEFAULT_CORPUS = ROOT.parent / "data" / "synthetic_corpus.json"
 
 
@@ -181,7 +183,8 @@ def credit_remaining() -> float | None:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
+    return {"ok": True, "pipeline_revision": PIPELINE_REVISION,
+            "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
             "passages": len(engine.corpus.passages), "tts": tts.configured(), "credit_usd": credit_remaining(),
             "usage": {**{k: round(v, 1) for k, v in STATS.items()}, **USAGE,
                       "kept_replies": len(engine.store) if engine.store is not None else 0,

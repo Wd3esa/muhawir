@@ -436,9 +436,11 @@ def test_the_same_question_arriving_twice_at_once_is_written_once():
 def test_health_counts_without_any_question_text():
     from fastapi.testclient import TestClient
     from muhawir import server
-    usage = TestClient(server.app).get("/api/health").json()["usage"]
+    health = TestClient(server.app).get("/api/health").json()
+    usage = health["usage"]
     assert {"questions", "from_memory", "from_disk", "written", "model_calls", "tokens_in"} <= set(usage)
     assert all(isinstance(v, (int, float)) for v in usage.values())
+    assert health["pipeline_revision"] == server.PIPELINE_REVISION
 
 
 def test_a_rating_is_counted_and_asks_no_model():
