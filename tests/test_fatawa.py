@@ -88,3 +88,12 @@ def test_a_sentence_applying_the_fatwa_to_the_company_is_dropped():
     res = engine.ask("هل تابي وتمارا ربوية بناءً على المصادر المتاحة")
     assert res.status == REFERRED and res.claims == []
     assert res.referral["kind"] == "finance"
+
+
+def test_a_fatwa_on_another_product_is_not_quoted_under_the_question():
+    # live site, 6 October 2026: «حكم التداول بالعملات الرقمية» quoted fatwas on paper money and bank interest
+    sentence = "سُئل الشيخ ابن باز عن البيع بالتقسيط مع زيادة الثمن فأجاب بأنه لا حرج في ذلك إذا كان الأجل معلوما."
+    engine, _ = _engine([{"text": sentence, "passage_ids": ["z:1"]}])
+    res = engine.ask("ما حكم التداول بالعملات الرقمية؟")
+    assert res.status == REFERRED and res.claims == [] and not res.sources
+    assert res.referral["kind"] == "finance"

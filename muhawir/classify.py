@@ -108,6 +108,34 @@ _OUT_OF_SCOPE = [re.compile(p) for p in (
 )]
 
 
+# the product a contemporary financial question names, and the words a passage must contain to speak about it.
+# A fatwa on paper money or currency exchange says nothing about cryptocurrencies: quoted under that question it
+# reads as an answer to it (live site, 6 October 2026). The specific products first; «التداول» alone is general.
+_PRODUCTS = [
+    (r"رقمي|بيتكوين|بتكوين|كريبتو|crypto|bitcoin", ("رقمي", "بيتكوين", "بتكوين", "كريبتو", "مشفر", "crypto", "bitcoin")),
+    (r"فوركس|forex", ("فوركس", "الهامش", "forex")),
+    (r"تامين|insurance", ("تامين", "insurance")),
+    (r"تقسيط|اقساط|تابي|تمارا|tabby|tamara|bnpl|instal", ("تقسيط", "اقساط", "تابي", "تمارا", "مرابح", "tabby", "tamara", "instal")),
+    (r"اسهم|سهم|stock", ("اسهم", "سهم", "شركات المساهم", "stock")),
+    (r"بنك|البنوك|المصارف|مصرف|فوا[يئ]د|bank|interest", ("بنك", "بنوك", "مصرف", "مصارف", "فوايد", "bank", "interest")),
+]
+_TRADING = (r"تداول|trading", ("تداول", "trading"))
+
+
+def product_words(question: str) -> tuple[str, ...]:
+    """Words a passage must contain to speak of the product the question names; empty when none is named."""
+    text = normalize(question)
+    words = tuple(w for pattern, ws in _PRODUCTS if re.search(pattern, text) for w in ws)
+    if not words and re.search(_TRADING[0], text):
+        words = _TRADING[1]
+    return words
+
+
+def speaks_of(passage_text: str, words: tuple[str, ...]) -> bool:
+    text = normalize(passage_text)
+    return any(w in text for w in words)
+
+
 _COMPANY = re.compile(r"\b(تابي|تمارا|tabby|tamara)\b", re.IGNORECASE)
 
 

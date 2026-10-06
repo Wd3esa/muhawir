@@ -1027,6 +1027,13 @@ class Muhawir:
             return self._why(self._abstain(question, t, synthetic), "search found no passage")
         kept, rejected, passages, allowed, corpus = (written.kept, written.rejected, written.passages,
                                                      written.allowed, written.corpus)
+        if contemporary:  # only what a passage says about the product asked about is quoted; the rest is not an answer
+            words = classify.product_words(f"{original} {question}")
+            if words:
+                def _names_it(c) -> bool:
+                    found = [corpus.passage(pid) for pid in c.passage_ids]
+                    return any(p is not None and classify.speaks_of(p.text, words) for p in found)
+                kept = [c for c in kept if _names_it(c)]
         offered = f"{len(passages)} passages offered"
         if not kept:
             reason = "; ".join(r.reason for r in rejected) or getattr(self.generator, "last_note", "") or "no claims"
