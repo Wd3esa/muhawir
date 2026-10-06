@@ -634,3 +634,10 @@ def test_model_outage_on_the_second_search_is_reported_as_unavailable_not_as_no_
         raise RuntimeError("down")  # the answer step: every model fails
     res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("كيف يطير الحوت؟")
     assert res.status == UNAVAILABLE
+
+
+def test_the_suggested_question_covers_every_kind_the_answer_listed():
+    # live «الربا», 6 October 2026: the answer named two kinds and the suggestion asked about one of them only
+    assert "فلا تقترح السؤال عن واحد منها دون غيره" in generate.SYSTEM_PROMPT
+    from muhawir.pipeline import as_question
+    assert as_question("هل تريد أن تعرف الفرق بين ربا الفضل وربا النسيئة؟") == "ما الفرق بين ربا الفضل وربا النسيئة؟"
