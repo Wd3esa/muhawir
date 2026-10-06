@@ -275,6 +275,44 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   color:var(--muted);
   font-size:13px
 }
+.history-row {
+  display:flex;
+  align-items:center;
+  gap:2px
+}
+.history-row .history-item {
+  flex:1;
+  min-width:0
+}
+.history-tool {
+  flex:0 0 auto;
+  width:32px;
+  height:32px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  font-size:15px;
+  cursor:pointer
+}
+.history-tool:hover,.history-tool:focus-visible {
+  color:var(--ink);
+  background:color-mix(in srgb,var(--panel) 72%,transparent)
+}
+.history-tool[aria-pressed="true"] {
+  color:var(--accent)
+}
+.history-delete-all {
+  margin:10px 7px 0;
+  padding:6px 8px;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  font:inherit;
+  font-size:12px;
+  text-decoration:underline;
+  cursor:pointer
+}
 .history-item:hover {
   background:color-mix(in srgb,var(--panel) 72%,transparent);
   color:var(--ink)
@@ -1558,7 +1596,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
-        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
+        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك محفوظة في هذا المتصفح فقط، ولا تُرسل إلى أي مكان. يمكنك حذفها متى شئت.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "إيقاف", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
@@ -1573,7 +1611,7 @@ const UI = {
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
-        newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
+        newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations are saved in this browser only and sent nowhere. You can delete them at any time.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
@@ -1598,6 +1636,68 @@ const welcomeMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let welcomeTypingTimer = null;
 let nextConversationId = 2;
 const MAX_HISTORY = 6;
+
+// Conversations are kept in this browser only (localStorage), so a visitor can come back to them; nothing is sent
+// anywhere, there is no account, and each one, or all, can be deleted from the history list. Each answer is kept as
+// the reply the server gave, and shown again from it: reopening a conversation asks the model nothing.
+const STORE_KEY = "muhawir-conversations";
+const MAX_SAVED = 30, MAX_SAVED_ANSWERS = 20;
+function saveConversations() {
+  try {
+    const kept = conversations.filter((c) => (c.log || []).length)
+      .sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || b.updatedAt - a.updatedAt).slice(0, MAX_SAVED)
+      .map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt, favorite: Boolean(c.favorite), turns: c.turns,
+                     log: c.log.slice(-MAX_SAVED_ANSWERS) }));
+    localStorage.setItem(STORE_KEY, JSON.stringify(kept));
+  } catch { /* private window or full storage: the conversation still works, it is just not kept */ }
+}
+function loadConversations() {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); } catch { saved = []; }
+  for (const c of Array.isArray(saved) ? saved : []) {
+    if (!c || !Array.isArray(c.log) || !c.log.length) continue;
+    const conversation = { id: nextConversationId++, title: String(c.title || UI[lang].newChat), messages: [],
+                           turns: Array.isArray(c.turns) ? c.turns : [], updatedAt: Number(c.updatedAt) || 0,
+                           favorite: Boolean(c.favorite), log: c.log };
+    for (const entry of c.log) {
+      try {
+        const user = el("div", "turn-user", entry.question); user.dir = "auto";
+        // shown as it was answered: no «هل تقصد» again, so the context says it is not a first question
+        const context = { conversation, question: entry.question, style: entry.style, lang: entry.lang,
+                          history: [{ role: "user", text: "" }], entry };
+        conversation.messages.push(user, renderAnswer(entry.res, entry.style, context));
+      } catch { /* an entry from an older page version that no longer renders is skipped */ }
+    }
+    if (conversation.messages.length) conversations.push(conversation);
+  }
+}
+function deleteConversation(conversation) {
+  const index = conversations.indexOf(conversation);
+  if (index >= 0) conversations.splice(index, 1);
+  saveConversations();
+  if (conversation === activeConversation || !conversations.length) {
+    activeConversation = { id: nextConversationId++, title: UI[lang].newChat, messages: [], turns: [], updatedAt: Date.now() };
+    conversations.push(activeConversation);
+    renderConversation(activeConversation);
+  } else renderHistory();
+}
+function deleteAllConversations() {
+  try { localStorage.removeItem(STORE_KEY); } catch { /* nothing kept */ }
+  conversations.splice(0, conversations.length);
+  activeConversation = { id: nextConversationId++, title: UI[lang].newChat, messages: [], turns: [], updatedAt: Date.now() };
+  conversations.push(activeConversation);
+  renderConversation(activeConversation);
+}
+function logAnswer(conversation, context, res) {
+  if (!["answered", "referred", "abstained", "declined", "translated", "chat"].includes(res.status)) return;
+  conversation.log = conversation.log || [];
+  if (context.entry) context.entry.res = res;  // a regenerated answer replaces the one it was asked again for
+  else {
+    context.entry = { question: context.question, style: context.style, lang: context.lang, res };
+    conversation.log.push(context.entry);
+  }
+  saveConversations();
+}
 let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
 let activeRequest = null;
@@ -1651,15 +1751,35 @@ function renderHistory() {
   list.replaceChildren();
   const query = $("historySearch").value.trim().toLocaleLowerCase();
   const matches = conversations.filter((conversation) => conversation.messages.length && conversation.title.toLocaleLowerCase().includes(query))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || b.updatedAt - a.updatedAt);  // favorites first
+  const t = UI[lang];
   for (const conversation of matches) {
+    const row = el("div", "history-row");
     const item = el("button", "history-item");
     item.type = "button";
     item.setAttribute("aria-current", String(conversation === activeConversation));
     item.title = conversation.title;
-    item.append(el("span", "history-glyph", "◷"), el("span", "", conversation.title));
+    item.append(el("span", "history-glyph", conversation.favorite ? "★" : "◷"), el("span", "", conversation.title));
     item.addEventListener("click", () => selectConversation(conversation));
-    list.append(item);
+    const star = el("button", "history-tool", conversation.favorite ? "★" : "☆");
+    star.type = "button";
+    star.setAttribute("aria-pressed", String(Boolean(conversation.favorite)));
+    star.setAttribute("aria-label", conversation.favorite ? t.unfavorite : t.favorite);
+    star.title = star.getAttribute("aria-label");
+    star.addEventListener("click", () => { conversation.favorite = !conversation.favorite; saveConversations(); renderHistory(); });
+    const del = el("button", "history-tool", "✕");
+    del.type = "button";
+    del.setAttribute("aria-label", t.deleteChat);
+    del.title = t.deleteChat;
+    del.addEventListener("click", () => deleteConversation(conversation));
+    row.append(item, star, del);
+    list.append(row);
+  }
+  if (matches.length && !query) {
+    const all = el("button", "history-delete-all", t.deleteAll);
+    all.type = "button";
+    all.addEventListener("click", () => { if (window.confirm(UI[lang].deleteAllConfirm)) deleteAllConversations(); });
+    list.append(all);
   }
   $("historyEmpty").hidden = matches.length > 0;
   $("historyEmpty").textContent = query && !matches.length ? UI[lang].noMatches : UI[lang].historyEmpty;
@@ -2721,6 +2841,7 @@ async function regenerateAnswer(message) {
       remember(conversation, "assistant", [res.message, ...(res.claims || []).map((claim) => claim.text)].filter(Boolean).join(" "));
     }
     conversation.updatedAt = Date.now();
+    logAnswer(conversation, context, res);
     if (activeConversation === conversation) scrollDown();
   } catch {
     if (request.cancelled) return;
@@ -2876,6 +2997,7 @@ $("ask").addEventListener("submit", async (e) => {
       remember(conversation, "user", res.understood || question);
       remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text)].filter(Boolean).join(" "));
     }
+    logAnswer(conversation, context, res);
     syncRegenerateButtons();
   } catch {
     if (request.cancelled) return;
@@ -2935,6 +3057,7 @@ fetch("/api/health").then((r) => r.json()).then((h) => {
   // the natural voice (and its notice that the text goes to Microsoft) only when the server has it configured
   document.body.classList.toggle("natural-voice", Boolean(h.tts));
 }).catch(() => {});
+loadConversations();  // the conversations kept in this browser: listed in the history, nothing is asked again
 renderHistory();
 applyLang();
 fitQuestionBox();
