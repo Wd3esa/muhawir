@@ -258,6 +258,11 @@ def test_open_model_request_shape(monkeypatch):
     assert sent["body"]["reasoning"] == {"enabled": False}
     generate.openai_compatible_call("http://x/v1", "m", reasoning="Low")("s", "u", {})
     assert sent["body"]["reasoning"] == {"effort": "low"}
+    both = generate.openai_compatible_call("http://x/v1", "m", reasoning="off", reasoning_check="low")
+    both("s", "u", {})
+    assert sent["body"]["reasoning"] == {"enabled": False}
+    both(generate.CHECK_PROMPT, "u", {})
+    assert sent["body"]["reasoning"] == {"effort": "low"}  # only the sentence check thinks
 
 
 def test_open_model_selected_from_environment(monkeypatch):

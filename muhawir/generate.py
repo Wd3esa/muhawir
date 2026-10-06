@@ -920,19 +920,27 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     return call
 
 
+def _reasoning_body(reasoning: str) -> dict:
+    value = (reasoning or "").strip().lower()
+    if value in ("off", "none", "false", "0"):
+        return {"reasoning": {"enabled": False}}
+    if value in ("minimal", "low", "medium", "high"):
+        return {"reasoning": {"effort": value}}
+    return {}
+
+
 def openai_compatible_call(base_url: str, model: str, api_key: str = "",
-                           timeout: float = 300.0, reasoning: str = "") -> ModelCall:
+                           timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "") -> ModelCall:
     """Any server speaking the common chat-completions format: Ollama on your own computer
     (base_url http://localhost:11434/v1), or hosted open models such as DeepSeek or Qwen.
     `reasoning` (OPENAI_COMPAT_REASONING) asks a reasoning model to think less, in OpenRouter's format:
     "off" turns its thinking off, "minimal"/"low"/"medium"/"high" sets the effort; empty sends nothing."""
     import httpx
 
-    extra = {}
-    if reasoning.strip().lower() in ("off", "none", "false", "0"):
-        extra = {"reasoning": {"enabled": False}}
-    elif reasoning.strip().lower() in ("minimal", "low", "medium", "high"):
-        extra = {"reasoning": {"effort": reasoning.strip().lower()}}
+    # the second reading (CHECK_PROMPT) may think more than the other steps (OPENAI_COMPAT_REASONING_CHECK): it is
+    # the step that judges whether a sentence says what its passage says; writing needs no thinking, it is checked
+    extra = _reasoning_body(reasoning)
+    extra_check = _reasoning_body(reasoning_check) if reasoning_check.strip() else extra
 
     def call(system: str, user: str, schema: dict) -> str:
         started = time.time()
@@ -945,7 +953,8 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
             json={"model": model, "temperature": 0, "max_tokens": 8192,  # room for the whole JSON reply (a reasoning model's thinking counts too)
                   "response_format": {"type": "json_object"},
                   "messages": [{"role": "system", "content": system},
-                               {"role": "user", "content": user}], **extra},
+                               {"role": "user", "content": user}],
+                  **(extra_check if system == CHECK_PROMPT else extra)},
             timeout=timeout)
         r.raise_for_status()
         data = r.json()
@@ -974,7 +983,8 @@ def get_generator() -> Generator:
             os.environ["OPENAI_COMPAT_BASE_URL"], os.environ["OPENAI_COMPAT_MODEL"],
             os.environ.get("OPENAI_COMPAT_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
-            os.environ.get("OPENAI_COMPAT_REASONING", ""))))
+            os.environ.get("OPENAI_COMPAT_REASONING", ""),
+            os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""))))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
         calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
     if not calls:
