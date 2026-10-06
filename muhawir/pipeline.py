@@ -774,7 +774,9 @@ class Muhawir:
         """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
         holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
         found = [h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
-        con = getattr(getattr(self.retriever, "corpus", None), "con", None)
+        # The live retriever may be HybridRetriever, which wraps SQLite and has no .corpus.
+        # Use this engine's corpus so the near-verse lookup still works with vectors enabled.
+        con = getattr(self.corpus, "con", None)
         terms = tokenize(quoted)
         if con is None or not terms:
             return found

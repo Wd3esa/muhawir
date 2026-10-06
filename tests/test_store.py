@@ -59,6 +59,24 @@ def test_quotes_in_query_do_not_break_search(db):
     assert SqliteRetriever(corpus).search('النخلة "OR" * ( ) -') is not None
 
 
+def test_misquoted_verse_is_found_with_a_wrapped_retriever(tmp_path):
+    data = json.loads(SYNTHETIC.read_text(encoding="utf-8"))
+    data["passages"].append({"id": "q:2:153", "source_id": "test-a", "location": "سورة البقرة، الآية 153",
+                             "kind": "quran", "text": "إن الله مع الصابرين"})
+    path = tmp_path / "verse.db"
+    build_db(data, path)
+    corpus = SqliteCorpus(path)
+
+    class WrappedRetriever:
+        # The hybrid retriever has no .corpus, and a top-five search can miss the verse.
+        def search(self, question, k=5):
+            return []
+
+    engine = Muhawir(corpus, ExtractiveGenerator(), WrappedRetriever())
+    match = engine._misquoted("ما معنى قوله تعالى: «إن الله مع الصابرون»؟")
+    assert match is not None and match[0].id == "q:2:153"
+
+
 def test_server_prefers_database(db, monkeypatch):
     monkeypatch.setenv("MUHAWIR_DB", str(db))
     monkeypatch.delenv("MUHAWIR_CORPUS", raising=False)
