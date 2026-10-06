@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Live link of Muhawir, e.g. https://muhawir.onrender.com"
+        description: "Live link of Muhawir, e.g. https://muhawir.duckdns.org"
         required: true
 
 permissions:

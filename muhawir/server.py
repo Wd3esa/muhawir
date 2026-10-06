@@ -36,7 +36,7 @@ def answers_version(sources: Path, generator) -> str:
     import hashlib
     h = hashlib.sha256()
     for f in sorted(ROOT.glob("*.py")):  # what writes and checks a reply; not the page, the voice or the web server
-        if f.name not in ("server.py", "tts.py", "build_data.py", "rerank.py"):
+        if f.name not in ("server.py", "tts.py", "build_data.py"):
             h.update(f.read_bytes())
     if sources.exists():
         st = sources.stat()
