@@ -2226,6 +2226,22 @@ function answerBadgeState(response) {
   return { key:response.status, tone:"missing" };
 }
 
+// How the understood question differs from what was typed. «same»: only spaces, punctuation, hamza or
+// diacritics («ماهي الزكاة» / «ما هي الزكاة؟»): nothing is shown. «added»: every typed word is still there and
+// words were added («الزكاة» / «ما هي الزكاة؟»): a quiet line. «changed»: a typed word was replaced («ضيام» /
+// «صيام»): a first question asks «هل تقصد…؟ نعم / لا».
+function plainLetters(text) {
+  return (text || "").replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه")
+    .replace(/ى/g, "ي").replace(/ؤ/g, "و").replace(/ئ/g, "ي").toLowerCase();
+}
+function rewordKind(typed, understood) {
+  if (!understood) return "same";
+  const words = (t) => plainLetters(t).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const joined = words(understood).join("");
+  if (words(typed).join("") === joined) return "same";
+  return words(typed).every((w) => joined.includes(w)) ? "added" : "changed";
+}
+
 function renderAnswer(res, style, context) {
   plainWords(res);
   const open = style === "extended";
@@ -2258,9 +2274,10 @@ function renderAnswer(res, style, context) {
   // A first question that was reworded (a typo such as «ضيام») asks «هل تقصد…؟ نعم / لا» before the answer is
   // shown; a follow-up («ولماذا؟») only says what was understood. The answer is already here: no new request.
   let understoodLine = null;
-  const confirmFirst = Boolean(res.understood) && !(context?.history || []).length
+  const change = rewordKind(context?.question || "", res.understood || "");
+  const confirmFirst = change === "changed" && !(context?.history || []).length
     && ["answered", "referred", "abstained"].includes(res.status);
-  if (res.understood) {
+  if (res.understood && change !== "same") {
     understoodLine = el("p", "understood");
     understoodLine.dir = "auto";
     const label = el("span", "understood-label", (confirmFirst ? t.didYouMean : t.understoodAs) + " ");
