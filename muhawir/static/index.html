@@ -1432,6 +1432,8 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
   .workspace { height:100%; }
   #thread > .turn-user,#thread > .msg { flex-shrink:0; }
 }
+/* The question composer follows wrapped text, with scrolling only for long questions. */
+#q { resize:none; overflow-y:hidden; }
 </style>
 </head>
 <body>
@@ -1657,7 +1659,7 @@ function renderConversation(conversation) {
 
 function selectConversation(conversation) {
   activeConversation = conversation;
-  $("q").value = "";
+  setQuestionText("");
   renderConversation(conversation);
   document.querySelectorAll(".voice-choice select").forEach((choice) => { choice.value = selectedSpeechVoice; });
   closeHistory();
@@ -1665,14 +1667,14 @@ function selectConversation(conversation) {
 
 function startNewConversation() {
   if (!activeConversation.messages.length) {
-    $("q").value = "";
+    setQuestionText("");
     closeHistory();
     $("q").focus();
     return;
   }
   activeConversation = { id: nextConversationId++, title: UI[lang].newChat, messages: [], turns: [], updatedAt: Date.now() };
   conversations.push(activeConversation);
-  $("q").value = "";
+  setQuestionText("");
   renderConversation(activeConversation);
   closeHistory();
   if (window.matchMedia("(min-width: 861px)").matches) $("q").focus();
@@ -2253,7 +2255,7 @@ function renderAnswer(res, style, context) {
   if (res.follow_up) {  // Muhawir's suggestion to continue the dialogue: a tap asks it
     const next = el("button", "follow-up", res.follow_up);
     next.type = "button"; next.dir = "auto";
-    next.addEventListener("click", () => { $("q").value = res.follow_up; $("ask").requestSubmit(); });
+    next.addEventListener("click", () => { setQuestionText(res.follow_up); $("ask").requestSubmit(); });
     msg.append(next);
   }
   if (res.referral && res.referral.title) {  // who to ask when Muhawir refers on: official bodies, opened in a new tab
@@ -2384,7 +2386,7 @@ function renderAnswer(res, style, context) {
   simplify.dataset.itemKey = "simplifyAnswer";
   simplify.addEventListener("click", () => {
     more.open = false;
-    $("q").value = UI[lang].simplifyPrompt;
+    setQuestionText(UI[lang].simplifyPrompt);
     $("q").focus();
     $("ask").requestSubmit();
   });
@@ -2483,7 +2485,7 @@ function stopAnswerRequest() {
   $("stopRequest").hidden = true;
   syncRegenerateButtons();
   if (activeConversation === conversation) {
-    if (request.kind === "question" && !$("q").value.trim()) $("q").value = request.question;
+    if (request.kind === "question" && !$("q").value.trim()) setQuestionText(request.question);
     if (!conversation.messages.length) renderConversation(conversation);
     else { updateConversationTitle(); renderHistory(); }
     $("q").focus();
@@ -2550,6 +2552,27 @@ function remember(conversation, role, text) {
   while (conversation.turns.length > MAX_HISTORY) conversation.turns.shift();
 }
 
+function fitQuestionBox() {
+  const field = $("q");
+  const style = getComputedStyle(field);
+  const minimum = parseFloat(style.minHeight) || 44;
+  const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+  const viewport = window.visualViewport;
+  const screenHeight = viewport && Math.abs(viewport.scale - 1) <= .01 ? viewport.height : window.innerHeight;
+  const maximum = Math.max(minimum, Math.min(180, screenHeight * .3));
+  field.style.maxHeight = `${maximum}px`;
+  field.style.height = "auto";
+  const required = Math.max(minimum, field.scrollHeight + borders);
+  field.style.height = `${Math.min(required, maximum)}px`;
+  field.style.overflowY = required > maximum ? "auto" : "hidden";
+}
+function setQuestionText(text) {
+  $("q").value = text;
+  fitQuestionBox();
+}
+$("q").addEventListener("input", fitQuestionBox);
+document.fonts?.ready.then(fitQuestionBox);
+
 // A mobile keyboard can resize only the visual viewport, leaving 100dvh unchanged.
 // Scroll instantly after layout as well, so the pending row is not below the keyboard.
 function scrollDown() {
@@ -2575,6 +2598,7 @@ function syncChatViewport() {
     } else {
       document.documentElement.style.removeProperty("--chat-viewport-height");
     }
+    fitQuestionBox();
     const visibleRequest = activeRequest && activeRequest.conversation === activeConversation;
     if (followingBottom || visibleRequest) scrollDown();
   });
@@ -2601,7 +2625,7 @@ window.addEventListener("resize", () => {
 $("thread").addEventListener("click", (e) => {
   const suggestion = e.target.closest(".suggestion");
   if (!suggestion) return;
-  $("q").value = suggestion.querySelector(".suggestion-text").textContent;
+  setQuestionText(suggestion.querySelector(".suggestion-text").textContent);
   $("q").focus();
 });
 
@@ -2637,7 +2661,7 @@ $("ask").addEventListener("submit", async (e) => {
   conversation.updatedAt = Date.now();
   $("thread").append(pending);
   const request = beginAnswerRequest({ kind: "question", conversation, pending, userMessage, question });
-  $("q").value = "";
+  setQuestionText("");
   scrollDown();
   try {
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -2666,7 +2690,7 @@ $("ask").addEventListener("submit", async (e) => {
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
     pending.replaceWith(errorMessage);
     syncRegenerateButtons();
-    if (activeConversation === conversation && !$("q").value.trim()) $("q").value = question;
+    if (activeConversation === conversation && !$("q").value.trim()) setQuestionText(question);
   } finally {
     finishAnswerRequest(request);
   }
@@ -2693,7 +2717,7 @@ if (Recognition) {
     let heard = false;
     recognizer.onresult = (ev) => {
       const said = Array.from(ev.results).map((r) => r[0].transcript).join(" ");
-      $("q").value = (before ? before + " " : "") + said;
+      setQuestionText((before ? before + " " : "") + said);
       heard = Boolean(said.trim());
     };
     let failed = false;
@@ -2719,6 +2743,7 @@ fetch("/api/health").then((r) => r.json()).then((h) => {
 }).catch(() => {});
 renderHistory();
 applyLang();
+fitQuestionBox();
 </script>
 </body>
 </html>
