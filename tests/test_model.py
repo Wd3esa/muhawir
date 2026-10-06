@@ -590,3 +590,16 @@ def test_an_english_answer_sees_and_shows_the_approved_translation_of_a_verse():
     assert card["translation"] == "Say: He is Allah, (the) One." and "Hilali" in card["translation_name"]
     arabic = Muhawir(corpus, ModelGenerator([("m", make("الله أحد."))])).ask("قل هو الله أحد")
     assert arabic.sources and all("translation" not in c for c in arabic.sources)
+
+
+def test_second_open_model_is_tried_before_gemini(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "model")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://openrouter.ai/api/v1")
+    monkeypatch.setenv("OPENAI_COMPAT_MODEL", "deepseek/deepseek-v4.1-flash:nitro")
+    monkeypatch.setenv("OPENAI_COMPAT2_BASE_URL", "https://ollama.com/v1")
+    monkeypatch.setenv("OPENAI_COMPAT2_MODEL", "gpt-oss:120b")
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setenv("GEMINI_MODEL", "g")
+    gen = generate.get_generator()
+    assert [name for name, _ in gen.calls] == ["open-model", "open-model-2", "gemini"]

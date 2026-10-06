@@ -985,6 +985,13 @@ def get_generator() -> Generator:
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
             os.environ.get("OPENAI_COMPAT_REASONING", ""),
             os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""))))
+    # a second chat-completions service, tried when the first fails: e.g. OpenRouter first, Ollama Cloud second
+    if os.environ.get("OPENAI_COMPAT2_BASE_URL") and os.environ.get("OPENAI_COMPAT2_MODEL"):
+        calls.append(("open-model-2", openai_compatible_call(
+            os.environ["OPENAI_COMPAT2_BASE_URL"], os.environ["OPENAI_COMPAT2_MODEL"],
+            os.environ.get("OPENAI_COMPAT2_API_KEY", ""),
+            float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
+            os.environ.get("OPENAI_COMPAT2_REASONING", ""))))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
         calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
     if not calls:

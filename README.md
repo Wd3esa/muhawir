@@ -4,7 +4,7 @@
 
 مشروع في **تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي**، المسار الأول: الحوار المعرفي والإجابات الموثوقة.
 
-**رابط التجربة:** https://muhawir.84.13.157.247.sslip.io (Oracle Cloud، الرياض)، والرابط الاحتياطي: https://muhawir.onrender.com
+**رابط التجربة:** https://muhawir.duckdns.org (Oracle Cloud، الرياض)، والرابط نفسه بعنوان آخر: https://muhawir.84.13.157.247.sslip.io
 
 ## القاعدة
 
@@ -24,7 +24,7 @@
 
 ## النموذج
 
-رابط التجربة يستعمل النموذج المفتوح **gpt-oss:120b** عبر واجهة Ollama السحابية، وإن تعذّر أو نفد حدّه المجاني انتقل تلقائيًا إلى Gemini (الطبقة المجانية) احتياطًا. الإعدادات كلها في متغيرات بيئة (انظر `.env.example`)، ولا تُكتب المفاتيح في الشيفرة ولا في المستودع.
+رابط التجربة يستعمل النموذج المفتوح **DeepSeek V4.1 Flash** (أوزان مفتوحة بترخيص MIT) عبر OpenRouter، بلا «تفكير» في الكتابة لسرعة الجواب (نحو 11 ثانية في المتوسط)، مع قراءة ثانية لكل جملة. وإن تعذّر انتقل تلقائيًا إلى **gpt-oss:120b** عبر Ollama Cloud، ثم إلى Gemini. اختير النموذج بالقياس: جُرّب gpt-oss وQwen وDeepSeek على الأسئلة نفسها (انظر [EVALUATION.md](EVALUATION.md)). الإعدادات كلها في متغيرات بيئة (انظر `.env.example`)، ولا تُكتب المفاتيح في الشيفرة ولا في المستودع.
 
 ## التشغيل
 
@@ -34,7 +34,7 @@ python -m muhawir.build_data --download     # ينزّل المصادر ويبن
 uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:8000
 ```
 
-مع `LLM_PROVIDER=model` و`OPENAI_COMPAT_BASE_URL=https://ollama.com/v1` و`OPENAI_COMPAT_MODEL=gpt-oss:120b` و`OPENAI_COMPAT_API_KEY` (مفتاح Ollama).
+مع `LLM_PROVIDER=model` و`OPENAI_COMPAT_BASE_URL` و`OPENAI_COMPAT_MODEL` و`OPENAI_COMPAT_API_KEY` لخدمة النموذج (أي خدمة بصيغة chat completions مثل OpenRouter أو Ollama)، والبدائل في `OPENAI_COMPAT2_*` و`GEMINI_*`. القيم كلها في [.env.example](.env.example).
 
 **النشر على Render:** `render.yaml` يصف الخدمة على الخطة المجانية. في Render اختر New ثم Blueprint، واربط هذا المستودع، وأدخل مفتاح Ollama حين يُطلب، ومفتاح Gemini للاحتياط إن وُجد.
 
