@@ -603,3 +603,34 @@ def test_second_open_model_is_tried_before_gemini(monkeypatch):
     monkeypatch.setenv("GEMINI_MODEL", "g")
     gen = generate.get_generator()
     assert [name for name, _ in gen.calls] == ["open-model", "open-model-2", "gemini"]
+
+
+def test_unusable_output_from_the_first_model_is_retried_on_the_next():
+    good = json.dumps({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]},
+                      ensure_ascii=False)
+    used = []
+    gen = ModelGenerator([("a", lambda s, u, schema=None: (used.append("a"), "not json")[1]),
+                          ("b", lambda s, u, schema=None: (used.append("b"), good)[1])])
+    claims = gen.generate(QUESTION, [CORPUS.passage("test-a:1")], "youth", "ar")
+    assert used == ["a", "b"] and claims and gen.last_used == "b"
+
+
+def test_a_deliberate_abstention_is_not_retried_on_the_next_model():
+    used = []
+    gen = ModelGenerator([("a", lambda s, u, schema=None: (used.append("a"), '{"abstain": true, "claims": []}')[1]),
+                          ("b", lambda s, u, schema=None: (used.append("b"), "{}")[1])])
+    assert gen.generate(QUESTION, [CORPUS.passage("test-a:1")], "youth", "ar") == [] and used == ["a"]
+    assert gen.last_note == "model a abstained"
+
+
+def test_model_outage_on_the_second_search_is_reported_as_unavailable_not_as_no_sources():
+    def call(system, user, schema=None):
+        keys = json.dumps(schema or {})
+        if '"question"' in keys:
+            return json.dumps({"question": "كيف يطير الحوت؟", "translate": "", "answer_lang": "",
+                               "queries": ["حوت يطير"]}, ensure_ascii=False)
+        if "queries" in keys:  # the second search: other words, which find a passage
+            return json.dumps({"queries": ["النخلة ماء الصيف"]}, ensure_ascii=False)
+        raise RuntimeError("down")  # the answer step: every model fails
+    res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("كيف يطير الحوت؟")
+    assert res.status == UNAVAILABLE

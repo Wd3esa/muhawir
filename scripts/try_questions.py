@@ -83,6 +83,7 @@ def main() -> None:
         lines.append(text)
 
     history: list[dict] = []
+    failed = 0  # a request error or "unavailable": the run is reported as failed (exit code 1)
     for kind, question, style in QUESTIONS:
         lang = "en" if kind == "english" else "ar"
         started = time.time()
@@ -90,7 +91,9 @@ def main() -> None:
             res = ask(args.url, question, style, lang, history if kind == "follow-up" else [])
         except Exception as exc:  # keep going: one failure must not hide the rest of the report
             out(f"\n=== [{kind} · {style}] {question}\nERROR: {exc}")
+            failed += 1
             continue
+        failed += res.get("status") == "unavailable"
         out(f"\n=== [{kind} · {style}] {question}")
         out(f"status: {res['status']}   ({time.time() - started:.0f}s)" + ("   [list]" if res.get("as_list") else ""))
         if res.get("understood"):
@@ -113,6 +116,9 @@ def main() -> None:
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
     print(f"\nreport written to {args.out}")
+    if failed:
+        print(f"{failed} of {len(QUESTIONS)} questions failed (request error or service unavailable)")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 # Runs the dialogue questions against the live Muhawir and saves the report.
+# Fails when the service does not wake, or when any question errors or comes back "unavailable".
 # Start it from the repository's Actions tab: "Live test" -> "Run workflow", and give the live link.
 name: Live test
 
@@ -24,9 +25,10 @@ jobs:
       - name: Wake the service
         run: |
           for i in $(seq 1 20); do
-            curl -sf --max-time 60 "${{ inputs.url }}/api/health" && break
+            curl -sf --max-time 60 "${{ inputs.url }}/api/health" && exit 0
             sleep 15
           done
+          echo "the service did not answer /api/health"; exit 1
       - name: Ask the questions
         run: python scripts/try_questions.py --url "${{ inputs.url }}" --out muhawir_live_report.txt
       - uses: actions/upload-artifact@v4

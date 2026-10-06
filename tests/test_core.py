@@ -264,3 +264,14 @@ def test_who_wants_to_become_muslim_is_pointed_to_a_mosque():
     for q in ("كيف أسلم عمر بن الخطاب؟", "What is Islam?", "ما الإسلام؟"):
         assert not wants_to_become_muslim(q), q
     assert card("newcomer", "en")["links"] == [] and "mosque" in card("newcomer", "en")["intro"]
+
+
+def test_own_circumstance_is_a_personal_case_but_the_general_question_is_not():
+    # Codex audit, 6 October 2026: the person's own illness or inability changes the ruling
+    for text in ("I cannot fast this Ramadan. What is required of me?", "أنا مريضة ولا أستطيع الصيام",
+                 "لا أستطيع أن أصوم هذا العام", "I am pregnant, should I fast?", "ما أقدر أتوضأ بسبب الجرح"):
+        assert classify.check(text).kind == classify.PERSONAL_CASE, text
+    # how to make up a missed prayer, or the ruling for the sick in general, is answered from the sources
+    for text in ("فاتتني الصلاة، ماذا أفعل؟", "نسيت صلاة الفجر، كيف أقضيها؟", "ما حكم صيام المريض؟",
+                 "ما على المسافر في الصلاة؟", "ماذا علي أن أقرأ في الصلاة؟", "What is required of a Muslim in prayer?"):
+        assert classify.check(text).kind is None, text

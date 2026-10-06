@@ -861,28 +861,36 @@ class ModelGenerator:
                  personal: bool = False, feedback: str = "", previous: str = "", kind: str = "",
                  feeling: str = "") -> list[Claim]:
         user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling)
+        replied = False
         for name, call in self.calls:
             try:
                 raw = with_retry(call, SYSTEM_PROMPT, user, SCHEMA)
             except Exception as exc:  # network, quota, timeout, wrong model name: try the fallback
                 log.warning("model %s failed (answer): %s", name, describe(exc))
                 continue
+            replied = True
             self.last_used = name
             claims = parse_draft(raw)
             self.last_as_list = as_list(raw)
             self.last_follow_up = follow_up(raw)
-            if not claims:
-                try:
-                    data = load_json(raw)
-                    said = "abstained" if isinstance(data, dict) and data.get("abstain") not in (False, None, "false") \
-                        else "gave no usable claims"
-                except (TypeError, ValueError):
-                    said = "replied with text that is not JSON"
-                self.last_note = f"model {name} {said}"
-                self.last_raw = raw[:300]
-            return claims
-        self.last_used = ""
-        self.last_note = "every model call failed"  # pipeline.ALL_MODELS_FAILED
+            if claims:
+                return claims
+            try:
+                data = load_json(raw)
+                abstained = isinstance(data, dict) and data.get("abstain") not in (False, None, "false")
+            except (TypeError, ValueError):
+                data, abstained = None, False
+            said = "abstained" if abstained else ("gave no usable claims" if data is not None
+                                                  else "replied with text that is not JSON")
+            self.last_note = f"model {name} {said}"
+            self.last_raw = raw[:300]
+            if abstained:  # a deliberate, well-formed abstention stands
+                return []
+            # unusable output is a failure of this model, not an answer: try the next one (Codex audit, 6 October 2026)
+            log.warning("model %s %s (answer): trying the next model", name, said)
+        if not replied:
+            self.last_used = ""
+            self.last_note = "every model call failed"  # pipeline.ALL_MODELS_FAILED
         return []
 
 

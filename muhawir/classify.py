@@ -47,6 +47,13 @@ _PERSONAL = [re.compile(p) for p in (
     r"\bحلفت\b", r"\bطلقت\b", r"\bزواجي\b", r"\bزوجي\b", r"\bزوجتي\b",
     r"\bam i allowed\b", r"\bis it permissible for me\b", r"\bin my case\b",
     r"\bmy (husband|wife|marriage|divorce)\b",
+    # the person's own circumstance that changes the ruling (Codex audit, 6 October 2026). A general question
+    # with no circumstance («فاتتني الصلاة، ماذا أفعل؟», how to make up a prayer) is answered from the sources.
+    r"\bانا (مريض|مريضه|مسافر|مسافره|حامل|مرضع|حائض|نفساء|مصاب|مصابه)\b",
+    r"\b(لا|ما) (استطيع|اقدر|اقوى)( علي)? (ان )?(اصوم|الصوم|الصيام|اصلي|الصلاه|اتوضا|الوضوء|احج|الحج|اغتسل|الغسل)\b",
+    r"\bi (can ?t|cannot|can not|am unable to) (fast|pray|make wudu|do wudu|perform hajj|go to hajj)\b",
+    r"\bi am (sick|ill|pregnant|breastfeeding|travell?ing|menstruating)\b",
+    r"\bwhat (is required of me|do i (have|need) to do|must i do)\b",
 )]
 
 # matched on normalized text (أ/إ → ا, ؤ → و, ة → ه, ى → ي, no diacritics)

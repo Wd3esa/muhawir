@@ -36,6 +36,17 @@ SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "ne
 ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED = (
     "answered", "abstained", "referred", "declined", "invalid", "chat", "unavailable", "translated")
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
+# the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
+_VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ةه]\b|\bسور[ةه]\b|\bالقرآن\b|\b(?:verse|ayah|aya|surah|sura|quran|qur'an)\b",
+                         re.IGNORECASE)
+_HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")
+
+
+def _vocalised(text: str) -> bool:
+    """Written with full diacritics, as verses are quoted (a plain Arabic sentence has few or none)."""
+    letters = len(re.findall(r"[\u0621-\u064A]", text))
+    return letters >= 6 and len(_HARAKAT.findall(text)) >= letters * 0.5
+
 # a quotation of five words or more inside «» or "" or ﴿﴾: pasted from a source, not explained
 _COPIED = re.compile(r'«(?:[^»\s]+\s+){4,}[^»]*»|"(?:[^"\s]+\s+){4,}[^"]*"|“(?:[^”\s]+\s+){4,}[^”]*”|﴿(?:[^﴾\s]+\s+){4,}[^﴾]*﴾')
 MAX_QUOTED_SHARE = 0.5  # a sentence made mostly of a quotation is pasted, not explained
@@ -573,7 +584,7 @@ class Muhawir:
         return _Written(passages, allowed, corpus, kept, rejected)
 
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
-               first: _Written | None) -> _Written | None:
+               first: _Written | None) -> _Written | Response | None:
         """Nothing usable came out of the first search (no passage, or none that answered): ask the model once
         for different search phrases, search again, and write from the new passages. The first outcome
         stands unless this gives an answer."""
@@ -584,7 +595,11 @@ class Muhawir:
         if all(p.id in (first.allowed if first else ()) for p in passages):
             return first
         second = self._write(question, passages, style, lang, False, extra)
-        if isinstance(second, Response) or not second.kept:
+        if isinstance(second, Response):
+            # the model failed on the new passages: with nothing usable before, say the service failed, not that
+            # the sources have nothing (Codex audit, 6 October 2026)
+            return second if second.status == UNAVAILABLE and (first is None or not first.kept) else first
+        if not second.kept:
             return first
         second.retried = True
         return second
@@ -604,6 +619,36 @@ class Muhawir:
                 card["translation_name"] = getattr(corpus, "translation_name", "")
             cards.append(card)
         return cards
+
+    def _verse(self, text: str) -> Passage | None:
+        """The verse that holds `text` word for word (diacritics aside), or None."""
+        words = normalize(text).split()
+        if len(words) < 2:
+            return None
+        target = f" {' '.join(words)} "
+        for hit in self.retriever.search(text, k=5):
+            if hit.passage.kind == "quran" and target in f" {' '.join(normalize(hit.passage.text).split())} ":
+                return hit.passage
+        return None
+
+    def _verse_translation(self, question: str, text: str, target: str, lang: str) -> Response | None:
+        """A verse is never translated by the model: the approved translation is quoted with its source card,
+        or Muhawir says it found no such verse (Codex audit, 6 October 2026: a model translation of «قل هو الله
+        أحد» came back with no source and no check). None for any other text, which the model translates.
+        Three or fewer words that merely occur in a verse («الله أكبر» is in al-Ankabut 45) are not taken for
+        one unless the message says it is a verse or the text is written with the Quran's diacritics."""
+        said_verse = bool(_VERSE_HINT.search(question) or _VERSE_HINT.search(text)) or _vocalised(text)
+        verse = self._verse(text) if target == "en" else None
+        if verse is not None and (said_verse or len(normalize(text).split()) >= 4):
+            translation = self._translation(verse)
+            if translation:
+                return Response(TRANSLATED, translation, sources=self._cards([verse.id], lang="en"),
+                                synthetic=self.corpus.synthetic,
+                                note=TEXT[lang]["verse_translation_label"].format(where=verse.location))
+            return Response(ABSTAINED, TEXT[lang]["verse_not_found"], synthetic=self.corpus.synthetic)
+        if said_verse:
+            return Response(ABSTAINED, TEXT[lang]["verse_not_found"], synthetic=self.corpus.synthetic)
+        return None
 
     def _translation(self, passage: Passage, corpus=None) -> str:
         lookup = getattr(corpus or self.corpus, "translation", None)
@@ -663,6 +708,9 @@ class Muhawir:
                     if u.get("translate") and gate.kind is None:
                         text = u["translate"]
                         target = u.get("lang") if u.get("lang") in LANGS else ("en" if _ARABIC.search(text) else "ar")
+                        verse = self._verse_translation(question, text, target, lang_ok)
+                        if verse is not None:
+                            return verse
                         out = getattr(self.generator, "translate", lambda *_: None)(text, target)
                         if out is None:
                             return Response(UNAVAILABLE, TEXT[lang_ok]["unavailable"], synthetic=self.corpus.synthetic)
@@ -744,6 +792,8 @@ class Muhawir:
             return written
         if (written is None or not written.kept) and not personal and not self.generator.strict_retrieval:
             written = self._retry(question, original, queries or [], style, lang, extra, written)
+            if isinstance(written, Response):
+                return written
         if written is None:
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
