@@ -67,6 +67,23 @@ def as_question(text: str) -> str:
     return text
 
 
+# Each style's limits, as its instructions state them (generate.STYLE_GUIDE): sentences in a prose answer, items in
+# a list of steps or kinds (which may need a few more), and for children the longest sentence kept when shorter ones
+# are enough. The model often writes past them (style check of 6 October 2026: 13 sentences for a child, sentences of
+# 24 words), so they are applied here, after the checks, keeping the order the answer was written in.
+STYLE_LIMITS = {"kids": (5, 7), "youth": (6, 10), "newcomer": (8, 10), "extended": (12, 16)}
+KIDS_LONGEST = 18
+
+
+def fit_style(answer: list, style: str, listing: bool) -> list:
+    prose, items = STYLE_LIMITS.get(style, STYLE_LIMITS["youth"])
+    if style == "kids":
+        short = [c for c in answer if len(c.text.split()) <= KIDS_LONGEST]
+        if len(short) >= 3:
+            answer = short
+    return answer[:items if listing else prose]
+
+
 def _same_word(a: str, b: str) -> bool:
     """Two forms of one word («الصابرون»/«الصابرين»): the same letters but for the last one or two."""
     short = min(len(a), len(b))
@@ -917,6 +934,8 @@ class Muhawir:
                             else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
         if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
             answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
+        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how" or _asks_for_kinds(question, original)
+        answer = fit_style(answer, style, listing)
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
@@ -929,6 +948,8 @@ class Muhawir:
                   for c in answer]
         named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
                               for c in kept if c.school])
+        if style == "kids":  # the style for children names no disagreement between scholars (generate.STYLE_GUIDE)
+            named = []
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in named]
         cards = self._cards([pid for c in answer + named for pid in c.passage_ids], corpus,
@@ -949,7 +970,6 @@ class Muhawir:
             res.why = ("answered after a second search | " if written.retried else "") + dropped
         # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked: a "how" question
         # or one that asks for the types or sections of something (the model does not always call it "how")
-        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how" or _asks_for_kinds(question, original)
         res.as_list = listing and len(claims) > 1
         res.follow_up = getattr(self.generator, "last_follow_up", "") or ""
         return res

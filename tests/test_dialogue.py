@@ -990,3 +990,16 @@ def test_arabic_typed_on_the_english_keyboard_is_read_as_arabic():
     except Stop:
         pass
     assert seen[0] == keyboard.to_arabic("hgvfh") == "الربا"
+
+
+def test_each_style_keeps_its_own_length_whatever_the_model_wrote():
+    # style check, 6 October 2026: 13 sentences for a child, sentences of 24 words
+    from muhawir.pipeline import STYLE_LIMITS, fit_style
+    short = [Claim(f"جملة قصيرة رقم {i}.", ("a",)) for i in range(20)]
+    long_one = Claim(" ".join(["كلمة"] * 30) + ".", ("a",))
+    assert len(fit_style(short, "kids", False)) == STYLE_LIMITS["kids"][0]
+    assert len(fit_style(short, "kids", True)) == STYLE_LIMITS["kids"][1]
+    assert len(fit_style(short, "extended", False)) == STYLE_LIMITS["extended"][0]
+    kids = fit_style([long_one] + short[:4], "kids", False)
+    assert long_one not in kids and len(kids) == 4  # shorter sentences are enough: the long one goes
+    assert fit_style([long_one, short[0]], "kids", False) == [long_one, short[0]]  # too few short ones: kept
