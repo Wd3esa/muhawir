@@ -537,6 +537,17 @@ def claims_from_prose(raw: str) -> list[Claim]:
     return claims
 
 
+def search_queries(data: object) -> list[str]:
+    """Reject malformed model fields so the next configured model can take over."""
+    if not isinstance(data, dict) or not isinstance(data.get("queries", []), list):
+        raise ValueError("queries must be a list")
+    return [q.strip() for q in data.get("queries", []) if isinstance(q, str) and q.strip()][:MAX_QUERIES]
+
+
+def displayed_claim(claim: Claim) -> str:
+    return " / ".join(part for part in (claim.section, claim.label, claim.school, claim.text) if part)
+
+
 def parse_draft(raw: str) -> list[Claim]:
     """Claims from the model's JSON. An explicit abstain, or nothing usable, counts as abstaining.
 
@@ -553,11 +564,13 @@ def parse_draft(raw: str) -> list[Claim]:
     if abstain is True or (isinstance(abstain, str) and abstain.strip().lower() in ("true", "yes", "نعم")):
         return []
     claims = []
+    if any(data.get(field) is not None and not isinstance(data.get(field), list) for field in ("claims", "views")):
+        return []
     for item in data.get("claims") or []:
         if not isinstance(item, dict):
             continue
         text, ids = item.get("text"), _ids(item.get("passage_ids"))
-        section, label = (str(item.get(k) or "").strip()[:60] for k in ("section", "label"))
+        section, label = ((item[k].strip()[:60] if isinstance(item.get(k), str) else "") for k in ("section", "label"))
         if isinstance(text, str) and text.strip():  # no ids: Muhawir's own explanation, checked in verify
             claims.append(Claim(text.strip(), tuple(ids or ()), section=section, label=label))
     for item in data.get("views") or []:
@@ -667,7 +680,7 @@ class ModelGenerator:
         for _name, call in self.calls:
             try:
                 raw = with_retry(call, EXPAND_PROMPT, f"<<<{question}>>>", EXPAND_SCHEMA)
-                queries = load_json(raw).get("queries", [])
+                queries = search_queries(load_json(raw))
             except Exception as exc:
                 log.warning("model %s failed (search phrases): %s", _name, describe(exc))
                 continue
@@ -685,6 +698,7 @@ class ModelGenerator:
         for _name, call in self.calls:
             try:
                 data = json_reply(call, UNDERSTAND_PROMPT, user, UNDERSTAND_SCHEMA)
+                queries = search_queries(data)
             except Exception as exc:
                 log.warning("model %s failed (understanding the message): %s", _name, describe(exc))
                 continue
@@ -692,12 +706,12 @@ class ModelGenerator:
                 continue
             question = data.get("question", message)
             question = question.strip()[:500] if isinstance(question, str) else message
-            queries = [q.strip() for q in data.get("queries", []) if isinstance(q, str) and q.strip()][:MAX_QUERIES]
             answer_lang = data.get("answer_lang") if data.get("answer_lang") in ("ar", "en") else ""
             translate = data.get("translate")
             translate = translate.strip()[:500] if isinstance(translate, str) else ""
             reexplain = data.get("reexplain") in (True, "true")
-            kind = data.get("kind") if data.get("kind") in KIND_GUIDE and data.get("kind") != "contemporary" else ""
+            kind = data.get("kind")
+            kind = kind if isinstance(kind, str) and kind in KIND_GUIDE and kind != "contemporary" else ""
             feeling = "sad" if data.get("feeling") == "sad" else ""
             return {"question": question, "queries": queries, "lang": answer_lang, "translate": translate,
                     "reexplain": reexplain, "kind": kind, "feeling": feeling}
@@ -709,7 +723,7 @@ class ModelGenerator:
         passages. None when it could not judge; the answer then stands on the two checks alone."""
         where = lambda c: " / ".join(dict.fromkeys(  # noqa: E731
             passages[pid].location for pid in c.passage_ids if passages and pid in passages))
-        answer = "\n".join(f"{n}. {c.text}  [{where(c)}]" for n, c in enumerate(claims, 1))
+        answer = "\n".join(f"{n}. {displayed_claim(c)}  [{where(c)}]" for n, c in enumerate(claims, 1))
         user = f"السؤال: <<<{question}>>>\nالجواب:\n<<<{answer}>>>"
         for name, call in self.calls:
             try:
@@ -729,10 +743,10 @@ class ModelGenerator:
         for name, call in self.calls:
             try:
                 data = json_reply(call, RETRY_PROMPT, user, RETRY_SCHEMA)
+                queries = search_queries(data)
             except Exception as exc:
                 log.warning("model %s failed (new search phrases): %s", name, describe(exc))
                 continue
-            queries = data.get("queries", []) if isinstance(data, dict) else []
             return [q.strip() for q in queries
                     if isinstance(q, str) and q.strip() and q.strip() not in tried][:MAX_QUERIES]
         return []
@@ -807,7 +821,7 @@ class ModelGenerator:
         """An example sentence is accepted only if it states no religious information at all."""
         for name, call in self.calls:
             try:
-                data = json_reply(call, EXAMPLE_PROMPT, f"<<<{claim.text}>>>", EXAMPLE_SCHEMA)
+                data = json_reply(call, EXAMPLE_PROMPT, f"<<<{displayed_claim(claim)}>>>", EXAMPLE_SCHEMA)
             except Exception as exc:
                 log.warning("model %s failed (example check): %s", name, describe(exc))
                 continue
@@ -822,7 +836,7 @@ class ModelGenerator:
         blocks = []
         for n, c in enumerate(claims, 1):
             cited = "\n".join(f"[{pid}] {passages[pid].text}" for pid in c.passage_ids if pid in passages)
-            blocks.append(f"الجملة {n}: <<<{c.text}>>>\nالمقاطع:\n{cited}")
+            blocks.append(f"الجملة {n}: <<<{displayed_claim(c)}>>>\nالمقاطع:\n{cited}")
         user = "\n\n".join(blocks)
         if question:
             user = f"السؤال الذي يجيب عنه المساعد: <<<{question}>>>\n\n" + user

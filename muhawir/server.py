@@ -74,6 +74,8 @@ def build() -> Muhawir:
             threading.Thread(target=retriever.warm_up, daemon=True).start()
         engine = Muhawir(corpus, generator, retriever, answer_store(db, generator))
     else:
+        if generator.name != "extractive" and not os.environ.get("MUHAWIR_CORPUS") and os.environ.get("MUHAWIR_ALLOW_SYNTHETIC") != "1":
+            raise RuntimeError("source database is missing; build it with python -m muhawir.build_data --download")
         corpus = load_corpus(os.environ.get("MUHAWIR_CORPUS") or DEFAULT_CORPUS)
         engine = Muhawir(corpus, generator)
     if not corpus.synthetic and generator.name == "extractive":
@@ -93,15 +95,34 @@ class Turn(BaseModel):
 
 class Ask(BaseModel):
     question: str = Field(max_length=MAX_QUESTION_CHARS * 2)
-    style: str = "youth"
-    lang: str = "ar"
+    style: Literal["kids", "youth", "extended", "newcomer"] = "youth"
+    lang: Literal["ar", "en"] = "ar"
     history: list[Turn] = Field(default_factory=list, max_length=20)  # kept by the browser, not stored here
+
+
+# Bound paid work across all visitors, including deployments behind a reverse proxy.
+ASK_PER_MINUTE = max(1, int(os.environ.get("MUHAWIR_ASK_PER_MINUTE", "60")))
+_ask_slots = threading.BoundedSemaphore(max(1, int(os.environ.get("MUHAWIR_ASK_CONCURRENCY", "4"))))
+_ask_calls: deque[float] = deque()
+_ask_lock = threading.Lock()
 
 
 @app.post("/api/ask")
 def ask(body: Ask) -> dict:
-    return engine.ask(body.question, body.style, body.lang,
-                      [t.model_dump() for t in body.history]).to_dict()
+    with _ask_lock:
+        now = time.monotonic()
+        while _ask_calls and _ask_calls[0] <= now - 60:
+            _ask_calls.popleft()
+        if len(_ask_calls) >= ASK_PER_MINUTE:
+            raise HTTPException(status_code=429, detail="Too many questions; please try again shortly", headers={"Retry-After": "60"})
+        if not _ask_slots.acquire(blocking=False):
+            raise HTTPException(status_code=429, detail="All answer slots are busy; please try again shortly", headers={"Retry-After": "5"})
+        _ask_calls.append(now)
+    try:
+        return engine.ask(body.question, body.style, body.lang,
+                          [t.model_dump() for t in body.history]).to_dict()
+    finally:
+        _ask_slots.release()
 
 
 class Feedback(BaseModel):

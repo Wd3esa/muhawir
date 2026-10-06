@@ -76,9 +76,10 @@ def names_speaker(school: str, passage_ids, corpus) -> bool:
     who = speaker(passage_ids, corpus)
     if not who:
         return False
-    core = [t for t in tokenize(who) if t not in ("الشيخ", "الامام")]
-    have = set(tokenize(school))
-    return bool(core) and all(t in have for t in core)
+    titles = {"شيخ", "امام", "الشيخ", "الامام"}
+    core = {t for t in tokenize(who) if t not in titles}
+    have = {t[1:] if t.startswith("و") and len(t) > 2 else t for t in tokenize(school)} - titles
+    return bool(core) and have == core
 
 
 # «الفتوى توضح أن…», «الشرح المختصر يبيّن أن…»: the kind of text as the subject, instead of who said it

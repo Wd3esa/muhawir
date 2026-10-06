@@ -855,6 +855,9 @@ class Muhawir:
         if kept:
             with self._cache_lock:
                 self._cache[key] = (time.time(), copy.deepcopy(kept))
+                self._cache.move_to_end(key)
+                while len(self._cache) > CACHE_SIZE:
+                    self._cache.popitem(last=False)
             _stat("waited_for_same" if waited else "from_disk")
         return kept
 

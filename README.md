@@ -1,6 +1,6 @@
 # مُحاور (Muhawir)
 
-مساعد حواري يحاور السائل عن الإسلام بالعربية والإنجليزية، كتابةً أو صوتًا، كما يشرح معلّم هادئ: يشرح بكلماته، ويعيد الشرح أبسط إذا قال السائل «ما فهمت»، ويقترح سؤالًا تاليًا، ويجيب عن الاعتراض والسخرية بهدوء دون حكم على السائل، ويواسي الحزين. وكل جملة في جوابه تستند إلى مقطع من مصادر معتمدة يُعرض نصه الأصلي تحت الجواب، ويمتنع أو يحيل إلى مختص حين لا تكفي المصادر.
+مُحاور مساعد حواري يساعدك على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة. يعرض المصادر للتحقق منها، ويحيلك إلى مختص عند طلب فتوى أو عندما لا تكفي المصادر للإجابة. يمكنك محاورته بالعربية أو الإنجليزية، كتابةً أو صوتًا.
 
 مشروع في **تحدي الذكاء الاصطناعي في خدمة المحتوى الإسلامي**، المسار الأول: الحوار المعرفي والإجابات الموثوقة.
 
@@ -69,4 +69,4 @@ uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:800
 
 ---
 
-**English summary.** Muhawir is a dialogue assistant about Islam, in Arabic and English, by text or voice. It explains in its own words like a calm teacher, re-explains more simply on request, answers objections without judging the person, and comforts the grieving. Every sentence rests on a passage from approved sources (Quran, with the King Fahd Complex English translation by al-Hilali and Khan quoted for verses in English answers, al-Tabari, al-Muharrar on reasons of revelation, Sahih al-Bukhari and Muslim, Ibn Rushd's Bidayat al-Mujtahid, Ibn Hisham's Sira, four early creed books (Ahmad's Usul al-Sunna, al-Muzani's Sharh al-Sunna, Ibn Khuzayma's Kitab al-Tawhid, al-Tahawi's creed), the Osoul Center's «Bayyinat» answers to 263 frequent questions and objections (named by the challenge's source package), and the published fatwas of Ibn Baz and Ibn Uthaymeen, quoted with their authors; the rights in these contemporary works remain with their holders), shown verbatim under the answer, and it abstains or refers to a specialist when the sources are not enough. It may never fabricate or distort a verse, hadith or saying, or search outside its sources.
+**English summary.** Muhawir helps you understand Islamic topics with clear answers grounded in approved sources. It shows the sources so you can check them, and refers you to a specialist for personal fatwas or when the sources are insufficient. You can chat in Arabic or English, by text or voice.

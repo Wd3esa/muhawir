@@ -6,7 +6,7 @@
 
 | المكون | الأساسي | البديل عند تعطله | التكلفة الحالية |
 |---|---|---|---|
-| الخادم | Oracle Cloud، الطبقة المجانية الدائمة، الرياض (2 OCPU، ذاكرة 12 GB) | Render، الخطة المجانية (512 MB، تنام عند الخمول فتُبقيها مهمة GitHub Actions مستيقظة) | 0 |
+| الخادم | Oracle Cloud، الطبقة المجانية الدائمة، الرياض (2 OCPU، ذاكرة 12 GB) | Render، الخطة المجانية (512 MB، تنام عند الخمول؛ مهمة الإيقاظ القديمة أُزيلت بعد الانتقال إلى Oracle) | 0 |
 | النموذج اللغوي | DeepSeek V4.1 Flash عبر OpenRouter (`:nitro`: أسرع مضيف)، التفكير مغلق (`OPENAI_COMPAT_REASONING=off`)، وثماني قراءات ثانية في وقت واحد (`MUHAWIR_PARALLEL_CHECKS=8`) | gpt-oss:120b عبر Ollama Cloud (`OPENAI_COMPAT2_*`)، ثم Gemini، ينتقل إليهما النظام تلقائيًا | رصيد مدفوع مسبقًا بسقف إنفاق على المفتاح. مقيس في 6 أكتوبر على 24 جوابًا: نحو 16 طلبًا و51 ألف توكن إدخال و3 آلاف توكن إخراج للجواب الجديد، والسؤال المكرر يُجاب من التخزين بلا تكلفة. والبديلان ضمن حصصهما المجانية |
 | بيانات المصادر | الموسوعة القرآنية، وhadith-api، وOpenITI، تُنزَّل عند بناء القاعدة | تبقى القاعدة المبنية تعمل إن تعذر التنزيل | 0 |
 | شهادة HTTPS | Caddy وLet's Encrypt، باسم muhawir.duckdns.org (وعنوان sslip.io بديل للخادم نفسه) | Render يوفر HTTPS تلقائيًا | 0 |
@@ -72,3 +72,26 @@
 ## الخطوة التالية
 
 - عنوان IP ثابت ونطاق خاص بالمشروع بدل النطاق المجاني duckdns.org.
+
+## تحديث Oracle دون استهلاك رصيد النموذج
+
+إذا أوقف `git pull` ملف محلي غير متتبّع مثل `docs/RESULTS.md`، انقله أولًا إلى نسخة احتياطية خارج المشروع. لا تستعمل `git clean` أو `reset --hard` لحل هذه الحالة؛ قد تحذف ملفات الإعداد أو البيانات.
+
+```bash
+set -e
+cd ~/muhawir
+if [ -f docs/RESULTS.md ] && ! git ls-files --error-unmatch docs/RESULTS.md >/dev/null 2>&1; then
+  mv docs/RESULTS.md "$HOME/muhawir-RESULTS-$(date +%Y%m%d-%H%M%S).md"
+fi
+git pull --ff-only origin main
+sudo systemctl restart muhawir
+sudo systemctl is-active muhawir
+curl --fail --silent http://127.0.0.1:8000/api/health
+sha256sum muhawir/pipeline.py
+```
+
+طابق `pipeline_revision` مع أول 12 حرفًا من بصمة `pipeline.py` في النسخة المسحوبة. تتغير البصمة عند تعديل هذا الملف؛ القيمة `10aedab0c0bb` تخص نسخة سابقة. إذا لم يطابقها رد الخدمة، تحقق من مسار `ExecStart` و`WorkingDirectory` في `systemctl cat muhawir`. يكفي فحص الصحة لتأكيد التحديث؛ لا ترسل سؤالًا إلى `/api/ask`.
+
+حدود الأسئلة: `MUHAWIR_ASK_PER_MINUTE=60` و`MUHAWIR_ASK_CONCURRENCY=4` عبر جميع الزوار. الطلب المرفوض يعيد HTTP 429 قبل الوصول إلى النموذج. غياب قاعدة المصادر في وضع النموذج يوقف التشغيل بدل تقديم البيانات التجريبية؛ `MUHAWIR_ALLOW_SYNTHETIC=1` مخصص للتطوير الصريح فقط.
+
+زر «توقف الانتظار» يلغي انتظار المتصفح؛ قد يستمر الطلب الذي بدأ على الخادم، لذلك لا يعني توقف تكلفة النموذج. الاختبارات في مهمة `Offline tests` تستعمل بيانات ومزودات وهمية ولا تستهلك رصيد النموذج.

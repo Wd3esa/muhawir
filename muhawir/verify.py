@@ -78,6 +78,23 @@ def quotes_in(text: str) -> list[str]:
     return [q for m in _QUOTES.finditer(text) for q in [next(g for g in m.groups() if g)] if _ARABIC.search(q)]
 
 
+def school_is_named(label: str, texts: list[str]) -> bool:
+    """Every named person must be present; aliases apply only to one school."""
+    joined = " ".join(texts)
+    if is_named(label, joined):
+        return True
+    words = set(_names(label)) - {"شيخ", "امام", "مذهب", "الشيخ", "الامام"}
+    groups = (
+        ({"حنفي", "حنفيه", "احناف", "ابو", "حنيفه"}, _SCHOOLS[0]),
+        ({"مالك", "مالكي", "مالكيه"}, _SCHOOLS[1]),
+        ({"شافعي", "شافعيه"}, _SCHOOLS[2]),
+        ({"احمد", "بن", "حنبل", "حنبلي", "حنبليه", "حنابله"}, _SCHOOLS[3]),
+    )
+    have = set().union(*(_forms(t) for t in _names(joined)))
+    return any(words and words <= aliases and bool(words & (aliases - {"ابو", "بن"}))
+               and bool(have & set(names)) for aliases, names in groups)
+
+
 def _names(text: str) -> list[str]:
     return [_CASE.get(t, t) for t in tokenize(text)]
 
@@ -138,22 +155,22 @@ def verify(claims: list[Claim], corpus: Corpus,
             rejected.append(Rejected(claim, f"cites passages that were not retrieved: {unknown}"))
             continue
         # compared without diacritics or punctuation: «الكوثر» matches الْكَوْثَرَ; the card shows the exact text
+        displayed = " ".join(part for part in (claim.section, claim.label, claim.school, claim.text) if part)
         cited = [normalize(corpus.passage(pid).text) for pid in claim.passage_ids]
-        bad = [q for q in quotes_in(claim.text)
+        bad = [q for q in quotes_in(displayed)
                if not normalize(q) or not any(normalize(q) in text for text in cited)]
         if bad:
             rejected.append(Rejected(claim, f"quotation not found verbatim: {bad}"))
             continue
         # a fatwa does not name its mufti in its own text: the source list says who he is («الشيخ ابن باز»)
-        if claim.school and not attribution.names_speaker(claim.school, claim.passage_ids, corpus) and not any(is_named(claim.school, corpus.passage(pid).text)
-                                    or any(name in normalize(corpus.passage(pid).text) for name in school_names(claim.school))
-                                    for pid in claim.passage_ids):
+        if claim.school and not attribution.names_speaker(claim.school, claim.passage_ids, corpus) and not school_is_named(
+                claim.school, [corpus.passage(pid).text for pid in claim.passage_ids]):
             rejected.append(Rejected(claim, f"'{claim.school}' is not named in the cited passage"))
             continue
-        if book_structure(claim.text):
+        if book_structure(displayed):
             rejected.append(Rejected(claim, "speaks of the book's own division, not of the religion"))
             continue
-        wrong = mismatched_rulings(claim.text, [corpus.passage(pid).text for pid in claim.passage_ids])
+        wrong = mismatched_rulings(displayed, [corpus.passage(pid).text for pid in claim.passage_ids])
         if wrong:
             rejected.append(Rejected(claim, f"ruling word not in the cited passage: {', '.join(sorted(wrong))}"))
             continue

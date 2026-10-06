@@ -1594,12 +1594,12 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 </div>
 <script>
 const UI = {
-  ar: { lang: "اللغة", tagline: "يساعدك في إجابة أسئلتك عن الإسلام، الفقه والعقيدة من مصادر معتمدة وموثوقة، ويحيلك إلى مختص في حالة طلب فتوى.",
+  ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
-        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "إيقاف", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
+        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
@@ -1609,13 +1609,13 @@ const UI = {
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
-  en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
+  en: { lang: "Language", tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
+        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
@@ -2744,12 +2744,33 @@ function renderAnswer(res, style, context) {
       const ask = el("p", "", UI[lang].whatDidYouMean); ask.dir = "auto";
       msg.append(ask);
       // the answer to a question the user did not mean is not kept for the next one
-      const turns = context?.conversation?.turns;
-      if (turns && turns.length >= 2 && turns[turns.length - 2].text === res.understood) turns.splice(-2, 2);
+      forgetRejectedAnswer(context, res);
+      saveConversations();
       $("q").focus();
     });
   }
   return msg;
+}
+
+function forgetRejectedAnswer(context, res) {
+  const conversation = context?.conversation;
+  if (!conversation) return;
+  const userText = String(res.understood || context.question).slice(0, 600);
+  const answerText = [res.message, ...(res.claims || []).map((claim) => claim.text)].filter(Boolean).join(" ").slice(0, 600);
+  const removePair = (turns) => {
+    if (!Array.isArray(turns)) return;
+    for (let i = turns.length - 2; i >= 0; i--) {
+      if (turns[i].role === "user" && turns[i].text === userText &&
+          turns[i + 1].role === "assistant" && turns[i + 1].text === answerText) {
+        turns.splice(i, 2);
+        break;
+      }
+    }
+  };
+  removePair(conversation.turns);
+  conversation.log = (conversation.log || []).filter((entry) => entry !== context.entry);
+  for (const entry of conversation.log) removePair(entry.history);
+  context.entry = null;
 }
 
 function syncRegenerateButtons(conversation) {

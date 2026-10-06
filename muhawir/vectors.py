@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 import time
+import threading
 from collections import OrderedDict
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
@@ -226,10 +227,13 @@ class _LazyQueryEmbedder:
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
         self.client: GeminiEmbeddingClient | LocalEmbedder | None = None
+        self._init_lock = threading.Lock()
 
     def __call__(self, question: str) -> Sequence[float]:
         if self.client is None:
-            self.client = LocalEmbedder.from_name(self.model_name) if is_local(self.model_name) else GeminiEmbeddingClient()
+            with self._init_lock:
+                if self.client is None:
+                    self.client = LocalEmbedder.from_name(self.model_name) if is_local(self.model_name) else GeminiEmbeddingClient()
         return self.client.embed_query(self.model_name, question)
 
 
@@ -266,6 +270,7 @@ class HybridRetriever:
         self.sqlite_retriever = sqlite_retriever
         self.vectors = vectors
         self._query_cache: OrderedDict[str, np.ndarray] = OrderedDict()
+        self._query_lock = threading.Lock()
         self._warned = False
         self._disabled = False
         self._warn_reason: str | None = None
@@ -298,13 +303,14 @@ class HybridRetriever:
 
     def _query_vector(self, question: str) -> np.ndarray:
         assert self.vectors is not None
-        if question in self._query_cache:
-            self._query_cache.move_to_end(question)
-            return self._query_cache[question]
-        embedder = self.vectors.query_embedder
-        if embedder is None:
-            embedder = _LazyQueryEmbedder(self.vectors.model_name)
-            self.vectors.query_embedder = embedder
+        with self._query_lock:
+            if question in self._query_cache:
+                self._query_cache.move_to_end(question)
+                return self._query_cache[question]
+            embedder = self.vectors.query_embedder
+            if embedder is None:
+                embedder = _LazyQueryEmbedder(self.vectors.model_name)
+                self.vectors.query_embedder = embedder
         vector = np.asarray(embedder(question), dtype=np.float32).reshape(-1)
         if vector.shape != (self.vectors.matrix.shape[1],) or not np.isfinite(vector).all():
             raise ValueError("query embedding has an invalid shape or value")
@@ -312,9 +318,11 @@ class HybridRetriever:
         if norm == 0:
             raise ValueError("query embedding is zero")
         vector /= norm
-        self._query_cache[question] = vector
-        if len(self._query_cache) > QUERY_CACHE_SIZE:
-            self._query_cache.popitem(last=False)
+        with self._query_lock:
+            self._query_cache[question] = vector
+            self._query_cache.move_to_end(question)
+            while len(self._query_cache) > QUERY_CACHE_SIZE:
+                self._query_cache.popitem(last=False)
         return vector
 
     def _vector_ids(self, question: str, limit: int) -> list[str]:
