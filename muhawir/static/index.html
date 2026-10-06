@@ -1423,6 +1423,15 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 .style-settings .style-wrap select { max-width:100%; }
 @media(max-width:620px) { .welcome-wordmark { width:min(230px,65%); } .msg.pending.rider-status { width:max-content; padding:4px 0; } .composer-row { flex-wrap:nowrap; } textarea { min-height:44px; padding:7px; } .disclaimer { font-size:12px; } }
 @media(prefers-reduced-motion:reduce) { .is-searching .scholar-visual,.is-found .scholar-visual,.is-settled .scholar-visual { animation:none; } .is-found .scholar-visual,.is-settled .scholar-visual { background-position:100% 0; } }
+
+/* Chat content must be visible on its first paint, including during Android IME updates. */
+.turn-user,.msg,.empty-state { animation:none; opacity:1; transform:none; }
+@media(max-width:860px) {
+  html,body { height:100%; overflow:hidden; }
+  .app-shell { height:var(--chat-viewport-height,100dvh); min-height:0; overflow:hidden; }
+  .workspace { height:100%; }
+  #thread > .turn-user,#thread > .msg { flex-shrink:0; }
+}
 </style>
 </head>
 <body>
@@ -2431,6 +2440,12 @@ function beginAnswerRequest(details) {
   $("send").hidden = true;
   $("stopRequest").hidden = false;
   $("requestNotice").hidden = true;
+  // Blur after the DOM/button updates too: Android can otherwise keep the IME's
+  // focused-input pan even though the conversation has already been appended.
+  if (document.activeElement === $("q")) $("q").blur();
+  if (isMobileLayout() && (!window.visualViewport || Math.abs(window.visualViewport.scale - 1) <= .01)) {
+    window.scrollTo({ top:0, left:0, behavior:"instant" });
+  }
   syncRegenerateButtons();
   return request;
 }
