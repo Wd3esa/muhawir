@@ -375,3 +375,36 @@ def test_an_unavailable_reply_is_not_kept():
     m.generator.calls = [("m", down)]
     assert m.ask("ماذا تحتاج النخلة في الصيف؟").status == "unavailable"
     assert not m._cache
+
+
+def test_a_kept_reply_outlives_a_restart_until_the_version_changes(tmp_path):
+    from muhawir.pipeline import AnswerStore
+    path = tmp_path / "answers.db"
+    m, seen = model()
+    m.store = AnswerStore(path, "v1")
+    first = m.ask("ماذا تحتاج النخلة في الصيف؟")
+    n = len(seen["answer_prompts"])
+    restarted, seen2 = model()  # a new process: empty memory, same file
+    restarted.store = AnswerStore(path, "v1")
+    again = restarted.ask("ماذا تحتاج النخلةُ في الصيفِ")  # diacritics and punctuation do not matter
+    assert again.status == first.status == ANSWERED and again.claims == first.claims
+    assert not seen2["answer_prompts"] and len(seen["answer_prompts"]) == n
+    updated, seen3 = model()
+    updated.store = AnswerStore(path, "v2")  # new code, prompt or sources: the old reply is not used
+    assert len(updated.store) == 0
+    updated.ask("ماذا تحتاج النخلة في الصيف؟")
+    assert seen3["answer_prompts"]
+
+
+def test_a_follow_up_or_an_unavailable_reply_is_not_written_to_disk(tmp_path):
+    from muhawir.pipeline import AnswerStore
+    m, seen = model(fail_rewrite=True)
+    m.store = AnswerStore(tmp_path / "answers.db", "v1")
+    def down(*_a, **_k):
+        raise RuntimeError("down")
+    m.generator.calls = [("m", down)]
+    assert m.ask("ماذا تحتاج النخلة في الصيف؟").status == "unavailable"
+    m2, _ = model()
+    m2.store = m.store
+    m2.ask("ماذا تحتاج النخلة في الصيف؟", history=HISTORY)
+    assert len(m.store) == 0

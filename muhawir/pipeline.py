@@ -7,6 +7,7 @@ stopped, and never answers when retrieval found nothing sufficient.
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import re
@@ -43,6 +44,10 @@ ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED 
 # never «unavailable» or a debug reply. MUHAWIR_CACHE=0 turns it off.
 CACHE_SIZE = int(os.environ.get("MUHAWIR_CACHE", "500") or 0)
 CACHE_SECONDS = 24 * 3600
+# the same replies also kept on disk (AnswerStore) so that a restart or an update does not lose them; a reply is used
+# only while the code, the prompt and the sources are those it was written with (`version`)
+STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
+STORE_SIZE = 5000
 CACHED = frozenset({"answered", "referred", "declined", "abstained", "translated"})
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
@@ -427,8 +432,51 @@ def _strip_ids(text: str, ids: set[str]) -> str:
     return re.sub(r"\s+([.،,؛])", r"\1", text).strip()
 
 
+class AnswerStore:
+    """Checked replies on disk (SQLite), keyed by the normalised question, style and language.
+
+    Only questions asked with no conversation before them are kept; no visitor's name, address or history.
+    A reply written by an older version of the code, the prompt or the sources is never returned."""
+
+    def __init__(self, path, version: str) -> None:
+        import sqlite3
+        self.version = version
+        self._lock = threading.Lock()
+        self._db = sqlite3.connect(str(path), check_same_thread=False)
+        self._db.execute("CREATE TABLE IF NOT EXISTS replies (key TEXT PRIMARY KEY, version TEXT, at REAL, reply TEXT)")
+        self._db.execute("DELETE FROM replies WHERE version != ?", (version,))
+        self._db.commit()
+
+    @staticmethod
+    def _key(key: tuple) -> str:
+        return json.dumps(key, ensure_ascii=False)
+
+    def get(self, key: tuple) -> Response | None:
+        with self._lock:
+            row = self._db.execute("SELECT at, reply FROM replies WHERE key = ? AND version = ?",
+                                   (self._key(key), self.version)).fetchone()
+        if not row or time.time() - row[0] > STORE_SECONDS:
+            return None
+        try:
+            return Response(**json.loads(row[1]))
+        except (TypeError, ValueError):
+            return None
+
+    def put(self, key: tuple, res: Response) -> None:
+        with self._lock:
+            self._db.execute("INSERT OR REPLACE INTO replies VALUES (?, ?, ?, ?)",
+                             (self._key(key), self.version, time.time(), json.dumps(res.to_dict(), ensure_ascii=False)))
+            self._db.execute("DELETE FROM replies WHERE key IN (SELECT key FROM replies ORDER BY at DESC LIMIT -1 OFFSET ?)",
+                             (STORE_SIZE,))
+            self._db.commit()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return self._db.execute("SELECT COUNT(*) FROM replies").fetchone()[0]
+
+
 class Muhawir:
-    def __init__(self, corpus: Corpus, generator: Generator, retriever=None) -> None:
+    def __init__(self, corpus: Corpus, generator: Generator, retriever=None, store: AnswerStore | None = None) -> None:
         self.corpus = corpus
         self.retriever = retriever or Retriever(corpus)
         self.generator = generator
@@ -436,6 +484,7 @@ class Muhawir:
         self.sections = SectionIndex(corpus)
         self._cache: OrderedDict = OrderedDict()
         self._cache_lock = threading.Lock()
+        self.store = store
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -761,7 +810,8 @@ class Muhawir:
         A question asked before with no conversation before it, in the same style and language, gets the same checked
         reply from memory: no model call, no cost, at once. Each question costs 10 to 20 model calls (about one US
         cent); visitors and reviewers repeat the suggested questions and the test list (6 October 2026: the prepaid
-        credit ran out). Kept in memory only, never written to disk, and lost on restart."""
+        credit ran out). Kept in memory and, when the server gives a store, on disk (AnswerStore) so that it outlives a
+        restart, until the code, the prompt or the sources change."""
         key = None if history else (normalize(as_question(question or "")), style, lang)
         if key and key[0] and CACHE_SIZE:
             with self._cache_lock:
@@ -769,6 +819,11 @@ class Muhawir:
                 if hit and time.time() - hit[0] < CACHE_SECONDS:
                     self._cache.move_to_end(key)
                     return copy.deepcopy(hit[1])
+            kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
+            if kept:
+                with self._cache_lock:
+                    self._cache[key] = (time.time(), copy.deepcopy(kept))
+                return kept
         res = self._ask_once(question, style, lang, history)
         if key and key[0] and CACHE_SIZE and res.status in CACHED and not res.why:
             with self._cache_lock:
@@ -776,6 +831,11 @@ class Muhawir:
                 self._cache.move_to_end(key)
                 while len(self._cache) > CACHE_SIZE:
                     self._cache.popitem(last=False)
+            if self.store is not None and STORE_SECONDS:
+                try:
+                    self.store.put(key, res)
+                except Exception:  # the disk is full or locked: the reply is still given
+                    logging.getLogger(__name__).warning("answer store: could not save a reply", exc_info=True)
         return res
 
     def _ask_once(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:

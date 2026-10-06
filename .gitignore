@@ -20,6 +20,7 @@ build/
 data/quran_corpus.json
 data/dumps/
 data/muhawir.db
+data/answers.db
 data/*.tmp
 data/vectors.npy
 data/vectors_ids.json

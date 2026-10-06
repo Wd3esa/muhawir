@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from .corpus import load_corpus
 from .generate import get_generator
-from .pipeline import MAX_QUESTION_CHARS, Muhawir
+from .pipeline import MAX_QUESTION_CHARS, AnswerStore, Muhawir
 from .store import SqliteCorpus, SqliteRetriever
 from . import tts
 
@@ -28,6 +28,28 @@ DEFAULT_CORPUS = ROOT.parent / "data" / "synthetic_corpus.json"
 
 
 DEFAULT_DB = ROOT.parent / "data" / "muhawir.db"
+
+
+def answers_version(sources: Path, generator) -> str:
+    """What a kept reply depends on: the code and prompts, the sources, and the models that wrote it."""
+    import hashlib
+    h = hashlib.sha256()
+    for f in sorted(ROOT.rglob("*.py")):
+        h.update(f.read_bytes())
+    if sources.exists():
+        st = sources.stat()
+        h.update(f"{sources.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+    h.update(generator.name.encode())
+    h.update(repr(sorted((k, v) for k, v in os.environ.items() if "MODEL" in k)).encode())
+    return h.hexdigest()[:16]
+
+
+def answer_store(sources: Path, generator) -> AnswerStore | None:
+    """Replies kept on disk across restarts (data/answers.db); MUHAWIR_STORE=0 turns it off."""
+    path = os.environ.get("MUHAWIR_STORE", str(ROOT.parent / "data" / "answers.db"))
+    if path in ("", "0") or generator.name == "extractive":
+        return None
+    return AnswerStore(path, answers_version(sources, generator))
 
 
 def build() -> Muhawir:
@@ -46,7 +68,7 @@ def build() -> Muhawir:
 
             retriever = HybridRetriever(retriever, load_vectors())
             threading.Thread(target=retriever.warm_up, daemon=True).start()
-        engine = Muhawir(corpus, generator, retriever)
+        engine = Muhawir(corpus, generator, retriever, answer_store(db, generator))
     else:
         corpus = load_corpus(os.environ.get("MUHAWIR_CORPUS") or DEFAULT_CORPUS)
         engine = Muhawir(corpus, generator)
