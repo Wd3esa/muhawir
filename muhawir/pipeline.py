@@ -43,6 +43,30 @@ _VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ة�
 _QUOTED = re.compile(r"«([^»]{6,200})»|﴿([^﴾]{6,200})﴾|\"([^\"]{6,200})\"|(?:تعالى|قال الله)\s*:?\s*([^«﴿\"؟?.،]{6,200})")
 
 
+# Muhawir's own suggestion, sent back when tapped: «هل تريد أن تعرف أمثلة على السنن؟» is an offer to the user,
+# so the understanding step found no question in it and asked the user to rephrase (live site, 6 October 2026)
+_OFFER_AR = re.compile(r"^\s*(?:هل\s+)?(?:تريد|تريدين|تود|تودّ|تودين|تحب|تحبين|ترغب|ترغبين)\s+(?:في\s+)?(?:أن\s+|ان\s+)?"
+                       r"(?:تعرف|تعرفي|تتعرف\s+على|تتعرفي\s+على|نتعرف\s+على|أشرح\s+لك|اشرح\s+لك|أخبرك\s+عن|أخبرك\s+ب)\s*(.+?)\s*[؟?]?\s*$")
+_ASKS_AR = re.compile(r"^(?:ما|ماذا|كيف|لماذا|متى|أين|من|هل|كم|أي)\b")
+_OFFER_EN = re.compile(r"^\s*(?:do you want|would you like|shall i tell you|want)\s+(?:to\s+)?(?:know|learn|hear|explain)?\s*(?:more\s+)?(?:about\s+)?(.+?)\s*\??\s*$",
+                       re.IGNORECASE)
+_ASKS_EN = re.compile(r"^(?:what|how|why|when|where|who|which|is|are|does|do|can)\b", re.IGNORECASE)
+
+
+def as_question(text: str) -> str:
+    """A tapped suggestion turned from an offer into the user's own question: «هل تريد أن تعرف أمثلة على السنن؟»
+    → «ما أمثلة على السنن؟», «هل تريد أن تعرف كيف تُخرج الزكاة؟» → «كيف تُخرج الزكاة؟». Any other text as it is."""
+    m = _OFFER_AR.match(text)
+    if m:
+        rest = m.group(1).strip()
+        return f"{rest}؟" if _ASKS_AR.match(rest) else f"ما {rest}؟"
+    m = _OFFER_EN.match(text)
+    if m and re.match(r"^\s*(?:do you want|would you like|shall i tell you)", text, re.IGNORECASE):
+        rest = m.group(1).strip()
+        return f"{rest[:1].upper()}{rest[1:]}?" if _ASKS_EN.match(rest) else f"Tell me about {rest}."
+    return text
+
+
 def _same_word(a: str, b: str) -> bool:
     """Two forms of one word («الصابرون»/«الصابرين»): the same letters but for the last one or two."""
     short = min(len(a), len(b))
@@ -705,6 +729,7 @@ class Muhawir:
             history: list[dict] | None = None) -> Response:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
         the answer itself still comes from retrieved passages alone. A referred reply names who to ask."""
+        question = as_question(question)
         res = self._respond(question, style, lang, history)
         if res.status in (ANSWERED, ABSTAINED, REFERRED):
             fix = self._misquoted(question)

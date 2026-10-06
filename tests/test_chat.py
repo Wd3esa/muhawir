@@ -332,3 +332,15 @@ def test_a_question_about_the_ruling_on_suicide_is_answered_with_a_caring_line()
     from muhawir import classify
     assert classify.check("ما حكم الانتحار في الإسلام؟").kind is None
     assert classify.mentions_suicide("ما حكم الانتحار في الإسلام؟")
+
+
+def test_a_tapped_suggestion_offered_to_the_user_is_asked_as_the_users_question():
+    # live site, 6 October 2026: «هل تريد أن تعرف أمثلة على السنن؟» got «اكتب سؤالك بطريقة أخرى»
+    from muhawir.pipeline import as_question
+    assert as_question("هل تريد أن تعرف أمثلة على السنن؟") == "ما أمثلة على السنن؟"
+    assert as_question("هل تريد أن تعرف كيف تُخرج الزكاة؟") == "كيف تُخرج الزكاة؟"
+    assert as_question("Would you like to know what breaks the fast?") == "What breaks the fast?"
+    assert as_question("ما حكم الربا؟") == "ما حكم الربا؟"
+    m, seen = model(rewrite="ماذا تحتاج النخلة في الصيف؟")
+    m.ask("هل تريد أن تعرف ماذا تحتاج النخلة في الصيف؟")
+    assert seen["standalone"] >= 1
