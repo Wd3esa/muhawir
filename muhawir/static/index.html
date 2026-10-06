@@ -1304,6 +1304,7 @@ a {
 
 
 .recitation { white-space:nowrap; margin-bottom:4px; }
+body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { display:none; }
 .recitation-row { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
 /* Readability and zoom support */
 @media (min-width:621px) {
@@ -2011,6 +2012,7 @@ function listenButton(res, status) {
     setPlaying();
     setActionStatus(status, "voiceLoading");
     try {
+      if (!document.body.classList.contains("natural-voice")) throw new Error("no natural voice on this server");
       const response = await fetch("/tts", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, voice: selectedSpeechVoice, lang: speakLang }),
@@ -2604,7 +2606,11 @@ if (Recognition) {
   });
 }
 
-fetch("/api/health").then((r) => r.json()).then((h) => { $("synthetic").hidden = !h.synthetic; }).catch(() => {});
+fetch("/api/health").then((r) => r.json()).then((h) => {
+  $("synthetic").hidden = !h.synthetic;
+  // the natural voice (and its notice that the text goes to Microsoft) only when the server has it configured
+  document.body.classList.toggle("natural-voice", Boolean(h.tts));
+}).catch(() => {});
 renderHistory();
 applyLang();
 </script>

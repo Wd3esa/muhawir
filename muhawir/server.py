@@ -116,7 +116,7 @@ async def read_aloud(body: SpeechRequest, request: Request) -> Response:
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
-            "passages": len(engine.corpus.passages)}
+            "passages": len(engine.corpus.passages), "tts": tts.configured()}
 
 
 @app.get("/")

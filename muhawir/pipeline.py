@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, referrals, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, referrals, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -624,6 +624,15 @@ class Muhawir:
     def _respond(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
+        if lang_ok == "ar" and keyboard.latin_only(question):
+            # Arabic typed with the keyboard on English («hgvfh» → «الربا»): offered back as «هل تقصد: «الربا»؟» with
+            # a button that asks it, only when every word of it is in the sources (an English question stays English)
+            guess = keyboard.to_arabic(question).strip()
+            hits = self.retriever.search(guess, k=1)
+            if hits and hits[0].coverage >= 0.99:
+                res = Response(CHAT, TEXT[lang_ok]["did_you_mean"].format(guess=guess), synthetic=self.corpus.synthetic)
+                res.follow_up = guess
+                return res
         if question and classify.check(question[:MAX_QUESTION_CHARS * 2]).kind == classify.CRISIS:
             # thoughts of suicide or self-harm: a fixed caring reply that points to people and help now; no model
             return Response(REFERRED, TEXT[lang_ok]["crisis"], synthetic=self.corpus.synthetic)

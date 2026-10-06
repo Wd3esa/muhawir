@@ -22,6 +22,7 @@ TEXT = {
         "comfort": "أنا آسف لما تمر به، وأسأل الله أن يرحم من فقدت وأن يربط على قلبك. إن أحببت أن تحدثني عما تشعر به، "
                    "أو أن أذكر لك ما ورد في الصبر على المصيبة، فأنا هنا معك.",
         "no_question_after_answer": "يبدو أن جوابي لم يكن واضحًا أو لم يكن ما تريده. هل أشرحه لك بطريقة أبسط؟ أو اكتب سؤالك بطريقة أخرى، وسأحاول من جديد.",
+        "did_you_mean": "يبدو أن لوحة المفاتيح كانت على الإنجليزية. هل تقصد: «{guess}»؟",
         "no_question": "أنا هنا لأحاورك وأجيبك عن أسئلتك عن الإسلام من المصادر المعتمدة. ما الذي تحب أن تعرفه؟",
         "thanks": "وإياك، بارك الله فيك. إن كان لديك سؤال آخر فاكتبه.",
         "personal_case": "سؤالك عن حالة شخصية، والحكم فيها يحتاج فتوى من مختص يسمع تفاصيلها. "
@@ -62,6 +63,7 @@ TEXT = {
                    "strength. If you would like to tell me how you feel, or hear what the sources say about patience in "
                    "hardship, I am here with you.",
         "no_question_after_answer": "It seems my answer was not clear, or not what you wanted. Shall I explain it more simply? Or ask your question another way and I will try again.",
+        "did_you_mean": "It looks like the keyboard was set to English. Did you mean «{guess}»?",
         "no_question": "I am here to talk with you and answer your questions about Islam from the approved sources. What would you like to know?",
         "thanks": "You are welcome, may Allah bless you. If you have another question, go ahead.",
         "personal_case": "Your question is about a personal situation. A ruling on it needs a fatwa "

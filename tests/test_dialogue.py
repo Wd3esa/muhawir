@@ -964,3 +964,29 @@ def test_the_referral_card_does_not_assume_where_the_user_lives():
     ar, en = card("fatwa", "ar"), card("fatwa", "en")
     assert "وفي السعودية" not in ar["intro"] and "في بلدك" in ar["intro"]
     assert "In Saudi Arabia:" not in en["intro"] and ar["links"][0]["where"] == "المملكة العربية السعودية"
+
+
+def test_arabic_typed_on_the_english_keyboard_is_read_as_arabic():
+    from muhawir import keyboard
+    from muhawir.retrieve import Hit
+    seen = []
+
+    class R:
+        def search(self, q, k=3):
+            seen.append(q)
+            return [Hit(None, 1.0, 1.0 if q == "الربا" else 0.0)]
+
+    class Stop(Exception):
+        pass
+
+    class M:
+        retriever = R()
+        def __getattr__(self, name):
+            raise Stop()
+
+    from muhawir.pipeline import Muhawir
+    try:
+        Muhawir._respond(M(), "hgvfh", "youth", "ar", [])
+    except Stop:
+        pass
+    assert seen[0] == keyboard.to_arabic("hgvfh") == "الربا"
