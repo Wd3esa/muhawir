@@ -1659,13 +1659,22 @@ function loadConversations() {
     const conversation = { id: nextConversationId++, title: String(c.title || UI[lang].newChat), messages: [],
                            turns: Array.isArray(c.turns) ? c.turns : [], updatedAt: Number(c.updatedAt) || 0,
                            favorite: Boolean(c.favorite), log: c.log };
+    const priorTurns = [];
     for (const entry of c.log) {
       try {
         const user = el("div", "turn-user", entry.question); user.dir = "auto";
-        // shown as it was answered: no «هل تقصد» again, so the context says it is not a first question
+        // The original history lets regeneration of a follow-up ask about the same subject after a reload.
+        // Older saved entries have no history; rebuild it from the earlier answers in this log.
         const context = { conversation, question: entry.question, style: entry.style, lang: entry.lang,
-                          history: [{ role: "user", text: "" }], entry };
+                          history: Array.isArray(entry.history) ? entry.history : priorTurns.slice(),
+                          restored: true, entry };
         conversation.messages.push(user, renderAnswer(entry.res, entry.style, context));
+        if (rememberable(entry.res)) {
+          priorTurns.push({ role: "user", text: String(entry.res.understood || entry.question).slice(0, 600) },
+            { role: "assistant", text: [entry.res.message, ...(entry.res.claims || []).map((claim) => claim.text)]
+              .filter(Boolean).join(" ").slice(0, 600) });
+          while (priorTurns.length > MAX_HISTORY) priorTurns.shift();
+        }
       } catch { /* an entry from an older page version that no longer renders is skipped */ }
     }
     if (conversation.messages.length) conversations.push(conversation);
@@ -1691,9 +1700,13 @@ function deleteAllConversations() {
 function logAnswer(conversation, context, res) {
   if (!["answered", "referred", "abstained", "declined", "translated", "chat"].includes(res.status)) return;
   conversation.log = conversation.log || [];
-  if (context.entry) context.entry.res = res;  // a regenerated answer replaces the one it was asked again for
+  if (context.entry) {
+    context.entry.res = res;  // a regenerated answer replaces the one it was asked again for
+    context.entry.history = context.history.slice();
+  }
   else {
-    context.entry = { question: context.question, style: context.style, lang: context.lang, res };
+    context.entry = { question: context.question, style: context.style, lang: context.lang,
+                      history: context.history.slice(), res };
     conversation.log.push(context.entry);
   }
   saveConversations();
@@ -2395,7 +2408,7 @@ function renderAnswer(res, style, context) {
   // shown; a follow-up («ولماذا؟») only says what was understood. The answer is already here: no new request.
   let understoodLine = null;
   const change = rewordKind(context?.question || "", res.understood || "");
-  const confirmFirst = change === "changed" && !(context?.history || []).length
+  const confirmFirst = change === "changed" && !(context?.history || []).length && !context?.restored
     && ["answered", "referred", "abstained"].includes(res.status);
   if (res.understood && change !== "same") {
     understoodLine = el("p", "understood");
