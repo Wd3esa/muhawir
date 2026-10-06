@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>مُحاور</title>
 <script>try { document.documentElement.dataset.theme = localStorage.getItem("muhawir-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
 <style>
@@ -92,13 +92,13 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 }
 
   .app-shell {
-  min-height:100dvh;
+  min-height:var(--chat-viewport-height,100dvh);
   display:grid;
   grid-template-columns:286px minmax(0,1fr)
 }
 .sidebar {
   min-width:0;
-  height:100dvh;
+  height:var(--chat-viewport-height,100dvh);
   position:sticky;
   top:0;
   display:flex;
@@ -328,7 +328,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   position:relative;
   isolation:isolate;
   min-width:0;
-  height:100dvh;
+  height:var(--chat-viewport-height,100dvh);
   display:flex;
   flex-direction:column;
   overflow:hidden;
@@ -1138,7 +1138,7 @@ a {
     inset-block:0;
     inset-inline-start:0;
     width:min(310px,calc(100vw - 48px));
-    height:100dvh;
+    height:var(--chat-viewport-height,100dvh);
     transform:translateX(105%);
     transition:transform .22s ease;
     box-shadow:none
@@ -1175,7 +1175,7 @@ a {
     inset-block:0;
     inset-inline-start:0;
     width:min(310px,calc(100vw - 48px));
-    height:100dvh;
+    height:var(--chat-viewport-height,100dvh);
     transform:translateX(105%);
     transition:transform .22s ease;
     box-shadow:none
@@ -2535,7 +2535,38 @@ function remember(conversation, role, text) {
   while (conversation.turns.length > MAX_HISTORY) conversation.turns.shift();
 }
 
-function scrollDown() { $("thread").scrollTo({ top: $("thread").scrollHeight, behavior: "smooth" }); }
+// A mobile keyboard can resize only the visual viewport, leaving 100dvh unchanged.
+// Scroll instantly after layout as well, so the pending row is not below the keyboard.
+function scrollDown() {
+  const thread = $("thread");
+  const pinToBottom = () => { thread.scrollTo({ top: thread.scrollHeight, behavior: "instant" }); };
+  pinToBottom();
+  requestAnimationFrame(pinToBottom);
+}
+
+let chatViewportFrame = null;
+function syncChatViewport() {
+  if (chatViewportFrame !== null) cancelAnimationFrame(chatViewportFrame);
+  chatViewportFrame = requestAnimationFrame(() => {
+    chatViewportFrame = null;
+    const viewport = window.visualViewport;
+    // Pinch zoom should magnify the existing layout, not make the app shrink again.
+    if (viewport && Math.abs(viewport.scale - 1) > .01) return;
+    const thread = $("thread");
+    const followingBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 64;
+    if (isMobileLayout()) {
+      const height = viewport ? viewport.height : window.innerHeight;
+      if (height > 0) document.documentElement.style.setProperty("--chat-viewport-height", `${height}px`);
+    } else {
+      document.documentElement.style.removeProperty("--chat-viewport-height");
+    }
+    const visibleRequest = activeRequest && activeRequest.conversation === activeConversation;
+    if (followingBottom || visibleRequest) scrollDown();
+  });
+}
+window.visualViewport?.addEventListener("resize", syncChatViewport, { passive: true });
+window.addEventListener("resize", syncChatViewport, { passive: true });
+syncChatViewport();
 
 $("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
 $("themeToggle").addEventListener("click", toggleTheme);
@@ -2563,6 +2594,8 @@ $("ask").addEventListener("submit", async (e) => {
   e.preventDefault();
   const question = $("q").value.trim();
   if (!question || $("send").disabled) return;  // one question at a time: Enter must not send a second
+  // Dismiss the mobile keyboard before painting the source-search indicator.
+  if (isMobileLayout()) $("q").blur();
   const askedBySpeech = spokenTurn;
   spokenTurn = false;
   stopListening();
