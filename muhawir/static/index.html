@@ -1450,6 +1450,12 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 }
 /* The question composer follows wrapped text, with scrolling only for long questions. */
 #q { resize:none; overflow-y:hidden; }
+:root { --status-found:#15803d; --status-missing:#6b7280; --status-referred:#dc2626; }
+:root[data-theme="dark"] { --status-found:#4ade80; --status-missing:#9ca3af; --status-referred:#f87171; }
+.status[data-tone="found"]::before { background:var(--status-found); }
+.status[data-tone="missing"]::before { background:var(--status-missing); }
+.status[data-tone="missing"] { color:var(--status-missing); }
+.status[data-tone="referred"]::before { background:var(--status-referred); }
 </style>
 </head>
 <body>
@@ -1533,7 +1539,7 @@ const UI = {
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
-        status: { answered: "إجابة من المصادر", abstained: "امتناع", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
+        status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Helps you answer your questions about Islam, fiqh and creed from approved, trusted sources, and refers you to a specialist when you ask for a fatwa.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "Your conversations stay in this page session.", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
@@ -1549,7 +1555,7 @@ const UI = {
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
-        status: { answered: "Answer from the sources", abstained: "Abstained", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } }
+        status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } }
 };
 const $ = (id) => document.getElementById(id);
 let lang = "ar";
@@ -1890,6 +1896,9 @@ function setActionStatus(status, key) {
 
 function applyActionTranslations(message) {
   const t = UI[lang];
+  message.querySelectorAll(".status[data-status-key]").forEach((badge) => {
+    badge.textContent = t.status[badge.dataset.statusKey] || "";
+  });
   message.responseActions.querySelectorAll("[data-label-key]").forEach((control) => {
     const key = control.dataset.labelKey;
     const label = key === "sources"
@@ -2176,6 +2185,16 @@ function plainWords(res) {
   return res;
 }
 
+function answerBadgeState(response) {
+  // Referrals stay red even when general supporting passages accompany them.
+  if (response.status === "referred") return { key:"referred", tone:"referred" };
+  if (response.status === "answered") {
+    const supported = Array.isArray(response.sources) && response.sources.length > 0;
+    return { key:supported ? "answered" : "abstained", tone:supported ? "found" : "missing" };
+  }
+  return { key:response.status, tone:"missing" };
+}
+
 function renderAnswer(res, style, context) {
   plainWords(res);
   const open = style === "extended";
@@ -2194,8 +2213,14 @@ function renderAnswer(res, style, context) {
     searchOutcome.dataset.t = outcome;
     msg.append(searchOutcome);
   }
-  const statusText = t.status[res.status];
-  if (statusText) heading.append(el("span", "status", statusText));
+  const badgeState = answerBadgeState(res);
+  const statusText = t.status[badgeState.key];
+  if (statusText) {
+    const badge = el("span", "status", statusText);
+    badge.dataset.tone = badgeState.tone;
+    badge.dataset.statusKey = badgeState.key;
+    heading.append(badge);
+  }
   msg.append(heading);
   // A referral answers first: the referral line and who to ask; what the sources say in general follows, folded,
   // under a question the user opens (already in the reply: no new request).
