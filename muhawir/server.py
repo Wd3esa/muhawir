@@ -19,7 +19,8 @@ from pydantic import BaseModel, Field
 
 from .corpus import load_corpus
 from .generate import get_generator
-from .pipeline import MAX_QUESTION_CHARS, AnswerStore, Muhawir
+from .generate import USAGE
+from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir
 from .store import SqliteCorpus, SqliteRetriever
 from . import tts
 
@@ -34,8 +35,9 @@ def answers_version(sources: Path, generator) -> str:
     """What a kept reply depends on: the code and prompts, the sources, and the models that wrote it."""
     import hashlib
     h = hashlib.sha256()
-    for f in sorted(ROOT.rglob("*.py")):
-        h.update(f.read_bytes())
+    for f in sorted(ROOT.glob("*.py")):  # what writes and checks a reply; not the page, the voice or the web server
+        if f.name not in ("server.py", "tts.py", "build_data.py", "rerank.py"):
+            h.update(f.read_bytes())
     if sources.exists():
         st = sources.stat()
         h.update(f"{sources.name}:{st.st_size}:{st.st_mtime_ns}".encode())
@@ -98,6 +100,22 @@ class Ask(BaseModel):
 def ask(body: Ask) -> dict:
     return engine.ask(body.question, body.style, body.lang,
                       [t.model_dump() for t in body.history]).to_dict()
+
+
+class Feedback(BaseModel):
+    verdict: Literal["clear", "unclear"]
+
+
+@app.post("/api/feedback")
+def feedback(body: Feedback) -> dict:
+    """«واضحة / تحتاج توضيحًا» under an answer: counted only, with no question, answer or visitor kept."""
+    with _feedback_lock:
+        FEEDBACK[body.verdict] += 1
+    return {"ok": True}
+
+
+FEEDBACK = {"clear": 0, "unclear": 0}
+_feedback_lock = threading.Lock()
 
 
 class SpeechRequest(BaseModel):
@@ -164,7 +182,10 @@ def credit_remaining() -> float | None:
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
-            "passages": len(engine.corpus.passages), "tts": tts.configured(), "credit_usd": credit_remaining()}
+            "passages": len(engine.corpus.passages), "tts": tts.configured(), "credit_usd": credit_remaining(),
+            "usage": {**{k: round(v, 1) for k, v in STATS.items()}, **USAGE,
+                      "kept_replies": len(engine.store) if engine.store is not None else 0,
+                      "rated_clear": FEEDBACK["clear"], "rated_unclear": FEEDBACK["unclear"]}}
 
 
 @app.get("/")

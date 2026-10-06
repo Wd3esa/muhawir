@@ -939,6 +939,18 @@ def _reasoning_body(reasoning: str) -> dict:
     return {}
 
 
+# counts since the server started, shown by /api/health (numbers only: never a question or an answer)
+USAGE = {"model_calls": 0, "tokens_in": 0, "tokens_out": 0}
+_usage_lock = threading.Lock()
+
+
+def _count(usage: dict) -> None:
+    with _usage_lock:
+        USAGE["model_calls"] += 1
+        USAGE["tokens_in"] += int(usage.get("prompt_tokens") or 0)
+        USAGE["tokens_out"] += int(usage.get("completion_tokens") or 0)
+
+
 def openai_compatible_call(base_url: str, model: str, api_key: str = "",
                            timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "") -> ModelCall:
     """Any server speaking the common chat-completions format: Ollama on your own computer
@@ -968,6 +980,7 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
             timeout=timeout)
         r.raise_for_status()
         data = r.json()
+        _count(data.get("usage") or {})
         if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
             usage = data.get("usage") or {}
             thought = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")

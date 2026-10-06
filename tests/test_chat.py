@@ -408,3 +408,44 @@ def test_a_follow_up_or_an_unavailable_reply_is_not_written_to_disk(tmp_path):
     m2.store = m.store
     m2.ask("ماذا تحتاج النخلة في الصيف؟", history=HISTORY)
     assert len(m.store) == 0
+
+
+def test_the_same_question_arriving_twice_at_once_is_written_once():
+    import threading
+    import time as _time
+    from muhawir import pipeline
+    m, seen = model()
+    original = m._ask_once
+    def slow(*a, **k):
+        _time.sleep(0.2)
+        return original(*a, **k)
+    m._ask_once = slow
+    before = pipeline.STATS["waited_for_same"]
+    replies = []
+    threads = [threading.Thread(target=lambda: replies.append(m.ask("ماذا تحتاج النخلة في الصيف؟"))) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(replies) == 3 and all(r.claims == replies[0].claims for r in replies)
+    assert seen["standalone"] <= 2  # one question understood (twice at most), not three times
+    assert pipeline.STATS["waited_for_same"] - before == 2
+    assert not m._inflight
+
+
+def test_health_counts_without_any_question_text():
+    from fastapi.testclient import TestClient
+    from muhawir import server
+    usage = TestClient(server.app).get("/api/health").json()["usage"]
+    assert {"questions", "from_memory", "from_disk", "written", "model_calls", "tokens_in"} <= set(usage)
+    assert all(isinstance(v, (int, float)) for v in usage.values())
+
+
+def test_a_rating_is_counted_and_asks_no_model():
+    from fastapi.testclient import TestClient
+    from muhawir import server
+    client = TestClient(server.app)
+    before = client.get("/api/health").json()["usage"]["rated_unclear"]
+    assert client.post("/api/feedback", json={"verdict": "unclear"}).json() == {"ok": True}
+    assert client.get("/api/health").json()["usage"]["rated_unclear"] == before + 1
+    assert client.post("/api/feedback", json={"verdict": "anything"}).status_code == 422

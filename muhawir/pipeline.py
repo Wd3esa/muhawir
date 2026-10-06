@@ -48,6 +48,14 @@ CACHE_SECONDS = 24 * 3600
 # only while the code, the prompt and the sources are those it was written with (`version`)
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
+# counts since the server started, shown by /api/health (numbers only: never a question or an answer)
+STATS = {"questions": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+_stats_lock = threading.Lock()
+
+
+def _stat(name: str, add: float = 1) -> None:
+    with _stats_lock:
+        STATS[name] += add
 CACHED = frozenset({"answered", "referred", "declined", "abstained", "translated"})
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
@@ -485,6 +493,7 @@ class Muhawir:
         self._cache: OrderedDict = OrderedDict()
         self._cache_lock = threading.Lock()
         self.store = store
+        self._inflight: dict = {}  # question key -> lock: the same question arriving twice at once is written once
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -812,20 +821,47 @@ class Muhawir:
         cent); visitors and reviewers repeat the suggested questions and the test list (6 October 2026: the prepaid
         credit ran out). Kept in memory and, when the server gives a store, on disk (AnswerStore) so that it outlives a
         restart, until the code, the prompt or the sources change."""
+        _stat("questions")
         key = None if history else (normalize(as_question(question or "")), style, lang)
-        if key and key[0] and CACHE_SIZE:
+        if not (key and key[0] and CACHE_SIZE):
+            return self._answer_new(question, style, lang, history, None)
+        kept = self._kept(key)
+        if kept:
+            return kept
+        with self._cache_lock:
+            lock = self._inflight.setdefault(key, [threading.Lock(), 0])
+            lock[1] += 1
+        try:
+            with lock[0]:  # a second visitor asking the same question now waits for the first reply instead of paying again
+                kept = self._kept(key, waited=True)
+                return kept or self._answer_new(question, style, lang, history, key)
+        finally:
             with self._cache_lock:
-                hit = self._cache.get(key)
-                if hit and time.time() - hit[0] < CACHE_SECONDS:
-                    self._cache.move_to_end(key)
-                    return copy.deepcopy(hit[1])
-            kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
-            if kept:
-                with self._cache_lock:
-                    self._cache[key] = (time.time(), copy.deepcopy(kept))
-                return kept
+                lock[1] -= 1
+                if not lock[1]:
+                    self._inflight.pop(key, None)
+
+    def _kept(self, key: tuple, waited: bool = False) -> Response | None:
+        """A reply kept in memory or on disk for this question, style and language."""
+        with self._cache_lock:
+            hit = self._cache.get(key)
+            if hit and time.time() - hit[0] < CACHE_SECONDS:
+                self._cache.move_to_end(key)
+                _stat("waited_for_same" if waited else "from_memory")
+                return copy.deepcopy(hit[1])
+        kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
+        if kept:
+            with self._cache_lock:
+                self._cache[key] = (time.time(), copy.deepcopy(kept))
+            _stat("waited_for_same" if waited else "from_disk")
+        return kept
+
+    def _answer_new(self, question: str, style: str, lang: str, history: list[dict] | None, key) -> Response:
+        started = time.time()
         res = self._ask_once(question, style, lang, history)
-        if key and key[0] and CACHE_SIZE and res.status in CACHED and not res.why:
+        _stat("written")
+        _stat("written_seconds", time.time() - started)
+        if key and res.status in CACHED and not res.why:
             with self._cache_lock:
                 self._cache[key] = (time.time(), copy.deepcopy(res))
                 self._cache.move_to_end(key)
