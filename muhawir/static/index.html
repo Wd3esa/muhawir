@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>مُحاور</title>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("muhawir-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
 <style>
 @font-face {
   font-family:"Muhawir Arabic";
@@ -22,54 +23,52 @@
 
   :root {
   color-scheme:light;
-  --bg:#F5F3EF;
+  --bg:#F7F5FE;
   --panel:#FFFFFF;
-  --sidebar:#EFF1EF;
-  --ink:#172433;
-  --muted:#3B4B59;
-  --muted-soft:#536577;
-  --line:#7B8A98;
-  --accent:#1D5A61;
+  --sidebar:#F2F4FF;
+  --ink:#0E153F;
+  --muted:#4A5590;
+  --muted-soft:#6676A5;
+  --line:#7583AA;
+  --accent:#6150EA;
   --accent-ink:#FFFFFF;
-  --accent-soft:#E7EEEA;
-  --mint:#1D5A61;
-  --deep:#172433;
-  --indigo:#3B4B59;
-  --warn-bg:#FFF1D7;
-  --warn-ink:#62410B;
+  --accent-soft:#E0D9FB;
+  --mint:#2EF2C2;
+  --deep:#12183F;
+  --indigo:#2D3775;
+  --warn-bg:#E0D9FB;
+  --warn-ink:#2D3775;
   --card:#FFFFFF;
-  --mine:#E7EEEA;
-  --shadow:0 10px 32px rgba(23,36,51,.08);
-  --focus:#1D5A61;
-  --glow-mint:rgba(29,90,97,.17);
-  --glow-violet:rgba(109,143,146,.13)
+  --mine:#E0D9FB;
+  --shadow:0 10px 34px rgba(18,24,63,.09);
+  --focus:#6150EA;
+  --glow-mint:rgba(46,242,194,.36);
+  --glow-violet:rgba(97,80,234,.29)
 }
 
-  @media(prefers-color-scheme:dark) {
-  :root {
+:root[data-theme="dark"] {
     color-scheme:dark;
-    --bg:#192434;
-    --panel:#253447;
-    --sidebar:#1D2A3A;
-    --ink:#F4F6F8;
-    --muted:#D4DFE9;
-    --muted-soft:#BACAD6;
-    --line:#8D9EAF;
-    --accent:#B8DFDD;
-    --accent-ink:#192434;
-    --accent-soft:#314456;
-    --mint:#B8DFDD;
-    --deep:#192434;
-    --indigo:#D4DFE9;
-    --warn-bg:#493E2A;
-    --warn-ink:#FFF1D7;
-    --card:#253447;
-    --mine:#314456;
-    --shadow:0 10px 34px rgba(0,0,0,.2);
-    --focus:#B8DFDD;
-    --glow-mint:rgba(184,223,221,.19);
-    --glow-violet:rgba(132,167,184,.16)
-  }
+    --bg:#171D36;
+    --panel:#222A49;
+    --sidebar:#1D2544;
+    --ink:#F7F8FF;
+    --muted:#D9E0F4;
+    --muted-soft:#BAC6E7;
+    --line:#8E9CC7;
+    --accent:#C5BAFF;
+    --accent-ink:#171D36;
+    --accent-soft:#343B6B;
+    --mint:#77DECA;
+    --deep:#171D36;
+    --indigo:#D9E0F4;
+    --warn-bg:#39365F;
+    --warn-ink:#F7F8FF;
+    --card:#222A49;
+    --mine:#343B6B;
+    --shadow:0 10px 34px rgba(0,0,0,.25);
+    --focus:#C5BAFF;
+    --glow-mint:rgba(119,222,202,.24);
+    --glow-violet:rgba(160,139,255,.30)
 }
 
   * {
@@ -167,6 +166,15 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   color:var(--ink);
   background:color-mix(in srgb,var(--accent) 8%,transparent)
 }
+.theme-toggle {
+  border-color:var(--line);
+  background:var(--panel);
+  color:var(--accent)
+}
+.theme-toggle svg { width:19px; height:19px }
+.theme-toggle .theme-sun { display:none }
+:root[data-theme="dark"] .theme-toggle .theme-moon { display:none }
+:root[data-theme="dark"] .theme-toggle .theme-sun { display:block }
 .icon-button svg {
   width:20px;
   height:20px
@@ -384,7 +392,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   gap:16px;
   padding:0 clamp(18px,3.4vw,48px);
   border-bottom:1px solid var(--line);
-  background:var(--panel)
+  background:var(--sidebar)
 }
 .topbar-start,.topbar-tools {
   min-width:0;
@@ -993,6 +1001,28 @@ textarea::placeholder {
   opacity:.58;
   cursor:wait
 }
+.stop-request {
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:6px 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:var(--accent-soft);
+  color:var(--ink);
+  cursor:pointer
+}
+.stop-request[hidden] { display:none }
+.stop-request svg { width:17px; height:17px; flex:none }
+.stop-request:hover { border-color:var(--accent); color:var(--accent) }
+.request-notice {
+  margin:6px 12px 0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5
+}
 .mic {
   display:inline-flex;
   align-items:center;
@@ -1295,6 +1325,7 @@ a {
     height:44px;
     border-radius:12px
   }
+  .stop-request { min-height:44px; padding-inline:10px }
   .disclaimer {
     margin-block:8px 10px;
     font-size:13px
@@ -1552,6 +1583,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
       <div class="topbar-tools">
         <span class="trust-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="trustLabel"></span></span>
         <label class="lang-wrap"><span class="sr-only" data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option></select></label>
+        <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
       </div>
     </header>
     <div class="synthetic" id="synthetic" hidden></div>
@@ -1579,10 +1611,12 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
         <div class="composer-row">
           <label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label>
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
+          <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
         </div>
         <div class="voice-note" id="voiceNote" hidden data-t="voiceNote"></div>
       </form>
+      <p class="request-notice" id="requestNotice" role="status" hidden></p>
       <p class="disclaimer" data-t="disclaimer"></p>
     </div>
   </main>
@@ -1594,7 +1628,7 @@ const UI = {
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "محادثاتك متاحة خلال هذه الجلسة فقط.", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeKicker: "اسأل، وتحقّق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
-        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل",
+        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "إيقاف", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ التعمّق في السؤال…", "جارٍ استكشاف المصادر…", "جارٍ جمع الشواهد…", "جارٍ إعداد الجواب…"], found: "عُثر على المقاطع الداعمة", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
@@ -1610,7 +1644,7 @@ const UI = {
         welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask",
+        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Fathoming the question…", "Exploring the sources…", "Gathering supporting passages…", "Preparing the answer…"], found: "Supporting passages found", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
@@ -1633,6 +1667,7 @@ let nextConversationId = 2;
 const MAX_HISTORY = 6;
 let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
+let activeRequest = null;
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -1832,6 +1867,10 @@ function applyLang() {
   if (!activeConversation.messages.length) activeConversation.title = t.newChat;
   $("thread").setAttribute("aria-label", t.assistant);
   $("send").setAttribute("aria-label", t.send);
+  $("stopRequest").setAttribute("aria-label", t.stopRequest);
+  $("stopRequest").title = t.stopRequest;
+  updateThemeToggle();
+  if (!$("requestNotice").hidden) $("requestNotice").textContent = t.requestStopped;
   $("conversationTitle").textContent = activeConversation.title;
   $("synthetic").textContent = t.synthetic;
   conversations.forEach((conversation) => conversation.messages.forEach((message) => {
@@ -1839,6 +1878,21 @@ function applyLang() {
   }));
   renderHistory();
   typeWelcomeKicker();
+}
+
+function updateThemeToggle() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  const label = dark ? UI[lang].lightTheme : UI[lang].darkTheme;
+  $("themeToggle").setAttribute("aria-pressed", String(dark));
+  $("themeToggle").setAttribute("aria-label", label);
+  $("themeToggle").title = label;
+}
+
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("muhawir-theme", next); } catch { /* private storage can be unavailable */ }
+  updateThemeToggle();
 }
 
 // Muhawir's own words only: quoted ayahs, tafsir and hadith are never read by a computer voice.
@@ -2485,26 +2539,76 @@ function syncRegenerateButtons(conversation) {
   }
 }
 
+function beginAnswerRequest(details) {
+  const request = { ...details, controller: new AbortController(), cancelled: false };
+  activeRequest = request;
+  $("send").disabled = true;
+  $("stopRequest").hidden = false;
+  $("requestNotice").hidden = true;
+  syncRegenerateButtons();
+  return request;
+}
+
+function finishAnswerRequest(request) {
+  if (activeRequest !== request) return;
+  activeRequest = null;
+  $("send").disabled = false;
+  $("stopRequest").hidden = true;
+  syncRegenerateButtons();
+  request.conversation.updatedAt = Date.now();
+  renderHistory();
+  if (activeConversation === request.conversation) {
+    scrollDown();
+    if (request.kind === "question" && window.matchMedia("(min-width: 861px)").matches) $("q").focus();
+  }
+}
+
+function stopAnswerRequest() {
+  const request = activeRequest;
+  if (!request) return;
+  request.cancelled = true;
+  activeRequest = null;
+  request.controller.abort();
+  const conversation = request.conversation;
+  conversation.messages = conversation.messages.filter((entry) => entry !== request.pending && entry !== request.userMessage);
+  request.pending.remove();
+  if (request.userMessage) request.userMessage.remove();
+  if (request.kind === "regenerate") setActionStatus(request.message.actionStatus, "requestStopped");
+  if (!conversation.messages.length) conversation.title = UI[lang].newChat;
+  conversation.updatedAt = Date.now();
+  $("send").disabled = false;
+  $("stopRequest").hidden = true;
+  syncRegenerateButtons();
+  if (activeConversation === conversation) {
+    if (request.kind === "question" && !$("q").value.trim()) $("q").value = request.question;
+    if (!conversation.messages.length) renderConversation(conversation);
+    else { updateConversationTitle(); renderHistory(); }
+    $("q").focus();
+  } else renderHistory();
+  $("requestNotice").textContent = UI[lang].requestStopped;
+  $("requestNotice").hidden = false;
+}
+
 async function regenerateAnswer(message) {
   const context = message.requestContext;
   const conversation = context?.conversation;
   if (!context || !conversation || conversation.messages.at(-1) !== message || $("send").disabled) return;
   const messageIndex = conversation.messages.indexOf(message);
   if (messageIndex < 0) return;
-  const send = $("send");
-  send.disabled = true;
-  syncRegenerateButtons();
   message.regenerateButton.disabled = true;
   setActionStatus(message.actionStatus, "regenerating");
   const pending = createRiderStatus(context.lang || lang);
   conversation.messages.push(pending);
   if (activeConversation === conversation) { $("thread").append(pending); scrollDown(); }
+  const request = beginAnswerRequest({ kind: "regenerate", conversation, pending, message });
   try {
     const response = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: context.question, style: context.style, lang: context.lang, history: context.history }) });
+      body: JSON.stringify({ question: context.question, style: context.style, lang: context.lang, history: context.history }), signal: request.controller.signal });
     if (!response.ok) throw new Error(response.status);
     const res = await response.json();
+    if (request.cancelled) return;
     await completeRiderStatus(pending, res, context.lang || lang);
+    if (request.cancelled) return;
     const replacement = renderAnswer(res, context.style, context);
     conversation.messages[messageIndex] = replacement;
     conversation.messages = conversation.messages.filter((entry) => entry !== pending);
@@ -2520,13 +2624,12 @@ async function regenerateAnswer(message) {
     conversation.updatedAt = Date.now();
     if (activeConversation === conversation) scrollDown();
   } catch {
+    if (request.cancelled) return;
     conversation.messages = conversation.messages.filter((entry) => entry !== pending);
     if (activeConversation === conversation) pending.remove();
     setActionStatus(message.actionStatus, "error");
   } finally {
-    send.disabled = false;
-    syncRegenerateButtons();
-    renderHistory();
+    finishAnswerRequest(request);
   }
 }
 
@@ -2547,6 +2650,8 @@ function remember(conversation, role, text) {
 function scrollDown() { $("thread").scrollTo({ top: $("thread").scrollHeight, behavior: "smooth" }); }
 
 $("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
+$("themeToggle").addEventListener("click", toggleTheme);
+$("stopRequest").addEventListener("click", stopAnswerRequest);
 $("newChat").addEventListener("click", startNewConversation);
 $("openHistory").addEventListener("click", toggleHistory);
 $("closeHistory").addEventListener("click", closeHistory);
@@ -2578,9 +2683,6 @@ $("ask").addEventListener("submit", async (e) => {
   const requestLang = lang;
   const requestHistory = conversation.turns.slice();
   const context = { conversation, question, style, lang: requestLang, history: requestHistory };
-  const send = $("send");
-  send.disabled = true;
-  syncRegenerateButtons();
   $("empty")?.remove();
   const userMessage = el("div", "turn-user", question);
   userMessage.dir = "auto";
@@ -2598,14 +2700,17 @@ $("ask").addEventListener("submit", async (e) => {
   syncRegenerateButtons();
   conversation.updatedAt = Date.now();
   $("thread").append(pending);
+  const request = beginAnswerRequest({ kind: "question", conversation, pending, userMessage, question });
   $("q").value = "";
   scrollDown();
   try {
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }) });
+      body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }), signal: request.controller.signal });
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
+    if (request.cancelled) return;
     await completeRiderStatus(pending, res, requestLang);
+    if (request.cancelled) return;
     const msg = renderAnswer(res, style, context);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
@@ -2619,20 +2724,15 @@ $("ask").addEventListener("submit", async (e) => {
     }
     syncRegenerateButtons();
   } catch {
+    if (request.cancelled) return;
     const errorMessage = el("div", "msg", UI[lang].error);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
     pending.replaceWith(errorMessage);
     syncRegenerateButtons();
+    if (activeConversation === conversation && !$("q").value.trim()) $("q").value = question;
   } finally {
-    send.disabled = false;
-    syncRegenerateButtons();
-    conversation.updatedAt = Date.now();
-    renderHistory();
-    if (activeConversation === conversation) {
-      scrollDown();
-      if (window.matchMedia("(min-width: 861px)").matches) $("q").focus();
-    }
+    finishAnswerRequest(request);
   }
 });
 
