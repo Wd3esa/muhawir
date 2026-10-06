@@ -797,6 +797,22 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .referral .where {
   color:var(--muted)
 }
+.general-info {
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 14px
+}
+.general-info > summary {
+  cursor:pointer;
+  font-weight:600;
+  color:var(--accent, inherit);
+  min-height:32px;
+  line-height:1.8
+}
+.general-info[open] > summary {
+  margin-bottom:8px
+}
 .views {
   border:1px dashed var(--line);
   border-radius:12px;
@@ -1513,7 +1529,7 @@ const UI = {
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
-        views: "أقوال العلماء كما وردت في المصادر",
+        generalInfo: "هل تريد معرفة الأحكام العامة من المصادر؟", views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
@@ -1529,7 +1545,7 @@ const UI = {
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
-        views: "Scholars' views as stated in the sources",
+        generalInfo: "Would you like the general rulings from the sources?", views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
@@ -2181,7 +2197,13 @@ function renderAnswer(res, style, context) {
   const statusText = t.status[res.status];
   if (statusText) heading.append(el("span", "status", statusText));
   msg.append(heading);
-  if (res.message) { const m = el("div", "", res.message); m.dir = "auto"; msg.append(m); }
+  // A referral answers first: the referral line and who to ask; what the sources say in general follows, folded,
+  // under a question the user opens (already in the reply: no new request).
+  const referredInfo = res.status === "referred" && (res.claims || []).length > 0;
+  const [firstLine, ...restLines] = (res.message || "").split("\n");
+  if (firstLine) { const m = el("div", "", referredInfo ? firstLine : res.message); m.dir = "auto"; msg.append(m); }
+  const generalFrom = msg.childNodes.length;
+  if (referredInfo && restLines.join(" ").trim()) { const m = el("p", "", restLines.join(" ")); m.dir = "auto"; msg.append(m); }
   // Sources are numbered; each sentence of the answer carries the numbers of the sources it rests on.
   const number = new Map((res.sources || []).map((s, i) => [s.passage_id, i + 1]));
   const cardFor = new Map();
@@ -2286,11 +2308,19 @@ function renderAnswer(res, style, context) {
     }
     msg.append(panel);
   }
+  let general = null;
+  if (referredInfo) {
+    general = el("details", "general-info");
+    const summary = el("summary", "", t.generalInfo); summary.dir = "auto";
+    general.append(summary);
+    while (msg.childNodes.length > generalFrom) general.append(msg.childNodes[generalFrom]);
+  }
+  let next = null;
   if (res.follow_up) {  // Muhawir's suggestion to continue the dialogue: a tap asks it
-    const next = el("button", "follow-up", res.follow_up);
+    next = el("button", "follow-up", res.follow_up);
     next.type = "button"; next.dir = "auto";
     next.addEventListener("click", () => { setQuestionText(res.follow_up); $("ask").requestSubmit(); });
-    msg.append(next);
+    if (!general) msg.append(next);
   }
   if (res.referral && res.referral.title) {  // who to ask when Muhawir refers on: official bodies, opened in a new tab
     const box = el("section", "referral");
@@ -2310,7 +2340,9 @@ function renderAnswer(res, style, context) {
     }
     msg.append(box);
   }
-  if ((res.sources || []).length) msg.append(el("div", "sources-title", t.sources));
+  if (general) msg.append(general);
+  const sourcesHome = general || msg;  // a folded answer keeps its sources with it
+  if ((res.sources || []).length) sourcesHome.append(el("div", "sources-title", t.sources));
   for (const s of res.sources || []) {
     const card = el("details", "card");
     card.open = open || shown.has(s.passage_id);
@@ -2346,9 +2378,10 @@ function renderAnswer(res, style, context) {
       meta.append(" · ", a);
     }
     card.append(meta);
-    msg.append(card);
+    sourcesHome.append(card);
     sourceCards.push(card);
   }
+  if (general && next) msg.append(next);
   const actions = el("div", "tools");
   actions.setAttribute("role", "group");
   actions.setAttribute("aria-label", t.responseActions);
@@ -2444,6 +2477,7 @@ function renderAnswer(res, style, context) {
     sourcesButton.addEventListener("click", () => {
       const expanded = !sourceCards.every((card) => card.open);
       sourceCards.forEach((card) => { card.open = expanded; });
+      if (expanded && general) general.open = true;
       setSourceLabel(expanded);
     });
     actions.append(sourcesButton);
