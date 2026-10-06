@@ -1611,7 +1611,7 @@ const UI = {
         generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
-        topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
+        topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
@@ -1627,7 +1627,7 @@ const UI = {
         generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
-        topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
+        topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
         status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } }
 };
 const $ = (id) => document.getElementById(id);
@@ -1640,6 +1640,7 @@ const welcomeMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let welcomeTypingTimer = null;
 let nextConversationId = 2;
 const MAX_HISTORY = 6;
+let lastAskStatus = 0;
 
 // Conversation history is kept in this browser (localStorage), so a visitor can come back to it. A question and
 // recent turns are sent to /api/ask when asked; there is no account. Each answer is kept as
@@ -1718,6 +1719,12 @@ function logAnswer(conversation, context, res) {
 let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
 let activeRequest = null;
+
+// a link from a reply (or from a conversation kept in this browser) opens only as a web address, never as script
+function safeLink(url) {
+  try { const u = new URL(String(url || ""), location.href); return /^https?:$/.test(u.protocol) ? u.href : "#"; }
+  catch { return "#"; }
+}
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -2564,7 +2571,7 @@ function renderAnswer(res, style, context) {
       for (const link of res.referral.links) {
         const item = el("li");
         const a = el("a", "", link.label);
-        a.href = link.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.href = safeLink(link.url); a.target = "_blank"; a.rel = "noopener noreferrer";
         item.append(a);
         if (link.where) item.append(el("span", "where", ` · ${link.where}`));
         list.append(item);
@@ -2601,7 +2608,7 @@ function renderAnswer(res, style, context) {
     const meta = el("div", "meta", `${t.location}: ${s.location}` + (s.grade ? ` · ${t.grade}: ${s.grade}` : ""));
     if (s.source_url) {
       const a = el("a", "", t.open);
-      a.href = s.source_url; a.target = "_blank"; a.rel = "noopener";
+      a.href = safeLink(s.source_url); a.target = "_blank"; a.rel = "noopener";
       meta.append(" · ", a);
     }
     if (s.kind === "hadith") {  // check this hadith on dorar.net, as dorar's own search box for site owners does
@@ -3017,8 +3024,10 @@ $("ask").addEventListener("submit", async (e) => {
   setQuestionText("");
   scrollDown();
   try {
+    lastAskStatus = 0;
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }), signal: request.controller.signal });
+    lastAskStatus = r.status;
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
     if (request.cancelled) return;
@@ -3039,7 +3048,7 @@ $("ask").addEventListener("submit", async (e) => {
     syncRegenerateButtons();
   } catch {
     if (request.cancelled) return;
-    const errorMessage = el("div", "msg", UI[lang].error);
+    const errorMessage = el("div", "msg", lastAskStatus === 429 ? UI[lang].tooMany : UI[lang].error);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
     pending.replaceWith(errorMessage);

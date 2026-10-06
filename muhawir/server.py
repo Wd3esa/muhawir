@@ -108,8 +108,34 @@ _ask_calls: deque[float] = deque()
 _ask_lock = threading.Lock()
 
 
+# Questions per visitor, so one script cannot spend the prepaid model credit or keep the site busy for everyone.
+# Generous for a person (a question takes 10 to 20 seconds); the address is the peer uvicorn reports, which behind
+# the local Caddy proxy is the visitor's (uvicorn trusts X-Forwarded-For from 127.0.0.1 only).
+ASK_LIMITS = ((60, 20), (3600, 200))  # (seconds, questions)
+_visitor_calls: dict[str, deque[float]] = defaultdict(deque)
+_visitor_lock = threading.Lock()
+
+
+def _allow_question(address: str) -> bool:
+    now = time.monotonic()
+    longest = max(window for window, _ in ASK_LIMITS)
+    with _visitor_lock:
+        calls = _visitor_calls[address]
+        while calls and calls[0] <= now - longest:
+            calls.popleft()
+        if any(sum(1 for t in calls if t > now - window) >= most for window, most in ASK_LIMITS):
+            return False
+        calls.append(now)
+        if len(_visitor_calls) > 5000:  # forget visitors with nothing recent
+            for key in [k for k, v in _visitor_calls.items() if not v]:
+                del _visitor_calls[key]
+        return True
+
+
 @app.post("/api/ask")
-def ask(body: Ask) -> dict:
+def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]  # called directly in tests
+    if not _allow_question(request.client.host if request is not None and request.client else "unknown"):
+        raise HTTPException(status_code=429, detail="Too many questions; please wait a minute", headers={"Retry-After": "60"})
     with _ask_lock:
         now = time.monotonic()
         while _ask_calls and _ask_calls[0] <= now - 60:
