@@ -1570,19 +1570,27 @@ function createRiderStatus(locale) {
   pending.setAttribute("role", "status");
   pending.setAttribute("aria-live", "polite");
   pending.dir = locale === "ar" ? "rtl" : "ltr";
+  pending.dataset.searchPhase = "searching";
   const scholar = el("span", "scholar-visual");
   scholar.setAttribute("aria-hidden", "true");
   pending.append(scholar, el("span", "rider-status-copy", phrase));
   return pending;
 }
 async function completeRiderStatus(pending, response, locale) {
-  const t = UI[locale] || UI.en;
   const outcome = sourceSearchOutcome(response);
   pending.classList.remove("is-searching");
   pending.classList.add(outcome === "found" ? "is-found" : "is-settled");
-  pending.querySelector(".rider-status-copy").textContent = t[outcome];
+  pending.dataset.searchPhase = outcome;
+  translateSearchStatus(pending, lang);
   if (!pending.isConnected) return;
   await new Promise((resolve) => setTimeout(resolve, welcomeMotion.matches ? 350 : 850));
+}
+
+function translateSearchStatus(pending, locale) {
+  const t = UI[locale] || UI.en;
+  const phase = pending.dataset.searchPhase || "searching";
+  pending.dir = locale === "ar" ? "rtl" : "ltr";
+  pending.querySelector(".rider-status-copy").textContent = phase === "searching" ? t.thinking[0] : t[phase];
 }
 
 function renderHistory() {
@@ -1752,9 +1760,12 @@ function applyLang() {
   $("synthetic").textContent = t.synthetic;
   conversations.forEach((conversation) => conversation.messages.forEach((message) => {
     if (message?.responseActions) applyActionTranslations(message);
+    if (message?.classList.contains("rider-status")) translateSearchStatus(message, lang);
+    message?.querySelectorAll(".search-outcome[data-t]").forEach((node) => { node.textContent = t[node.dataset.t]; });
   }));
   renderHistory();
   typeWelcomeKicker();
+  requestAnimationFrame(fitQuestionBox);
 }
 
 function updateThemeToggle() {
@@ -2143,7 +2154,11 @@ function renderAnswer(res, style, context) {
   identity.append(mark, el("span", "", t.assistant));
   heading.append(identity);
   const outcome = sourceSearchOutcome(res);
-  if (outcome !== "settled") msg.append(el("p", "search-outcome", t[outcome]));
+  if (outcome !== "settled") {
+    const searchOutcome = el("p", "search-outcome", t[outcome]);
+    searchOutcome.dataset.t = outcome;
+    msg.append(searchOutcome);
+  }
   const statusText = t.status[res.status];
   if (statusText) heading.append(el("span", "status", statusText));
   msg.append(heading);
