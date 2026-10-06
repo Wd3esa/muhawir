@@ -470,6 +470,27 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   text-align:center;
   animation:arrive .55s ease both
 }
+.kids-list {
+  list-style:none;
+  margin:4px 0 10px;
+  padding:0;
+  display:grid;
+  gap:10px
+}
+.kids-list li {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:color-mix(in srgb,var(--accent) 7%,transparent);
+  line-height:1.8
+}
+.kids-icon {
+  flex:none;
+  font-size:1.35em;
+  line-height:1.4
+}
 .welcome-wordmark {
   width:min(430px,84%);
   margin:0 auto 3px;
@@ -2150,6 +2171,26 @@ function rememberable(res) {
   return !["invalid", "declined", "abstained", "unavailable"].includes(res.status);
 }
 
+// The children's style shows a small picture beside each sentence, chosen from its words. Pictures of things only
+// (water, a mosque, the Quran, the crescent): never a person, a prophet or anything of the unseen. They add nothing
+// to what the sentence says; the information stays in the sourced text. The first match wins: wudu before prayer.
+const KIDS_ICONS = [
+  [/وضوء|توضأ|يتوضأ|نتوضأ|اغسل|يغسل|نغسل|الغسل|(^|[\s،])(بال|ال|و)?ماء([\s.،]|$)|wudu|wash|water/i, "💧"],
+  [/الكعبة|الحج|يحج|مكة|hajj|kaaba|makkah|mecca/i, "🕋"],
+  [/صيام|الصوم|يصوم|نصوم|تصوم|رمضان|الإفطار|السحور|fasting|ramadan/i, "🌙"],
+  [/زكاة|صدقة|الفقراء|الفقير|المحتاج|يتصدق|نتصدق|charity|zakat|the poor/i, "🤝"],
+  [/الدعاء|دعاء|يدعو|ندعو|ادعُ|ادعوا|supplicat|\bdua\b/i, "🤲"],
+  [/صلاة|الصلاة|يصلي|نصلي|تصلي|الصلوات|ركعة|السجود|الركوع|المسجد|pray|mosque/i, "🕌"],
+  [/القرآن|قرآن|سورة|آية|الآيات|quran|qur'an|verse|surah/i, "📖"],
+  [/(^|[\s،])(ال)?علم([\s.،]|$)|يتعلم|نتعلم|تتعلم|learn|knowledge/i, "📚"],
+  [/الوالدين|والديك|والديه|أمك|أبيك|parents|your mother|your father/i, "👨‍👩‍👧"],
+  [/رحمة|يرحم|الرحمن|الرحيم|محبة|يحب|نحب|mercy|merciful|love/i, "💛"],
+];
+function kidsIcon(text) {
+  const hit = KIDS_ICONS.find(([re]) => re.test(text));
+  return hit ? hit[1] : "⭐";
+}
+
 function renderAnswer(res, style, context) {
   const open = style === "extended";
   const t = UI[lang];
@@ -2226,6 +2267,17 @@ function renderAnswer(res, style, context) {
     }
     if (intro.childNodes.length && !intro.parentNode) msg.append(intro);
     if (outro) msg.append(outro);
+  } else if (style === "kids" && sentences.length > 1) {
+    // for children: one short sentence per line, each with a small picture for its subject (no new information)
+    const items = el("ul", "kids-list"); items.dir = "auto";
+    for (const c of sentences) {
+      const li = el("li");
+      const icon = el("span", "kids-icon", kidsIcon(c.text));
+      icon.setAttribute("aria-hidden", "true");
+      const body = el("span"); fill(body, c);
+      li.append(icon, body); items.append(li);
+    }
+    msg.append(items);
   } else {
     const answer = paragraph();
     // types, kinds, conditions or steps: a short lead sentence, then one item per line
