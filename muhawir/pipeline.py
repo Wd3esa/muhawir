@@ -39,6 +39,16 @@ _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
 _VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ةه]\b|\bسور[ةه]\b|\bالقرآن\b|\b(?:verse|ayah|aya|surah|sura|quran|qur'an)\b",
                          re.IGNORECASE)
+# a quotation in the question: «…», ﴿…﴾, "…", or what follows «قوله تعالى:» / «قال الله:» up to the end of the clause
+_QUOTED = re.compile(r"«([^»]{6,200})»|﴿([^﴾]{6,200})﴾|\"([^\"]{6,200})\"|(?:تعالى|قال الله)\s*:?\s*([^«﴿\"؟?.،]{6,200})")
+
+
+def _same_word(a: str, b: str) -> bool:
+    """Two forms of one word («الصابرون»/«الصابرين»): the same letters but for the last one or two."""
+    short = min(len(a), len(b))
+    return short >= 4 and abs(len(a) - len(b)) <= 1 and a[:short - 2] == b[:short - 2]
+
+
 _HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")
 
 
@@ -631,6 +641,43 @@ class Muhawir:
                 return hit.passage
         return None
 
+    def _misquoted(self, question: str) -> tuple[Passage, str] | None:
+        """A verse quoted in the question with a word wrong («إن الله مع الصابرون»): the verse it was meant to be,
+        and the quote as written. Found with no model: the quote's words, all but one equal to a run of the verse's
+        words, and the different word a form of the same word (the same first letters). The answer is not built on
+        the wrong wording; the note shows the verse as it is (EVALUATION.md, Q11; guide p. 6)."""
+        for groups in _QUOTED.findall(question):
+            quoted = next(g for g in groups if g)
+            words = normalize(quoted).split()
+            if len(words) < 3 or self._verse(quoted) is not None:
+                continue
+            for verse in self._near_verses(quoted):
+                verse_words = normalize(verse.text).split()
+                for start in range(len(verse_words) - len(words) + 1):
+                    window = verse_words[start:start + len(words)]
+                    wrong = [(a, b) for a, b in zip(words, window) if a != b]
+                    if len(wrong) == 1 and _same_word(*wrong[0]):
+                        return verse, quoted.strip()
+        return None
+
+    def _near_verses(self, quoted: str) -> list[Passage]:
+        """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
+        holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
+        found = [h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
+        con = getattr(getattr(self.retriever, "corpus", None), "con", None)
+        terms = tokenize(quoted)
+        if con is None or not terms:
+            return found
+        quote = lambda t: '"' + t.replace('"', '""') + '"'  # noqa: E731
+        for i, term in enumerate(terms):
+            if len(term) < 4:
+                continue
+            match = " AND ".join([quote(t) for j, t in enumerate(terms) if j != i] + [quote(term[:-2]) + "*"])
+            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
+                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 20", (match,)).fetchall()
+            found += [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
+        return list({p.id: p for p in found}.values())
+
     def _verse_translation(self, question: str, text: str, target: str, lang: str) -> Response | None:
         """A verse is never translated by the model: the approved translation is quoted with its source card,
         or Muhawir says it found no such verse (Codex audit, 6 October 2026: a model translation of «قل هو الله
@@ -659,6 +706,13 @@ class Muhawir:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
         the answer itself still comes from retrieved passages alone. A referred reply names who to ask."""
         res = self._respond(question, style, lang, history)
+        if res.status in (ANSWERED, ABSTAINED, REFERRED):
+            fix = self._misquoted(question)
+            if fix:
+                verse, quoted = fix
+                line = TEXT[lang if lang in LANGS else "ar"]["misquoted_verse"].format(
+                    where=verse.location, verse=verse.text, quoted=quoted)
+                res.note = f"{line} {res.note}".strip()
         kind = _referral_kind(res, question)
         if kind:
             reply_text = " ".join([res.message, *(c.get("text", "") for c in res.claims)])

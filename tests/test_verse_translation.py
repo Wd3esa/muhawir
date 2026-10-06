@@ -24,7 +24,7 @@ def muhawir(translate: str):
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if '"question"' in keys:
-            return json.dumps({"question": "", "translate": translate, "answer_lang": "en", "queries": []},
+            return json.dumps({"question": "" if translate else "ما معنى الآية؟", "translate": translate, "answer_lang": "en", "queries": []},
                               ensure_ascii=False)
         if '"translation"' in keys:
             seen["model_translated"] += 1
@@ -57,3 +57,15 @@ def test_a_short_common_phrase_that_happens_to_occur_in_a_verse_is_translated_as
     m, seen = muhawir("ماء كثيرا")
     res = m.ask("ترجم ماء كثيرا إلى الإنجليزية")
     assert res.status == TRANSLATED and res.message == WRONG and seen["model_translated"] == 1
+
+
+def test_a_verse_quoted_with_one_word_wrong_gets_a_note_with_the_verse_as_it_is():
+    m, _ = muhawir("")
+    res = m.ask("ما معنى قوله تعالى: «يا ايها النخل اشرب ماء كثيرون»؟")
+    assert "اشْرَبْ مَاءً كَثِيرًا" in res.note and "كثيرون" in res.note and "سورة تجريبية" in res.note
+
+
+def test_a_verse_quoted_correctly_gets_no_note():
+    m, _ = muhawir("")
+    res = m.ask("ما معنى قوله تعالى: «يا ايها النخل اشرب ماء كثيرا»؟")
+    assert "تنبيه" not in res.note

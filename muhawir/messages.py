@@ -15,6 +15,7 @@ TEXT = {
         "small_talk": "أهلًا بك. اكتب سؤالك عن الإسلام، وسأبحث لك عنه في المصادر المعتمدة.",
         "translation_label": "ترجمة لغوية، وليست جوابًا من المصادر.",
         "verse_translation_label": "ترجمة معاني الآية كما هي في الترجمة المعتمدة ({where})، لا ترجمة من مُحاور.",
+        "misquoted_verse": "تنبيه: نص الآية في المصحف ({where}): ﴿{verse}﴾، وليس «{quoted}».",
         "verse_not_found": "لا أترجم آيات القرآن بنفسي، بل أنقل ترجمة معانيها المعتمدة. ولم أجد هذا النص آيةً في المصادر المتاحة لي، "
                            "فتأكد من لفظه أو اكتب اسم السورة ورقم الآية.",
         "crisis": "أنا آسف لأنك تمر بهذا، وما تشعر به مهم، وأنت لست وحدك. أرجوك تحدّث الآن مع شخص تثق به: "
@@ -57,6 +58,7 @@ TEXT = {
         "small_talk": "Welcome. Ask your question about Islam, and I will look for it in the approved sources.",
         "translation_label": "A language translation, not an answer from the sources.",
         "verse_translation_label": "The meaning of the verse as given in the approved translation ({where}), not Muhawir's own translation.",
+        "misquoted_verse": "Note: the verse reads in the Quran ({where}): ﴿{verse}﴾, not «{quoted}».",
         "verse_not_found": "I do not translate verses of the Quran myself; I quote their approved translation. I could not find this "
                            "text as a verse in my sources, so please check its wording or give the surah and verse number.",
         "crisis": "I am sorry you are going through this. What you feel matters, and you are not alone. Please talk now "
