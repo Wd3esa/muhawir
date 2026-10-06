@@ -344,3 +344,34 @@ def test_a_tapped_suggestion_offered_to_the_user_is_asked_as_the_users_question(
     m, seen = model(rewrite="ماذا تحتاج النخلة في الصيف؟")
     m.ask("هل تريد أن تعرف ماذا تحتاج النخلة في الصيف؟")
     assert seen["standalone"] >= 1
+
+
+def test_a_repeated_question_is_answered_from_memory_without_model_calls():
+    m, seen = model()
+    first = m.ask("ماذا تحتاج النخلة في الصيف؟")
+    calls = (seen["standalone"], len(seen["answer_prompts"]))
+    again = m.ask("ماذا تحتاج النخلة في الصيف؟")
+    assert again.status == first.status == ANSWERED and again.claims == first.claims
+    assert (seen["standalone"], len(seen["answer_prompts"])) == calls  # no model call the second time
+    again.claims.clear()  # a copy: changing it does not change what is kept
+    assert m.ask("ماذا تحتاج النخلة في الصيف؟").claims == first.claims
+
+
+def test_memory_is_per_style_and_never_used_inside_a_conversation():
+    m, seen = model()
+    m.ask("ماذا تحتاج النخلة في الصيف؟", style="youth")
+    n = len(seen["answer_prompts"])
+    m.ask("ماذا تحتاج النخلة في الصيف؟", style="kids")
+    assert len(seen["answer_prompts"]) > n  # another style: answered anew
+    n = len(seen["answer_prompts"])
+    m.ask("ماذا تحتاج النخلة في الصيف؟", style="youth", history=HISTORY)
+    assert len(seen["answer_prompts"]) > n  # a follow-up depends on the conversation: answered anew
+
+
+def test_an_unavailable_reply_is_not_kept():
+    m, seen = model(fail_rewrite=True)
+    def down(*_a, **_k):
+        raise RuntimeError("down")
+    m.generator.calls = [("m", down)]
+    assert m.ask("ماذا تحتاج النخلة في الصيف؟").status == "unavailable"
+    assert not m._cache

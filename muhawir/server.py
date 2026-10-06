@@ -115,10 +115,34 @@ async def read_aloud(body: SpeechRequest, request: Request) -> Response:
     return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
 
+_credit: dict = {"at": 0.0, "value": None}
+
+
+def credit_remaining() -> float | None:
+    """Credit left on the main model's OpenRouter key, in US dollars (None when unknown or not OpenRouter).
+    Read from OpenRouter's key endpoint, at most every five minutes; it costs no model call. The credit ran out
+    during testing on 6 October 2026 and the site stopped answering: this shows it coming."""
+    base, key = os.environ.get("OPENAI_COMPAT_BASE_URL", ""), os.environ.get("OPENAI_COMPAT_API_KEY", "")
+    if "openrouter.ai" not in base or not key:
+        return None
+    if time.time() - _credit["at"] < 300:
+        return _credit["value"]
+    value = None
+    try:
+        import httpx
+        r = httpx.get("https://openrouter.ai/api/v1/key", headers={"Authorization": f"Bearer {key}"}, timeout=5)
+        left = r.json().get("data", {}).get("limit_remaining") if r.status_code == 200 else None
+        value = round(float(left), 2) if left is not None else None
+    except Exception:  # noqa: BLE001 - the health reply never fails because of this
+        value = None
+    _credit.update(at=time.time(), value=value)
+    return value
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
-            "passages": len(engine.corpus.passages), "tts": tts.configured()}
+            "passages": len(engine.corpus.passages), "tts": tts.configured(), "credit_usd": credit_remaining()}
 
 
 @app.get("/")

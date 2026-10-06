@@ -6,9 +6,13 @@ stopped, and never answers when retrieval found nothing sufficient.
 """
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import re
+import threading
+import time
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
@@ -35,6 +39,11 @@ SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "ne
 
 ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED = (
     "answered", "abstained", "referred", "declined", "invalid", "chat", "unavailable", "translated")
+# replies kept in memory for a repeated question (Muhawir.ask): answers, referrals, refusals and «not found» only;
+# never «unavailable» or a debug reply. MUHAWIR_CACHE=0 turns it off.
+CACHE_SIZE = int(os.environ.get("MUHAWIR_CACHE", "500") or 0)
+CACHE_SECONDS = 24 * 3600
+CACHED = frozenset({"answered", "referred", "declined", "abstained", "translated"})
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
 _VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ةه]\b|\bسور[ةه]\b|\bالقرآن\b|\b(?:verse|ayah|aya|surah|sura|quran|qur'an)\b",
@@ -425,6 +434,8 @@ class Muhawir:
         self.generator = generator
         self.asbab = AsbabIndex(corpus, self.retriever)
         self.sections = SectionIndex(corpus)
+        self._cache: OrderedDict = OrderedDict()
+        self._cache_lock = threading.Lock()
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -745,7 +756,29 @@ class Muhawir:
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
             history: list[dict] | None = None) -> Response:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
-        the answer itself still comes from retrieved passages alone. A referred reply names who to ask."""
+        the answer itself still comes from retrieved passages alone. A referred reply names who to ask.
+
+        A question asked before with no conversation before it, in the same style and language, gets the same checked
+        reply from memory: no model call, no cost, at once. Each question costs 10 to 20 model calls (about one US
+        cent); visitors and reviewers repeat the suggested questions and the test list (6 October 2026: the prepaid
+        credit ran out). Kept in memory only, never written to disk, and lost on restart."""
+        key = None if history else (normalize(as_question(question or "")), style, lang)
+        if key and key[0] and CACHE_SIZE:
+            with self._cache_lock:
+                hit = self._cache.get(key)
+                if hit and time.time() - hit[0] < CACHE_SECONDS:
+                    self._cache.move_to_end(key)
+                    return copy.deepcopy(hit[1])
+        res = self._ask_once(question, style, lang, history)
+        if key and key[0] and CACHE_SIZE and res.status in CACHED and not res.why:
+            with self._cache_lock:
+                self._cache[key] = (time.time(), copy.deepcopy(res))
+                self._cache.move_to_end(key)
+                while len(self._cache) > CACHE_SIZE:
+                    self._cache.popitem(last=False)
+        return res
+
+    def _ask_once(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
         question = as_question(question)
         res = self._respond(question, style, lang, history)
         if res.status in (ANSWERED, ABSTAINED, REFERRED):
