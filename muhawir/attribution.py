@@ -100,6 +100,11 @@ _VERSE_VERB = {"تأمر": "يأمر", "تنهى": "ينهى", "تنبه": "ين
                "تقول": "يقول"}
 
 
+# «ويذكر أن…», «ويوضح أن…»: a verb of saying with nobody as its subject (5 October evaluation, D14): the reader
+# cannot tell who says it, so the one source the sentence cites is named («ويذكر كتاب «بينات» أن…»)
+_NO_SUBJECT = re.compile(r"^\s*((?:و|ف)?(?:يذكر|يوضح|يوضّح|يبين|يبيّن|يضيف|يقول|يؤكد|يؤكّد|يشير|يرى))\s+(?=(?:إلى\s+)?(?:أن|أنه|أنها|إن)\b)")
+
+
 def without_meta(text: str, passage_ids, corpus, lang: str = "ar") -> str:
     """The sentence with the text named as its own subject replaced by who said it, when that is one person or
     book («الفتوى توضح أن X» → «بيّن الشيخ ابن باز أن X»), and a closing «وهذا ما ورد في الفتوى» removed.
@@ -109,6 +114,11 @@ def without_meta(text: str, passage_ids, corpus, lang: str = "ar") -> str:
     tail = _META_TAIL.search(text)
     if tail and tail.start() > 0:
         text = text[:tail.start()].rstrip(" ،,") + "."
+    bare = _NO_SUBJECT.match(text)
+    if bare:
+        names = credits(passage_ids, corpus)
+        if len(names) == 1:
+            text = f"{bare.group(1)} {names[0]} {text[bare.end():]}"
     verse = _VERSE_LEAD.match(text)
     if verse:
         return f"{_VERSE_VERB[verse.group(1)]} الله تعالى {text[verse.end():]}"

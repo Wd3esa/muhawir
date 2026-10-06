@@ -303,10 +303,18 @@ _EMPTY_WORDS = _POINTERS | frozenset(normalize(w) for w in (
     "and", "to"))
 
 
+def _unfinished(text: str) -> bool:
+    """«أما من قامت عليه الحجة…» with no «فـ» answer after it: the sentence stops half-way (D15, 6 October)."""
+    plain = normalize(text).split()
+    if not plain or plain[0] not in (normalize("أما"), normalize("وأما")):
+        return False
+    return not any(w.startswith("ف") and len(w) > 2 for w in plain[2:])
+
+
 def _says_almost_nothing(text: str) -> bool:
     plain = normalize(text).split()
     words = [w for w in plain if w not in _EMPTY_WORDS]
-    return len(words) < MIN_CONTENT_WORDS and bool(plain) and plain[-1] in _POINTERS
+    return (len(words) < MIN_CONTENT_WORDS and bool(plain) and plain[-1] in _POINTERS) or _unfinished(text)
 
 
 # words that turn an everyday example into a comparison with a religious matter («هذا يشبه الزكاة»)

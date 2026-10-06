@@ -126,3 +126,15 @@ def test_the_verse_as_subject_names_allah():
         == "يأمر الله تعالى بترك ما بقي من الربا إن كنتم مؤمنين."
     assert attribution.without_meta("الآية تنبه إلى أن من لا يترك الربا فليأذن بحرب.", ("z:1",), CORPUS) \
         == "ينبّه الله تعالى إلى أن من لا يترك الربا فليأذن بحرب."
+
+
+def test_a_verb_of_saying_with_no_subject_names_the_source():
+    out = attribution.without_meta("ويذكر أن الأصل أن كل شيء خلقه الله لحكمة.", ("by:1",), CORPUS)
+    assert out == "ويذكر كتاب «بينات» أن الأصل أن كل شيء خلقه الله لحكمة."
+    kept = "ويذكر الطبري أن معنى الابتلاء الاختبار."
+    assert attribution.without_meta(kept, ("by:1",), CORPUS) == kept
+
+
+def test_an_unfinished_amma_sentence_is_dropped():
+    assert _says_almost_nothing("أما من قامت عليه الحجة وعرف الحق لكنه اتبع ما وجد عليه آباءه.")
+    assert not _says_almost_nothing("وأما في الشرع فهو التعبد لله بالإمساك عن المفطرات.")
