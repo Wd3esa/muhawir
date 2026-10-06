@@ -20,8 +20,9 @@ import urllib.request
 QUESTIONS = ["ما هي الزكاة؟", "كيف أتوضأ؟", "ما معنى التوحيد؟", "لماذا نصوم رمضان؟", "ما هي الشفاعة؟",
              "هل لمس المرأة ينقض الوضوء؟"]
 STYLES = ["kids", "youth", "newcomer", "extended"]
-# (most sentences, longest sentence in words) per style, from the style guide in generate.py
-STYLE_LIMITS = {"kids": (5, 14), "youth": (6, 28), "newcomer": (8, 30), "extended": (12, 45)}
+# (most sentences, most list items, longest sentence in words) per style: the sentence caps are those applied in
+# pipeline.STYLE_LIMITS (a list of steps or kinds may hold a few more), the lengths from the style guide in generate.py
+STYLE_LIMITS = {"kids": (5, 7, 14), "youth": (6, 10, 28), "newcomer": (8, 10, 30), "extended": (12, 16, 45)}
 HARD_FOR_KIDS = ["النصاب", "الحول", "المذاهب", "الجمهور", "الحنفية", "المالكية", "الشافعية", "الحنابلة", "مكروه",
                  "مستحب", "الإجماع", "القياس", "الاستنجاء", "الحدث", "نجاسة", "يجزئ", "تجزئ"]
 
@@ -35,8 +36,8 @@ def ask(url: str, question: str, style: str) -> tuple[dict, float]:
 
 
 def sentences(res: dict) -> list[str]:
-    out = [c["text"] for c in res.get("claims", [])] + [f"{v['school']}: {v['text']}" for v in res.get("views", [])]
-    return [s for s in out if s.strip()]
+    """The answer's own sentences; the scholars' views are shown apart and counted apart."""
+    return [c["text"] for c in res.get("claims", []) if c["text"].strip()]
 
 
 def words(text: str) -> list[str]:
@@ -77,9 +78,10 @@ def main() -> None:
             lens = [len(words(s)) for s in sents] or [0]
             hard = [w for w in HARD_FOR_KIDS if w in answers[style]] if style == "kids" else []
             credit = sum(s.startswith("بحسب") for s in sents)
-            most, longest = STYLE_LIMITS[style]
+            prose, items, longest = STYLE_LIMITS[style]
+            most = items if res.get("as_list") else prose
             out(f"\n=== {q} [{style}] status: {res['status']} ({secs:.0f}s)")
-            out(f"sentences: {len(sents)} · average words: {sum(lens) / len(lens):.0f} · longest: {max(lens)}"
+            out(f"{'list items' if res.get('as_list') else 'sentences'}: {len(sents)} · views: {len(res.get('views', []))} · average words: {sum(lens) / len(lens):.0f} · longest: {max(lens)}"
                 + (f" · hard words: {'، '.join(hard)}" if hard else "") + (f" · «بحسب…» lines: {credit}" if credit else ""))
             for s in sents:
                 out(f"- {s}")
