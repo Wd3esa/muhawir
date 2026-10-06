@@ -5,56 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>مُحاور</title>
 <style>
+@font-face {
+  font-family:"Muhawir Arabic";
+  src:url("/fonts/NotoSansArabic-Regular.ttf") format("truetype");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap
+}
+@font-face {
+  font-family:"Muhawir Arabic";
+  src:url("/fonts/NotoSansArabic-Bold.ttf") format("truetype");
+  font-style:normal;
+  font-weight:700;
+  font-display:swap
+}
 
   :root {
   color-scheme:light;
-  --bg:#F7F5FE;
-  --panel:#fff;
-  --sidebar:#F2F4FF;
-  --ink:#0E153F;
-  --muted:#4A5590;
-  --muted-soft:#8E99CC;
-  --line:#7E8BAF;
-  --accent:#6150EA;
-  --accent-ink:#fff;
-  --accent-soft:#E0D9FB;
-  --mint:#2EF2C2;
-  --deep:#12183F;
-  --indigo:#2D3775;
-  --warn-bg:#E0D9FB;
-  --warn-ink:#2D3775;
-  --card:#F2F4FF;
-  --mine:#E0D9FB;
-  --shadow:0 10px 34px rgba(18,24,63,.09);
-  --focus:#6150EA;
-  --glow-mint:rgba(46,242,194,.36);
-  --glow-violet:rgba(97,80,234,.29)
+  --bg:#F5F3EF;
+  --panel:#FFFFFF;
+  --sidebar:#EFF1EF;
+  --ink:#172433;
+  --muted:#3B4B59;
+  --muted-soft:#536577;
+  --line:#7B8A98;
+  --accent:#1D5A61;
+  --accent-ink:#FFFFFF;
+  --accent-soft:#E7EEEA;
+  --mint:#1D5A61;
+  --deep:#172433;
+  --indigo:#3B4B59;
+  --warn-bg:#FFF1D7;
+  --warn-ink:#62410B;
+  --card:#FFFFFF;
+  --mine:#E7EEEA;
+  --shadow:0 10px 32px rgba(23,36,51,.08);
+  --focus:#1D5A61;
+  --glow-mint:rgba(29,90,97,.17);
+  --glow-violet:rgba(109,143,146,.13)
 }
 
   @media(prefers-color-scheme:dark) {
   :root {
     color-scheme:dark;
-    --bg:#131E43;
-    --panel:#1B2850;
-    --sidebar:#19254B;
-    --ink:#FAFBFF;
-    --muted:#CDD6F1;
-    --muted-soft:#AAB9DF;
-    --line:#6074A5;
-    --accent:#55F0CD;
-    --accent-ink:#0E153F;
-    --accent-soft:#294364;
-    --mint:#55F0CD;
-    --deep:#131E43;
-    --indigo:#AAB9DF;
-    --warn-bg:#344775;
-    --warn-ink:#FAFBFF;
-    --card:#22325B;
-    --mine:#344775;
-    --shadow:0 10px 34px rgba(0,0,0,.22);
-    --focus:#55F0CD;
-    --glow-mint:rgba(85,240,205,.48);
-    --glow-violet:rgba(139,110,255,.55)
+    --bg:#192434;
+    --panel:#253447;
+    --sidebar:#1D2A3A;
+    --ink:#F4F6F8;
+    --muted:#D4DFE9;
+    --muted-soft:#BACAD6;
+    --line:#8D9EAF;
+    --accent:#B8DFDD;
+    --accent-ink:#192434;
+    --accent-soft:#314456;
+    --mint:#B8DFDD;
+    --deep:#192434;
+    --indigo:#D4DFE9;
+    --warn-bg:#493E2A;
+    --warn-ink:#FFF1D7;
+    --card:#253447;
+    --mine:#314456;
+    --shadow:0 10px 34px rgba(0,0,0,.2);
+    --focus:#B8DFDD;
+    --glow-mint:rgba(184,223,221,.19);
+    --glow-violet:rgba(132,167,184,.16)
   }
 }
 
@@ -65,7 +79,7 @@ body {
   margin:0;
   background:var(--bg);
   color:var(--ink);
-  font:16px/1.75 system-ui,"Noto Sans Arabic",Tahoma,sans-serif
+  font:16px/1.75 "Muhawir Arabic",system-ui,Tahoma,sans-serif
 }
 button,textarea,select {
   font:inherit
@@ -318,7 +332,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   z-index:-1;
   overflow:hidden;
   pointer-events:none;
-  background:radial-gradient(ellipse 60% 45% at 92% 8%,rgba(46,242,194,.16),transparent 78%),radial-gradient(ellipse 65% 54% at 5% 65%,rgba(97,80,234,.17),transparent 78%)
+  background:radial-gradient(ellipse 60% 45% at 92% 8%,var(--glow-mint),transparent 78%),radial-gradient(ellipse 65% 54% at 5% 65%,var(--glow-violet),transparent 78%)
 }
 .ambient::before,.ambient::after {
   content:"";
@@ -369,9 +383,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   justify-content:space-between;
   gap:16px;
   padding:0 clamp(18px,3.4vw,48px);
-  border-bottom:1px solid color-mix(in srgb,var(--line) 68%,transparent);
-  background:color-mix(in srgb,var(--bg) 67%,transparent);
-  backdrop-filter:blur(18px)
+  border-bottom:1px solid var(--line);
+  background:var(--panel)
 }
 .topbar-start,.topbar-tools {
   min-width:0;
@@ -432,7 +445,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   margin:12px auto 0;
   width:min(850px,calc(100% - 40px));
   padding:8px 12px;
-  border:1px solid color-mix(in srgb,#6150EA 20%,transparent);
+  border:1px solid var(--line);
   border-radius:12px;
   background:color-mix(in srgb,var(--warn-bg) 83%,transparent);
   color:var(--warn-ink);
@@ -591,7 +604,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   border-radius:18px 18px 5px 18px;
   padding:11px 17px;
   white-space:pre-line;
-  background:color-mix(in srgb,var(--mine) 91%,transparent);
+  background:var(--mine);
   color:var(--ink);
   box-shadow:0 3px 12px rgba(44,67,56,.035);
   animation:arrive .25s ease both
@@ -601,7 +614,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   padding:20px 22px;
   border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
   border-radius:18px;
-  background:color-mix(in srgb,var(--panel) 91%,transparent);
+  background:var(--panel);
   color:var(--ink);
   box-shadow:0 8px 28px rgba(38,60,49,.055);
   white-space:pre-line;
@@ -704,7 +717,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   margin-inline-end:6px
 }
 .card {
-  background:color-mix(in srgb,var(--card) 85%,transparent);
+  background:var(--card);
   border:1px solid var(--line);
   border-radius:13px;
   padding:11px 14px;
@@ -1083,12 +1096,6 @@ a {
     scroll-behavior:auto!important;
     animation-duration:.01ms!important;
     transition-duration:.01ms!important
-  }
-}
-
-  @media(prefers-color-scheme:dark) {
-  .ambient {
-    background:radial-gradient(ellipse 62% 52% at 94% 9%,rgba(85,240,205,.16),transparent 78%),radial-gradient(ellipse 67% 55% at 3% 67%,rgba(139,110,255,.20),transparent 78%)
   }
 }
 
