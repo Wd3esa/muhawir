@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Learn to build an evidence-grounded AI product with Muhawir: animated architecture, algorithms, tradeoffs and hands-on lessons.">
+  <title>How Muhawir works · A practical AI classroom</title>
+  <link rel="stylesheet" href="/learning/style.css">
+  <script src="/learning/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#classroom">Skip to the lesson</a>
+  <header class="topbar"><a class="brand" href="/">مُحاور <span>Muhawir</span></a><nav aria-label="Page navigation"><a href="#architecture">Architecture</a><a href="#course">Classroom</a><a href="/">Back to chat ↗</a></nav></header>
+  <main id="classroom">
+    <section class="hero">
+      <p class="eyebrow">FROM IDEA TO RUNNING PRODUCT</p>
+      <h1>Build an AI product.<br><span>Understand every connection.</span></h1>
+      <p class="intro">Muhawir explains Islamic topics using approved passages. This classroom follows the real project from source data to a checked answer—and from a local test to a hosted website.</p>
+      <div class="hero-actions"><a class="primary button" href="#architecture">Explore the animated system ↓</a><a class="button" href="#course">Start the 10 practical lessons</a></div>
+      <div class="principles"><p><strong>Retrieve</strong>Find passages before writing.</p><p><strong>Ground</strong>Connect each claim to evidence.</p><p><strong>Check</strong>Verify before displaying.</p><p><strong>Abstain</strong>Stop when support is missing.</p></div>
+      <p class="notice">This page runs static simulations. It sends no questions to the model and consumes no model credit. A checked answer still needs scholarly judgment; AI checks are not a guarantee of correctness.</p>
+    </section>
+    <section id="architecture" class="section">
+      <div class="section-heading"><div><p class="eyebrow">01 / FOLLOW THE SYSTEM</p><h2>Three maps. One product.</h2></div><p>Choose a map, play a scenario, then select any component to see how it works and why it was chosen.</p></div>
+      <div id="tabs" class="tabs" role="tablist" aria-label="Architecture view"></div>
+      <div class="workspace" id="workspace">
+        <div class="map-side" id="map-panel" role="tabpanel" tabindex="0">
+          <div class="map-heading"><h3 id="view-title"></h3><p id="view-subtitle"></p></div>
+          <div class="controls">
+            <label>Scenario<select id="scenario"></select></label>
+            <div class="transport"><button id="play" class="primary" type="button">Play</button><button id="step" type="button">Step</button><button id="restart" type="button">Restart</button></div>
+          </div>
+          <div class="legend" aria-label="Component categories"><span class="ai">AI</span><span class="hybrid">Hybrid</span><span class="software">Software</span><span class="data">Data</span><span class="infrastructure">Infrastructure</span><span class="optional">Optional branch</span></div>
+          <div id="diagram" class="diagram"><svg id="wires" aria-hidden="true"></svg><div id="nodes" class="nodes"></div></div>
+          <div class="narrator"><span id="step-number" class="step-number"></span><div><strong id="step-title"></strong><p id="step-description"></p></div></div>
+          <p id="outcome" class="outcome"></p>
+          <p class="map-note">Arrows show connections, not measured timing. Pausing stops motion. Retries and shortcuts are simplified; select a component for the code details.</p>
+        </div>
+        <aside id="detail" class="detail" aria-labelledby="detail-title"></aside>
+      </div>
+      <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+      <details class="catalog"><summary>Find a technology or algorithm <span id="component-count"></span></summary><label for="search">Search the component explanations</label><input id="search" type="search" placeholder="Try BM25, cosine, Python, cache, speech…"><div id="catalog-list" class="catalog-list"></div></details>
+    </section>
+    <section id="ranking" class="section lab-section">
+      <div class="section-heading"><div><p class="eyebrow">02 / TRY AN ALGORITHM</p><h2>Why combine two searches?</h2></div><p>A toy example of reciprocal rank fusion (RRF). These are invented passage labels, not religious evidence.</p></div>
+      <div class="lab-grid"><div><p><strong>BM25</strong> ranks word matches. <strong>Embeddings + cosine similarity</strong> rank semantic proximity. Muhawir can combine their ranks with <code>score = Σ 1 / (60 + rank)</code>.</p><p>The ranking below shows what changes when the optional vector branch is included. It does not calculate embeddings or compare the meaning of real passages.</p><label class="toggle"><input id="semantic" type="checkbox" checked> Include semantic ranking</label><p class="notice">A higher score means “retrieve earlier”, not “religiously correct”. Passage coverage, citation checks and support review still follow.</p></div><div class="table-wrap"><table><caption>Invented retrieval lists → combined ranking</caption><thead><tr><th scope="col">Passage</th><th scope="col">BM25 rank</th><th scope="col">Semantic rank</th><th scope="col">RRF score</th></tr></thead><tbody id="rank-results"></tbody></table></div></div>
+    </section>
+    <section id="course" class="section">
+      <div class="section-heading"><div><p class="eyebrow">03 / LEARN BY BUILDING</p><h2>Your practical classroom, A to Z.</h2></div><p>Work in your own local copy. Start with synthetic data and fake model tests, then learn what changes for a real deployment.</p></div>
+      <p class="course-note">Instructor’s rule: ask the student to predict the result, run the local exercise, and explain the evidence. A green test proves that case, not every future answer. Commands assume Python 3.11 and a Linux/WSL terminal; keep secrets out of Git.</p>
+      <div id="lessons" class="lessons"></div>
+    </section>
+    <section class="section decisions">
+      <p class="eyebrow">04 / THE ENGINEERING DECISION</p><h2>Why this approach?</h2>
+      <p>For this product, an answer needs traceable religious evidence. <strong>Retrieval-augmented generation (RAG)</strong> gives the writer selected passages and keeps their IDs attached to claims. Python and FastAPI connect the pieces; SQLite and a small browser interface keep the first deployment manageable.</p>
+      <div class="decision-grid"><article><h3>Why not a model alone?</h3><p>It can produce fluent answers from memory without proving their source. RAG adds auditable evidence, but retrieval can still miss or misinterpret it.</p></article><article><h3>Why not fine-tuning first?</h3><p>Fine-tuning can teach style or behaviour. It does not replace a current source database or per-claim evidence. This project uses prompts and retrieval, not model training.</p></article><article><h3>Why not only search?</h3><p>A search engine shows passages with less generation risk. A writer helps with language, follow-ups and explanation; that extra capability requires extra checks and credit.</p></article><article><h3>When should the stack change?</h3><p>Many server replicas may need Redis, a shared database and durable monitoring. A larger interface may benefit from a framework. Introduce them for a measured need, then test the tradeoff.</p></article></div>
+    </section>
+  </main>
+  <footer><p>A teaching map of the Muhawir code—not a live trace or a certification of an answer.</p><a href="https://github.com/Wd3esa/muhawir">Read the project on GitHub ↗</a><a href="/">Return to Muhawir ↗</a></footer>
+  <noscript><p class="notice">Enable JavaScript for the interactive maps. The introductory explanation remains available; the full architecture is also documented in <a href="https://github.com/Wd3esa/muhawir/blob/main/docs/ARCHITECTURE.md">GitHub</a>.</p></noscript>
+</body>
+</html>

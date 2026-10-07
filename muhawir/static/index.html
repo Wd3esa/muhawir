@@ -1490,6 +1490,8 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 .welcome-wordmark { width:min(260px,65%); }
 .welcome-wordmark svg { filter:none; }
 .welcome-description { max-width:460px; margin:18px auto 16px; color:var(--muted); font-size:15px; line-height:1.9; text-wrap:pretty; }
+.learning-link { display:inline-block; color:var(--muted); font-size:12px; text-underline-offset:4px; margin:8px 0; }
+.learning-link:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 .welcome-kicker { white-space:normal; margin-bottom:0; color:var(--ink); }
 .msg:not(.pending) { border:0; background:transparent; box-shadow:none; padding-inline:0; }
 #ask { display:flex; align-items:flex-end; gap:8px; padding:8px; box-shadow:none; backdrop-filter:none; }
@@ -1544,6 +1546,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
     <nav class="history-list" id="historyList" aria-label=""></nav>
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
+    <a class="learning-link" href="/how-it-works" data-t="howItWorks"></a>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
@@ -1573,6 +1576,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
             <path d="m 234.98977,210.7 q -7.92,0 -18.9,-4.14 -10.98,-4.32 -15.48,-8.82 16.74,-4.86 36.36,-12.6 19.62,-7.74 30.06,-13.68 l 3.96,-10.44 5.4,0.72 q -1.8,12.06 -7.02,23.22 -5.22,11.16 -14.04,18.54 -8.64,7.2 -20.34,7.2 z"/>
           </svg><span class="sr-only">مُحاور</span></h2>
           <p class="welcome-description" data-t="welcomeDescription"></p>
+          <a class="learning-link" href="/how-it-works" data-t="howItWorks"></a>
           <p class="welcome-kicker"><span class="welcome-kicker-measure" data-t="welcomeKicker" aria-hidden="true"></span><span class="welcome-kicker-typed" aria-hidden="true"></span><span class="sr-only" data-t="welcomeKicker"></span></p>
 
         </div>
@@ -1597,7 +1601,7 @@ const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
+        welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", howItWorks: "كيف يعمل مُحاور؟ · دليل تعليمي", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
@@ -1612,7 +1616,7 @@ const UI = {
   en: { lang: "Language", tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
-        welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
+        welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", howItWorks: "How Muhawir works · Learning guide", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",

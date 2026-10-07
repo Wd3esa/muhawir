@@ -1,0 +1,1187 @@
+{
+  "nodes": [
+    {
+      "id": "request",
+      "title": "A message enters",
+      "kind": "Software",
+      "summary": "Text, style, language and recent conversation turns.",
+      "how": "The HTML/CSS/JavaScript client sends JSON to FastAPI. Follow-up history helps interpret the question; it is not religious evidence. Browser localStorage keeps the conversation on the visitor’s device.",
+      "why": "A small browser client ships quickly and has few dependencies.",
+      "alternative": "React or Vue can help a larger interface; neither makes the answers more reliable.",
+      "exercise": "Open the browser Network panel on your local synthetic demo. Inspect the request shape and the returned source cards.",
+      "files": [
+        "muhawir/static/index.html",
+        "muhawir/server.py"
+      ]
+    },
+    {
+      "id": "budget",
+      "title": "Validate & limit",
+      "kind": "Software",
+      "summary": "Reject invalid requests before paid work.",
+      "how": "Pydantic validates question length, role, style and language. A global rolling-minute limit and bounded semaphore protect the answer endpoint. Defaults are 60 requests/minute and four active requests, configurable on the server.",
+      "why": "Cheap checks stop malformed cache variants and reduce accidental concurrent spending.",
+      "alternative": "A gateway or Redis limiter suits multiple replicas. This in-process limiter is per process, not a distributed spending cap.",
+      "exercise": "Run the rate-limit and invalid-variant tests. Observe HTTP 429 and 422 without a model call.",
+      "files": [
+        "muhawir/server.py",
+        "tests/test_audit_regressions.py"
+      ]
+    },
+    {
+      "id": "cache",
+      "title": "Reuse a checked reply",
+      "kind": "Software",
+      "summary": "Memory → disk → in-flight deduplication.",
+      "how": "A normalized question, style and language form the key only when there is no previous conversation. OrderedDict keeps a bounded LRU-style memory cache with expiry. SQLite keeps versioned replies across restarts. A lock makes identical simultaneous questions share one new answer.",
+      "why": "Reuse avoids paying again and makes repeat questions faster. Code, source-file metadata and model settings help invalidate the disk cache.",
+      "alternative": "Redis is useful across servers. Caching follow-ups by question alone could return an answer about the wrong earlier subject.",
+      "exercise": "Compare a fresh question with its repeated copy on the synthetic local demo. Then inspect the cache-capacity regression test.",
+      "files": [
+        "muhawir/pipeline.py",
+        "muhawir/server.py"
+      ]
+    },
+    {
+      "id": "rules",
+      "title": "Fixed safety routes",
+      "kind": "Software",
+      "summary": "Some messages do not need a language model.",
+      "how": "Regex and deterministic classification detect crisis language, greetings, override attempts, judging people and personal cases. Crisis and small-talk responses can return immediately. Personal cases and contemporary finance require specialist referral; this is not a replacement for professional help. The asbab index can report a missing reason of revelation directly.",
+      "why": "A model should not decide whether to ignore the product’s basic boundaries.",
+      "alternative": "Model-only moderation can understand more nuances but costs calls and can vary. Rules also miss paraphrases; they are a guard, not a guarantee.",
+      "exercise": "Run crisis, override and personal-case tests; compare a personal crisis with a general question about a topic.",
+      "files": [
+        "muhawir/classify.py",
+        "muhawir/asbab.py",
+        "muhawir/referrals.py",
+        "tests/test_chat.py"
+      ]
+    },
+    {
+      "id": "understand",
+      "title": "Understand the message",
+      "kind": "AI",
+      "summary": "Two parallel readings expand the search vocabulary.",
+      "how": "The model creates a neutral standalone question, question kind, answer language and search phrases. Two understanding calls run in parallel; the first usable interpretation is kept and phrases are merged, up to 14. Re-explanation can lower the explanation style. Model recall is used to search, not to answer.",
+      "why": "People ask follow-ups and use words unlike the sources’ own wording.",
+      "alternative": "One call saves credit; two increase phrase diversity. A classifier alone is cheaper but weaker for open-ended Arabic dialogue.",
+      "exercise": "Read UNDERSTAND_PROMPT and its JSON schema. Write a follow-up that needs prior context; predict the standalone question.",
+      "files": [
+        "muhawir/generate.py",
+        "muhawir/pipeline.py"
+      ]
+    },
+    {
+      "id": "retrieve",
+      "title": "Retrieve evidence",
+      "kind": "Hybrid",
+      "summary": "Lexical search + optional semantic search.",
+      "how": "Arabic normalization removes diacritics and unifies letters for matching only. FTS5 prefers exact phrases, then long contiguous subphrases and BM25 word matches. Query results are interleaved. Section openers, neighbours and source-specific synonyms improve context; a confusable-term filter protects terms such as qard/qirad. Optional cosine vector results are fused with BM25 using RRF, K=60. Coverage and later verification still gate the evidence.",
+      "why": "Exact wording matters for quotations; embeddings help related wording. Neither relevance score proves the claim is true.",
+      "alternative": "BM25 alone is leaner and is the fallback. Vector-only search can find a neighbouring topic. A separate vector database is useful at a scale this local index does not yet require.",
+      "exercise": "Use the ranking lab below. Then run retrieval tests with fake vectors; do not build embeddings merely to test the page.",
+      "files": [
+        "muhawir/normalize.py",
+        "muhawir/store.py",
+        "muhawir/vectors.py",
+        "muhawir/sections.py",
+        "muhawir/pipeline.py"
+      ]
+    },
+    {
+      "id": "draft",
+      "title": "Write a structured draft",
+      "kind": "AI",
+      "summary": "A plan, sourced claims, views and a follow-up.",
+      "how": "Prompt instructions separate the question from evidence. Each claim carries passage_ids; section, label and school are structured fields. Kids, youth, newcomer and extended styles change wording, not the source requirement. JSON is parsed defensively; malformed output can fall back to another provider.",
+      "why": "Structured claims let software verify citations before the interface displays them.",
+      "alternative": "Free-form text is harder to check. Fine-tuning changes model behaviour but does not give an auditable source for each new sentence.",
+      "exercise": "Inspect SYSTEM_PROMPT and parse_draft. Give the parser claims: 17 and verify it rejects the malformed collection safely.",
+      "files": [
+        "muhawir/generate.py",
+        "tests/test_model.py"
+      ]
+    },
+    {
+      "id": "verify",
+      "title": "Check in ordinary code",
+      "kind": "Software",
+      "summary": "Retrieved IDs, quotations, names and ruling words.",
+      "how": "The verifier rejects citations outside the offered set and quotations absent from cited text. It checks every named scholar and school alias, including source-author attribution. Displayed headings and labels are checked too. Pipeline cleanup resolves uniquely truncated IDs and removes explicit inference tails; copy-heavy or incomplete claims can be rejected.",
+      "why": "Literal checks are repeatable and do not depend on another model’s opinion.",
+      "alternative": "A citation’s existence alone says nothing about whether it supports the sentence. String matching also cannot fully verify a paraphrase’s meaning.",
+      "exercise": "Run the composite-attribution and invented-heading-quote tests; see why a valid passage ID is not enough.",
+      "files": [
+        "muhawir/verify.py",
+        "muhawir/attribution.py",
+        "muhawir/pipeline.py",
+        "tests/test_audit_regressions.py"
+      ]
+    },
+    {
+      "id": "review",
+      "title": "Read against the passage",
+      "kind": "AI",
+      "summary": "Check support, relevance and textual evidence.",
+      "how": "By default each claim is checked in a separate model call, with configurable parallelism. The reader sees the full displayed claim, cited passages and neutral question. It names a defect and can supply evidence that code checks against the passage. Initially rejected claims get a second reading; rejection survives when both reject. Everyday examples also need a no-religious-information check and support. If a required check cannot run, the reply is unavailable.",
+      "why": "This catches meaning errors that quotation matching cannot, such as reversing a negation.",
+      "alternative": "Batch checking saves calls but may be more lenient; the code supports it as a setting. The reader may be the same model family as the writer, so errors can correlate. Expert review remains necessary.",
+      "exercise": "Read a real_check fake-provider test. Distinguish a quote check from a support check and from a human scholarly review.",
+      "files": [
+        "muhawir/generate.py",
+        "muhawir/pipeline.py",
+        "tests/test_model.py"
+      ]
+    },
+    {
+      "id": "relevance",
+      "title": "Check the whole answer",
+      "kind": "Hybrid",
+      "summary": "Does the supported answer address this question?",
+      "how": "A further model judgment sees the question, checked claims and source locations. Off-topic answers are not shown. Partial or badly damaged drafts may get one full rewrite, which is checked again. A separate bounded retry can ask for different search phrases. An unavailable relevance judge does not replace the two required checks.",
+      "why": "A true statement from the wrong chapter is still a poor answer.",
+      "alternative": "Unbounded agent loops could consume the prepaid balance. One bounded rewrite and search retry trade completeness for predictable work.",
+      "exercise": "Trace _write and _retry. Identify the distinction between no supporting evidence and a provider outage.",
+      "files": [
+        "muhawir/pipeline.py",
+        "muhawir/generate.py"
+      ]
+    },
+    {
+      "id": "answer",
+      "title": "Show evidence & outcome",
+      "kind": "Software",
+      "summary": "Answer, abstention, referral or honest outage.",
+      "how": "The page displays checked explanation and original source cards. Approved English Quran translations are attached by verse ID rather than generated as quotations. The verse matcher can point out a misquotation. A changed interpretation asks for user confirmation; rejecting it removes persisted context. Specialist referrals, explanatory examples and source-search status stay distinct.",
+      "why": "Users need to inspect where the words came from and see limits clearly.",
+      "alternative": "Showing an attractive answer without the source passages hides what can actually be checked. An abstention is preferable to filling a gap from model memory.",
+      "exercise": "Open the synthetic source cards and reject an interpreted question; reopen the saved conversation and check it stays rejected.",
+      "files": [
+        "muhawir/static/index.html",
+        "muhawir/translation.py",
+        "muhawir/referrals.py",
+        "muhawir/pipeline.py"
+      ]
+    },
+    {
+      "id": "save",
+      "title": "Keep reusable responses",
+      "kind": "Software",
+      "summary": "Checked output, not a guarantee of correctness.",
+      "how": "Eligible responses are kept with a cache version; outages and debug replies are not reused. Memory bounds apply to both fresh answers and disk reads. The disk answer store keeps response JSON, including any interpretation returned in it. Browser conversation history and server answer caching are different stores.",
+      "why": "Persistent caching protects quota across service restarts.",
+      "alternative": "Storing nothing protects against stale reuse but forces repeat generation. Retention and deletion need explicit operational choices.",
+      "exercise": "Read AnswerStore._key, get and put. Find why editing a checked-content module changes the store version.",
+      "files": [
+        "muhawir/pipeline.py",
+        "muhawir/server.py"
+      ]
+    },
+    {
+      "id": "sources",
+      "title": "Choose approved sources",
+      "kind": "Data",
+      "summary": "A curated corpus, provenance and usage terms.",
+      "how": "The corpus includes Quran, approved English meanings, tafsir, reasons of revelation, Sahihayn, comparative fiqh, sira, early creed books, attributed fatwas and Bayyinat. SOURCES.md records editions and acquisition details; LICENSES.md records usage terms. Religious answers are restricted to this prepared corpus.",
+      "why": "The evidence boundary is a product requirement, not a search-engine preference.",
+      "alternative": "Open web search broadens coverage but introduces changing pages and unapproved sources. More material is not automatically better evidence.",
+      "exercise": "Read SOURCES.md. For one collection, record its owner, edition, source URL, parser and attribution.",
+      "files": [
+        "SOURCES.md",
+        "LICENSES.md",
+        "muhawir/build_data.py"
+      ]
+    },
+    {
+      "id": "download",
+      "title": "Acquire source files",
+      "kind": "Data",
+      "summary": "An explicit build step, not browsing during an answer.",
+      "how": "build_data coordinates downloads and local source files. Inputs include compressed JSON, text dumps and PDF-derived material; PyMuPDF supports PDF extraction. Originals and built databases are not bundled as religious text in GitHub. Optional human-supplied material can be required when a site blocks automated download.",
+      "why": "Download once, preserve provenance, then retrieve from a local index predictably.",
+      "alternative": "Downloading during each answer adds latency, fragility and an uncontrolled evidence boundary.",
+      "exercise": "Inspect the downloader without running it. Distinguish source downloads from paid model requests.",
+      "files": [
+        "muhawir/build_data.py",
+        "muhawir/bayyinat.py",
+        "requirements.txt"
+      ]
+    },
+    {
+      "id": "parse",
+      "title": "Parse each collection",
+      "kind": "Data",
+      "summary": "Source-specific importers preserve structure.",
+      "how": "quranpedia, sahihayn, bidaya, sira, asbab, aqeedah, fatawa, bayyinat and translation importers turn different formats into a common corpus. They preserve verse/hadith or book locations and author metadata instead of treating every collection as plain prose.",
+      "why": "One generic parser can lose boundaries needed for citation and context.",
+      "alternative": "A document framework is useful for many formats, but its default chunking and metadata still need auditing for these sources.",
+      "exercise": "Open two importers. Compare a verse identifier with a fiqh passage identifier and location.",
+      "files": [
+        "muhawir/quranpedia.py",
+        "muhawir/sahihayn.py",
+        "muhawir/bidaya.py",
+        "muhawir/sira.py",
+        "muhawir/asbab.py",
+        "muhawir/aqeedah.py",
+        "muhawir/fatawa.py",
+        "muhawir/bayyinat.py",
+        "muhawir/translation.py"
+      ]
+    },
+    {
+      "id": "chunks",
+      "title": "Preserve meaningful passages",
+      "kind": "Data",
+      "summary": "Text stays original; matching gets a separate token form.",
+      "how": "Importers create source-aware passages and stable IDs. Fiqh chunks can retain neighbouring section relationships. The original text is displayed verbatim; normalized tokens and topical keywords are for retrieval. The local embedder limits text to 512 model tokens, a separate limit from source-aware corpus chunking.",
+      "why": "Blind fixed-size slicing can split a ruling from its evidence or attribution.",
+      "alternative": "Overlapping generic chunks are a useful baseline. They are easier to build but can duplicate results or split a scholarly discussion.",
+      "exercise": "Inspect one synthetic passage: ID, source_id, location, text, kind and keywords. Explain which fields the user can verify.",
+      "files": [
+        "muhawir/corpus.py",
+        "muhawir/bidaya.py",
+        "muhawir/store.py",
+        "muhawir/vectors.py"
+      ]
+    },
+    {
+      "id": "validate",
+      "title": "Validate the corpus",
+      "kind": "Software",
+      "summary": "Reject invalid or incomplete data before release.",
+      "how": "Corpus validation checks required fields, duplicate IDs and source references. Importer tests check source-specific counts and text preservation. Production refuses to silently replace a missing source database with the tiny synthetic corpus; deliberate synthetic model development requires an explicit override.",
+      "why": "A healthy HTTP process is not enough if its evidence is missing.",
+      "alternative": "Loading partially corrupt data makes the app appear ready while answering from the wrong collection.",
+      "exercise": "Run test_core, test_store and importer tests. The real Quran dump test needs an external file; a skipped test is not a passed test.",
+      "files": [
+        "muhawir/corpus.py",
+        "muhawir/store.py",
+        "muhawir/server.py",
+        "tests/test_quranpedia.py"
+      ]
+    },
+    {
+      "id": "database",
+      "title": "SQLite corpus",
+      "kind": "Data",
+      "summary": "One local disk-backed database.",
+      "how": "muhawir.db contains source metadata, passages, translations and an FTS5 table. The builder validates first, writes a temporary database and replaces the destination after building it. Each search loads needed passages rather than the whole corpus.",
+      "why": "SQLite keeps operations and memory requirements small for a single-machine corpus.",
+      "alternative": "PostgreSQL suits shared writes and multiple application replicas. Its extra service is not required for this deployment; SQLite has concurrency and write-scale limits.",
+      "exercise": "Build a tiny synthetic SQLite corpus in the lab below; inspect source and passage counts.",
+      "files": [
+        "muhawir/store.py",
+        "muhawir/build_data.py"
+      ]
+    },
+    {
+      "id": "fts",
+      "title": "FTS5 & BM25 index",
+      "kind": "Software",
+      "summary": "Phrase-aware lexical retrieval.",
+      "how": "A unicode61 FTS5 index searches separately normalized Arabic tokens. Exact/partial phrases get priority and BM25 ranks word matches. Coverage measures how many query terms appear; it is a retrieval filter, not a measure of truth.",
+      "why": "Rare exact names and quotation words often matter more than broad similarity.",
+      "alternative": "A pure semantic index may find related material without the crucial wording. Elasticsearch is useful for a larger operational search service.",
+      "exercise": "Run test_store and compare it with the in-memory synthetic retriever; verify punctuation does not become SQL syntax.",
+      "files": [
+        "muhawir/store.py",
+        "muhawir/retrieve.py",
+        "muhawir/normalize.py"
+      ]
+    },
+    {
+      "id": "embedding",
+      "title": "Build embeddings",
+      "kind": "AI · optional",
+      "summary": "BAAI/bge-m3 locally; Gemini is an alternative backend.",
+      "how": "Sentence-transformers encodes passages into normalized vectors. The default local model is BAAI/bge-m3, but dimensions come from the selected model. A model revision is recorded; passages and queries must use matching models. Building can use a GPU notebook; scripts/fetch_vectors.sh verifies IDs and keeps a prior index. Gemini API embedding is an explicit alternative that sends texts externally and uses its quota.",
+      "why": "Local encoding removes per-query embedding API charges but needs RAM, CPU and an initial model download.",
+      "alternative": "Hosted embeddings are lighter locally but add external dependencies, transmission and cost. These are embeddings, not answer-generation models.",
+      "exercise": "Inspect vectors_model.txt and vectors_ids.json on a prepared index. Do not enable real embedding work during the no-credit training lab.",
+      "files": [
+        "muhawir/vectors.py",
+        "requirements-vectors.txt",
+        "scripts/fetch_vectors.sh"
+      ]
+    },
+    {
+      "id": "vectorindex",
+      "title": "NumPy vector index",
+      "kind": "Software · optional",
+      "summary": "Cosine search + reciprocal rank fusion.",
+      "how": "Float16 vectors live in vectors.npy and can be memory-mapped. NumPy scores cosine similarity in blocks and merges ranks using 1/(60+rank). A small query-vector cache and a locked lazy model loader reduce repeated work. Missing, mismatched or failed vectors cause a BM25 fallback.",
+      "why": "A transparent local index avoids a new database service and fits the present corpus.",
+      "alternative": "Approximate nearest-neighbour systems such as FAISS or a managed vector database are worth measuring at much larger scale; this implementation scores all stored vectors.",
+      "exercise": "Move a fake index out of the way in a test and confirm lexical retrieval survives. Try the RRF demonstration without a model.",
+      "files": [
+        "muhawir/vectors.py",
+        "tests/test_vectors.py"
+      ]
+    },
+    {
+      "id": "github",
+      "title": "GitHub source of truth",
+      "kind": "Infrastructure",
+      "summary": "Versioned code, review and rollback.",
+      "how": "main holds application code, build scripts, tests and documentation. Data and API secrets stay outside Git. Codex and Claude can assist with patches; they do not bypass human judgment or validation. Version control makes the exact reviewed change recoverable.",
+      "why": "AI accelerates implementation; an inspectable diff and repeatable tests make it reviewable.",
+      "alternative": "Editing only on the live server loses a reproducible release and makes collaboration and rollback harder.",
+      "exercise": "Clone into a separate learning folder. Read a commit diff before accepting it; explain each changed file.",
+      "files": [
+        "README.md",
+        ".gitignore",
+        "docs/BASELINE.md"
+      ]
+    },
+    {
+      "id": "ci",
+      "title": "Offline CI & evaluation",
+      "kind": "Software",
+      "summary": "Fake-provider regression tests before publishing.",
+      "how": "GitHub Actions runs python -m pytest on push/PR with synthetic sources and fake model calls. Retrieval evaluation is distinct from answer evaluation. The live-test workflow is manually triggered and can consume model credit; the teaching page never runs it. Tests do not certify every religious answer.",
+      "why": "Cheap repeatable tests catch regressions without spending the judges’ balance.",
+      "alternative": "Only live demos miss reproducible edge cases. Only mocks cannot establish real-model quality; controlled live and expert review are separate release tasks.",
+      "exercise": "Run python -m pytest -q locally. Read the skipped-test reason and identify what still requires a real source dump or human review.",
+      "files": [
+        ".github/workflows/tests.yml",
+        ".github/workflows/live-test.yml",
+        "tests/conftest.py",
+        "EVALUATION.md",
+        "scripts/eval_retrieval.py"
+      ]
+    },
+    {
+      "id": "oracle",
+      "title": "Oracle primary host",
+      "kind": "Infrastructure",
+      "summary": "Linux runs the Python service and local indexes.",
+      "how": "The project’s operations guide describes Oracle as the primary host. The operator reports an updater every five minutes; that server-side timer is not defined by this repository. The model is called through configured providers; the local embedding model, when enabled, runs here.",
+      "why": "One server can hold SQLite and the local embedding model without rewriting the tested Python checks.",
+      "alternative": "A JavaScript/TypeScript edge rewrite changes the runtime and safety implementation. Containers can improve reproducibility later; they are not a prerequisite for this service.",
+      "exercise": "After a release, read /api/health and compare pipeline_revision with the pipeline file hash. Do not infer readiness from git pull alone.",
+      "files": [
+        "docs/OPERATIONS.md",
+        "scripts/diagnose.sh"
+      ]
+    },
+    {
+      "id": "render",
+      "title": "Render backup host",
+      "kind": "Infrastructure",
+      "summary": "A separate backup deployment, not automatic failover.",
+      "how": "render.yaml installs dependencies, builds sources and starts Uvicorn. Its default uses lexical retrieval rather than the large local embedding model. A separate GitHub schedule requests Render health every five minutes; scheduled jobs can be delayed. The backup has its own URL and requires its own healthy configuration.",
+      "why": "A second host provides an operational alternative if Oracle is unavailable.",
+      "alternative": "DNS or load-balancer failover would automate switching but is not implemented here. Two hosts do not help if both depend on an exhausted model provider.",
+      "exercise": "Read render.yaml and keep-awake.yml. Distinguish a backup server from automatic traffic switching.",
+      "files": [
+        "render.yaml",
+        ".github/workflows/keep-awake.yml",
+        "docs/OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "caddy",
+      "title": "Caddy · DNS · HTTPS",
+      "kind": "Infrastructure",
+      "summary": "Public HTTPS terminates at the reverse proxy.",
+      "how": "The documented public domain resolves to Oracle. Caddy handles HTTPS and forwards application requests to Uvicorn. Host configuration and certificate management live on the server, outside this repository. HTTP access logs, if enabled, are different from model question counters.",
+      "why": "The browser needs an HTTPS entry point; the Python app need not manage certificates itself.",
+      "alternative": "Nginx or a cloud load balancer can fill the same role. A functioning proxy does not prove the underlying RAG answer is correct.",
+      "exercise": "Inspect the Caddyfile on a server you control. Trace public port 443 to the app’s private listener; keep API keys out of proxy logs.",
+      "files": [
+        "docs/OPERATIONS.md",
+        "scripts/diagnose.sh"
+      ]
+    },
+    {
+      "id": "browser",
+      "title": "Browser interface",
+      "kind": "Software",
+      "summary": "A lightweight client with accessible source cards.",
+      "how": "The single HTML page uses CSS, JavaScript, browser storage and responsive layout. It sends only the recent turns needed for a follow-up. Theme, language, history, interpretation confirmation and error states are product features. Browser-side cancel stops waiting; it may not stop backend spending already in progress.",
+      "why": "No frontend framework or remote UI bundle is needed for the present chat interface.",
+      "alternative": "A framework helps a bigger team manage components; it adds a build toolchain. Visual polish cannot substitute for source correctness.",
+      "exercise": "Test keyboard navigation, narrow screens and 200% zoom. Avoid putting developer controls into the normal chat flow.",
+      "files": [
+        "muhawir/static/index.html"
+      ]
+    },
+    {
+      "id": "uvicorn",
+      "title": "Uvicorn · ASGI",
+      "kind": "Infrastructure",
+      "summary": "The process that serves the FastAPI application.",
+      "how": "Uvicorn listens on the configured address/port and runs the ASGI app. A systemd service is managed by the Oracle operator. FastAPI synchronous handlers use a worker threadpool; this application also uses bounded thread pools and locks for selected parallel tasks.",
+      "why": "A small Python service is straightforward to restart and observe.",
+      "alternative": "Gunicorn/workers or containers can serve greater load, but multiple processes need a shared rate limiter and careful local-model memory budgeting.",
+      "exercise": "Run Uvicorn against the synthetic fixture locally. Explain the difference between a process, a service manager and an HTTP route.",
+      "files": [
+        "muhawir/server.py",
+        "render.yaml",
+        "docs/OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "fastapi",
+      "title": "FastAPI · Pydantic",
+      "kind": "Software",
+      "summary": "HTTP contracts around the Python pipeline.",
+      "how": "Routes include /api/ask, /api/health, /api/feedback and /tts. FastAPI validates typed request bodies; FileResponse serves the UI and this lesson. The API boundary separates network input from the answer pipeline. The global engine loads once at startup.",
+      "why": "Typed contracts simplify test clients and make invalid inputs fail consistently.",
+      "alternative": "Flask can work too; it needs explicit validation choices. Microservices introduce network boundaries without improving this small pipeline automatically.",
+      "exercise": "Read the Ask model and its route. Trace validation → limiter → engine.ask → response JSON.",
+      "files": [
+        "muhawir/server.py",
+        "tests/test_server.py"
+      ]
+    },
+    {
+      "id": "models",
+      "title": "Configured model providers",
+      "kind": "AI · external",
+      "summary": "Writing and review are API calls, not locally trained weights.",
+      "how": "httpx clients call configured OpenAI-compatible endpoints, a second compatible service and Gemini; optional Anthropic support is also implemented. Deployment docs name OpenRouter and Ollama Cloud, while exact live model IDs depend on server settings. Timeouts, backoff and fallback handle transport failures and unusable output. A fallback can have its own quota or cost.",
+      "why": "Adapters keep product logic separate from a vendor and make outages survivable.",
+      "alternative": "Hosting a large language model locally removes the external writer dependency but needs much more compute. One provider is simpler but creates a single dependency.",
+      "exercise": "Read get_generator and with_retry. Distinguish a schema failure, rate limit, timeout and honest abstention; never paste a real key into code.",
+      "files": [
+        "muhawir/generate.py",
+        ".env.example",
+        "docs/OPERATIONS.md"
+      ]
+    },
+    {
+      "id": "speech",
+      "title": "Speech & Quran audio",
+      "kind": "AI · optional",
+      "summary": "Speech input, read-aloud and recitation are different paths.",
+      "how": "Browser speech recognition may send audio to its platform service. Read-aloud can call Azure Speech when configured and otherwise use browser speechSynthesis. Quran text is replaced with a verse marker before neural read-aloud; separate recorded recitation is played from everyayah.com. Optional Azure MP3 output is cached locally.",
+      "why": "Voice improves access without giving a synthetic voice the role of Quran reciter.",
+      "alternative": "A local speech model improves control but adds download, compute and maintenance. Browser voices vary across devices; Azure has its own quota.",
+      "exercise": "Inspect spokenText and tts.py. Confirm the local fake speech tests omit verse text from synthesized speech.",
+      "files": [
+        "muhawir/static/index.html",
+        "muhawir/tts.py",
+        "tests/test_tts.py"
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Observe & maintain",
+      "kind": "Software",
+      "summary": "Health, counters, tests and specialist review.",
+      "how": "/api/health reports process status, corpus, a pipeline-file fingerprint and counters since startup. This hash covers pipeline.py, not every UI asset or the whole Git commit. Counters reset on restart and do not identify visitors or judges. Saved replies are not an analytics log. Maintenance includes quotas, source updates, secret rotation, rollback and expert content review.",
+      "why": "A ready-to-run product includes failure handling and maintenance, not only a successful demo.",
+      "alternative": "More dashboards do not fix missing measurements. Durable anonymous usage aggregation would be an additional feature, not something this diagram claims exists.",
+      "exercise": "Read health only, inspect the offline CI result and compare the relevant static asset after a UI release. Prepare a rollback plan before changing production.",
+      "files": [
+        "muhawir/server.py",
+        "docs/OPERATIONS.md",
+        "EVALUATION.md"
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "title": "01 · Turn an idea into a testable product",
+      "goal": "Write the acceptance contract before asking AI to code.",
+      "explain": "Muhawir’s job is to explain Islamic topics from approved passages. Its contract forbids invented quotations, source-free claims and personal fatwas. This contract drives the data boundary, verification and referral routes.",
+      "why": "Starting with a model choice creates a demo; starting with a user task and measurable constraints creates something you can test.",
+      "task": "Write three acceptance checks: one answer with visible evidence, one unsupported question that abstains, and one personal case that refers. State what failure looks like.",
+      "code": "Read README.md, SOURCES.md and EVALUATION.md before editing code.",
+      "check": "You can explain the user, the task, the evidence boundary and one honest failure outcome."
+    },
+    {
+      "title": "02 · Use AI as a coding assistant",
+      "goal": "Make small, reviewable changes rather than trusting a generated codebase.",
+      "explain": "Codex and Claude can read files, propose patches and help write tests. They are development tools. The models inside Muhawir are runtime dependencies. These are different roles and different costs.",
+      "why": "An AI-written patch still needs source inspection, a diff, tests and deployment verification. Version control lets you compare and reverse a change.",
+      "task": "Ask your coding assistant to trace one question through named files, with no model/API calls. Then check its claims against the actual code.",
+      "code": "git clone https://github.com/Wd3esa/muhawir.git muhawir-learning\ncd muhawir-learning\ngit status\ngit log -3 --oneline",
+      "check": "You can name the entry route, pipeline, retriever, generator and verifier without guessing."
+    },
+    {
+      "title": "03 · Start locally without model credit",
+      "goal": "Run the existing offline tests and the synthetic demo first.",
+      "explain": "The commands below are for a separate Linux/WSL training folder with Python 3.11. The default test corpus talks about ordinary objects, not religious rulings. Test providers are fake. The terminal environment variables explicitly select extractive test mode.",
+      "why": "Learn the wiring and reproduce failures before spending on models or touching the judging server.",
+      "task": "Use two terminals: run the server in one and read its health endpoint in the other. Open http://127.0.0.1:8000. Ask only synthetic questions on this local training server.",
+      "code": "python3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -r requirements-dev.txt\npython -m pytest -q\nLLM_PROVIDER=extractive MUHAWIR_DB=data/no-db-for-training.db MUHAWIR_CORPUS=data/synthetic_corpus.json MUHAWIR_STORE=0 uvicorn muhawir.server:app --host 127.0.0.1 --port 8000\n# Second terminal: curl http://127.0.0.1:8000/api/health",
+      "check": "Health says synthetic=true and generator=extractive. The tests run without real provider keys."
+    },
+    {
+      "title": "04 · Build a small evidence database",
+      "goal": "Understand ingestion, validation, IDs and indexing.",
+      "explain": "The production corpus is a curated, prepared database. For learning, build the tiny synthetic one instead. The builder creates source tables, passages and the FTS index. Original text and matching tokens are separate.",
+      "why": "A citation must point to a stable record you can reopen. A folder of unstructured text is not yet an auditable RAG corpus.",
+      "task": "Run this in the cloned training folder, then inspect one source and passage. Explain why normalization must not overwrite the displayed original.",
+      "code": "python - <<'PY'\nimport json, sqlite3\nfrom pathlib import Path\nfrom muhawir.store import build_db\nbuild_db(json.loads(Path(\"data/synthetic_corpus.json\").read_text()), \"data/learning.db\")\nwith sqlite3.connect(\"data/learning.db\") as db:\n    print(db.execute(\"SELECT id, location, text FROM passages LIMIT 1\").fetchone())\nPY",
+      "check": "You can follow one passage from source_id to original text and its location."
+    },
+    {
+      "title": "05 · Learn lexical and semantic retrieval",
+      "goal": "Separate finding a candidate from proving an answer.",
+      "explain": "BM25 uses words and phrases. An embedding model represents meaning as a vector; cosine search finds nearby vectors. RRF combines positions in the two ranked lists, not their incompatible raw scores. The demonstration below uses invented ranks and no embeddings.",
+      "why": "Arabic names and exact quotations favour lexical search; paraphrases benefit from semantic search. Evidence verification still comes afterward.",
+      "task": "Toggle semantic retrieval in the ranking lab. Predict the new order before revealing it. Read HybridRetriever.search and its fallback tests.",
+      "code": "python -m pytest -q tests/test_store.py tests/test_vectors.py tests/test_sections.py",
+      "check": "You can explain why the highest similarity is not a religious correctness score."
+    },
+    {
+      "title": "06 · Give the writer a contract",
+      "goal": "Use prompts and structured output as an interface.",
+      "explain": "The writer gets a neutral question, selected passages and style instructions. It returns claims with passage IDs, labels and views. This is inference with existing model weights; the project does not train a new LLM. Model recall helps retrieval only.",
+      "why": "RAG lets you update and cite the evidence. Fine-tuning may teach a style but cannot substitute for a current source passage.",
+      "task": "Inspect SYSTEM_PROMPT, build_user_prompt, the JSON schema and parse_draft. Mark which text is instruction and which text is untrusted data.",
+      "code": "python -m pytest -q tests/test_model.py",
+      "check": "You can explain prompt injection and why a valid JSON shape still needs a meaning check."
+    },
+    {
+      "title": "07 · Verify claims, not just citations",
+      "goal": "Understand the two required checks and their limits.",
+      "explain": "First, code checks IDs, quotations, attributions and displayed headings. Then model readings compare the meaning against the exact passages. A whole-answer relevance check can trigger a bounded rewrite. Rewrites must pass the checks again.",
+      "why": "A correct quotation can be interpreted wrongly; a supported sentence can answer the wrong question. More model reviewers do not mathematically prove correctness, especially when they share a model family.",
+      "task": "Trace one fabricated quotation and one valid passage with an added scholar name through the regression tests. State when the service says unavailable instead of abstained.",
+      "code": "python -m pytest -q tests/test_audit_regressions.py tests/test_attribution.py tests/test_dialogue.py",
+      "check": "You can describe each gate and why an independent human content review remains necessary."
+    },
+    {
+      "title": "08 · Make the interface honest and usable",
+      "goal": "Connect user experience to reliability.",
+      "explain": "The browser shows source cards, distinguishes a referral from a search failure, asks about changed interpretations, and lets the user reject them. Saved conversations are browser storage; recent context is sent for follow-ups. Voice input and output may involve external services.",
+      "why": "A user needs to see the evidence and the limits, not just a polished chat bubble. Accessibility is part of product quality.",
+      "task": "On your local demo, test keyboard-only navigation, mobile width, zoom and saved history. Find why “Stop waiting” cannot promise cancellation of server costs.",
+      "code": "Read renderAnswer, forgetRejectedAnswer, spokenText and stopAnswerRequest in muhawir/static/index.html.",
+      "check": "A rejected interpretation does not come back after reload, and the user can inspect sources without a mouse."
+    },
+    {
+      "title": "09 · Budget, cache and observe",
+      "goal": "Measure work without turning every check into a paid question.",
+      "explain": "Cached stand-alone questions can skip generation. Locks prevent duplicate concurrent work. The limiter reduces busy bursts. /api/health is an observation endpoint; its counters reset when the process restarts. It is not a durable visitor log.",
+      "why": "One new answer may require multiple understanding, writing and checking calls. Faster and cheaper are goals to measure alongside accuracy, not replacements for it.",
+      "task": "Read the default limits and cache version function. Design a small controlled evaluation budget and decide what can be verified with fake calls.",
+      "code": "python -m pytest -q tests/test_server.py tests/test_audit_regressions.py\n# Health reads only; never run a live /api/ask load test during judging.",
+      "check": "You can distinguish browser views, questions, provider calls, tokens and persistent cached replies."
+    },
+    {
+      "title": "10 · Ship, verify and keep a rollback",
+      "goal": "Treat deployment as a separate engineering step.",
+      "explain": "GitHub main is the source of truth. Offline CI checks it. Oracle’s operator-managed updater and systemd run the primary service; Render is a separate fallback deployment. DNS/Caddy handle public HTTPS. Keys stay in server settings, not Git.",
+      "why": "A successful push does not prove that the correct code, database and index are running. Check health and changed assets after deployment. Multiple replicas need shared limits and coordinated releases.",
+      "task": "Read OPERATIONS.md. Document release SHA, expected pipeline hash, source/index identity, health result, backup readiness and how to revert. Keep the learning folder separate from production.",
+      "code": "git diff --check\npython -m pytest -q\n# Deploy only after review; verify the live /api/health and changed static page.\n# Real corpus download, embedding builds and live evaluation are separate explicit operations.",
+      "check": "You can explain the boundaries between Git, CI, deployment, startup, health checks and real content evaluation."
+    }
+  ],
+  "views": [
+    {
+      "id": "flow",
+      "title": "Answer flow",
+      "subtitle": "Follow a message through AI and ordinary software. Shortcuts are shown by the selected scenario.",
+      "nodes": [
+        "request",
+        "budget",
+        "cache",
+        "rules",
+        "understand",
+        "retrieve",
+        "draft",
+        "verify",
+        "review",
+        "relevance",
+        "answer",
+        "save"
+      ],
+      "positions": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "edges": [
+        [
+          "request",
+          "budget"
+        ],
+        [
+          "budget",
+          "cache"
+        ],
+        [
+          "cache",
+          "rules"
+        ],
+        [
+          "rules",
+          "understand"
+        ],
+        [
+          "understand",
+          "retrieve"
+        ],
+        [
+          "retrieve",
+          "draft"
+        ],
+        [
+          "draft",
+          "verify"
+        ],
+        [
+          "verify",
+          "review"
+        ],
+        [
+          "review",
+          "relevance"
+        ],
+        [
+          "relevance",
+          "answer"
+        ],
+        [
+          "answer",
+          "save"
+        ]
+      ]
+    },
+    {
+      "id": "data",
+      "title": "Prepare the evidence",
+      "subtitle": "Build-time work creates the corpus and optional indexes. It does not run a web search during an answer.",
+      "nodes": [
+        "sources",
+        "download",
+        "parse",
+        "chunks",
+        "validate",
+        "database",
+        "fts",
+        "embedding",
+        "vectorindex"
+      ],
+      "positions": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          3
+        ]
+      ],
+      "edges": [
+        [
+          "sources",
+          "download"
+        ],
+        [
+          "download",
+          "parse"
+        ],
+        [
+          "parse",
+          "chunks"
+        ],
+        [
+          "chunks",
+          "validate"
+        ],
+        [
+          "validate",
+          "database"
+        ],
+        [
+          "database",
+          "fts"
+        ],
+        [
+          "database",
+          "embedding"
+        ],
+        [
+          "embedding",
+          "vectorindex"
+        ]
+      ]
+    },
+    {
+      "id": "infra",
+      "title": "Run the product",
+      "subtitle": "Hosting, transport and model services are separate responsibilities. Render is a backup URL, not an automatic failover.",
+      "nodes": [
+        "github",
+        "ci",
+        "oracle",
+        "render",
+        "caddy",
+        "browser",
+        "uvicorn",
+        "fastapi",
+        "models",
+        "speech",
+        "operations"
+      ],
+      "positions": [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "edges": [
+        [
+          "github",
+          "ci"
+        ],
+        [
+          "github",
+          "oracle"
+        ],
+        [
+          "github",
+          "render"
+        ],
+        [
+          "browser",
+          "caddy"
+        ],
+        [
+          "caddy",
+          "uvicorn"
+        ],
+        [
+          "uvicorn",
+          "fastapi"
+        ],
+        [
+          "fastapi",
+          "models"
+        ],
+        [
+          "browser",
+          "render"
+        ],
+        [
+          "browser",
+          "speech"
+        ],
+        [
+          "fastapi",
+          "operations"
+        ],
+        [
+          "oracle",
+          "caddy"
+        ],
+        [
+          "oracle",
+          "uvicorn"
+        ]
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "normal",
+      "title": "New supported question",
+      "route": [
+        "request",
+        "budget",
+        "cache",
+        "rules",
+        "understand",
+        "retrieve",
+        "draft",
+        "verify",
+        "review",
+        "relevance",
+        "answer",
+        "save"
+      ],
+      "outcome": "A sourced reply is displayed only after the required checks. This is a simplified route; translation and specialist cases have additional branches."
+    },
+    {
+      "id": "cached",
+      "title": "Repeated stand-alone question",
+      "route": [
+        "request",
+        "budget",
+        "cache",
+        "answer"
+      ],
+      "outcome": "A matching versioned reply is reused. There is no new writer or reader call on this path; follow-ups with history use a different path."
+    },
+    {
+      "id": "crisis",
+      "title": "Crisis or fixed response",
+      "route": [
+        "request",
+        "budget",
+        "cache",
+        "rules",
+        "answer"
+      ],
+      "outcome": "A crisis response offers immediate human help without retrieval or generation. Greetings and some other deterministic cases also take short routes."
+    },
+    {
+      "id": "missing",
+      "title": "No usable evidence",
+      "route": [
+        "request",
+        "budget",
+        "cache",
+        "rules",
+        "understand",
+        "retrieve",
+        "retrieve",
+        "answer",
+        "save"
+      ],
+      "outcome": "A bounded retry can propose different search phrases. If evidence stays insufficient, the reply abstains; a personal case may receive a referral. It does not invent an answer."
+    },
+    {
+      "id": "failure",
+      "title": "Provider or reader failure",
+      "route": [
+        "request",
+        "budget",
+        "cache",
+        "rules",
+        "understand",
+        "retrieve",
+        "draft",
+        "draft",
+        "verify",
+        "review",
+        "answer"
+      ],
+      "outcome": "Configured providers can fall back with bounded retries. If generation or the required support check still cannot run, the result is unavailable, not “no evidence”. Unavailable replies are not cached."
+    }
+  ],
+  "revision": "e64c6b2",
+  "connections": [
+    {
+      "from": "request",
+      "to": "budget",
+      "label": "Answer flow"
+    },
+    {
+      "from": "budget",
+      "to": "cache",
+      "label": "Answer flow"
+    },
+    {
+      "from": "cache",
+      "to": "rules",
+      "label": "Answer flow"
+    },
+    {
+      "from": "rules",
+      "to": "understand",
+      "label": "Answer flow"
+    },
+    {
+      "from": "understand",
+      "to": "retrieve",
+      "label": "Answer flow"
+    },
+    {
+      "from": "retrieve",
+      "to": "draft",
+      "label": "Answer flow"
+    },
+    {
+      "from": "draft",
+      "to": "verify",
+      "label": "Answer flow"
+    },
+    {
+      "from": "verify",
+      "to": "review",
+      "label": "Answer flow"
+    },
+    {
+      "from": "review",
+      "to": "relevance",
+      "label": "Answer flow"
+    },
+    {
+      "from": "relevance",
+      "to": "answer",
+      "label": "Answer flow"
+    },
+    {
+      "from": "answer",
+      "to": "save",
+      "label": "Answer flow"
+    },
+    {
+      "from": "sources",
+      "to": "download",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "download",
+      "to": "parse",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "parse",
+      "to": "chunks",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "chunks",
+      "to": "validate",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "validate",
+      "to": "database",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "database",
+      "to": "fts",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "database",
+      "to": "embedding",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "embedding",
+      "to": "vectorindex",
+      "label": "Prepare the evidence"
+    },
+    {
+      "from": "github",
+      "to": "ci",
+      "label": "Run the product"
+    },
+    {
+      "from": "github",
+      "to": "oracle",
+      "label": "Run the product"
+    },
+    {
+      "from": "github",
+      "to": "render",
+      "label": "Run the product"
+    },
+    {
+      "from": "browser",
+      "to": "caddy",
+      "label": "Run the product"
+    },
+    {
+      "from": "caddy",
+      "to": "uvicorn",
+      "label": "Run the product"
+    },
+    {
+      "from": "uvicorn",
+      "to": "fastapi",
+      "label": "Run the product"
+    },
+    {
+      "from": "fastapi",
+      "to": "models",
+      "label": "Run the product"
+    },
+    {
+      "from": "browser",
+      "to": "render",
+      "label": "Run the product"
+    },
+    {
+      "from": "browser",
+      "to": "speech",
+      "label": "Run the product"
+    },
+    {
+      "from": "fastapi",
+      "to": "operations",
+      "label": "Run the product"
+    },
+    {
+      "from": "oracle",
+      "to": "caddy",
+      "label": "Run the product"
+    },
+    {
+      "from": "oracle",
+      "to": "uvicorn",
+      "label": "Run the product"
+    },
+    {
+      "from": "fts",
+      "to": "retrieve",
+      "label": "Supplies lexical candidates"
+    },
+    {
+      "from": "vectorindex",
+      "to": "retrieve",
+      "label": "Supplies optional semantic candidates"
+    },
+    {
+      "from": "database",
+      "to": "retrieve",
+      "label": "Provides original passages and locations"
+    },
+    {
+      "from": "models",
+      "to": "understand",
+      "label": "Runs understanding prompts"
+    },
+    {
+      "from": "models",
+      "to": "draft",
+      "label": "Runs writing prompts"
+    },
+    {
+      "from": "models",
+      "to": "review",
+      "label": "Runs support-check prompts"
+    },
+    {
+      "from": "models",
+      "to": "relevance",
+      "label": "Runs relevance prompts"
+    },
+    {
+      "from": "fastapi",
+      "to": "request",
+      "label": "Accepts validated chat JSON"
+    },
+    {
+      "from": "browser",
+      "to": "request",
+      "label": "Sends typed conversation"
+    },
+    {
+      "from": "answer",
+      "to": "browser",
+      "label": "Renders checked claims and source cards"
+    },
+    {
+      "from": "save",
+      "to": "cache",
+      "label": "Keeps versioned replies for reuse"
+    }
+  ]
+}
