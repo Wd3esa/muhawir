@@ -15,6 +15,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 
 public class ShamelaExport {
     static final Pattern KEY = Pattern.compile("^(\\d+)[-_:/ .](\\d+)$");
@@ -47,6 +48,7 @@ public class ShamelaExport {
 
     static void inspect(Path index) throws IOException {
         System.out.println("== " + index);
+        if (!Files.isDirectory(index)) { System.out.println("not found"); return; }
         try (DirectoryReader reader = DirectoryReader.open(FSDirectory.open(index))) {
             System.out.println("entries: " + reader.numDocs());
             for (FieldInfo fi : FieldInfos.getMergedFieldInfos(reader))
@@ -66,6 +68,62 @@ public class ShamelaExport {
     }
 
     static void export(Path index, Path out, Set<String> wanted, String kind) throws IOException {
+        if (!Files.isDirectory(index)) {
+            System.err.println("not found: " + index);
+            System.exit(1);
+        }
+        try (DirectoryReader reader = DirectoryReader.open(FSDirectory.open(index))) {
+            boolean keyed = false;
+            for (FieldInfo fi : FieldInfos.getMergedFieldInfos(reader))
+                keyed |= fi.name.equals("id") && fi.getIndexOptions() != IndexOptions.NONE;
+            if (keyed) { exportByKey(reader, out, wanted, kind); return; }
+        }
+        exportByScan(index, out, wanted, kind);
+    }
+
+    // Shamela keys every entry «book-page» in the indexed field «id»: each book's entries are found directly,
+    // in seconds, instead of reading all 7.6 million pages.
+    static void exportByKey(DirectoryReader reader, Path out, Set<String> wanted, String kind) throws IOException {
+        Map<String, Integer> kept = new TreeMap<>();
+        for (String book : wanted) {
+            String prefix = book + "-";
+            List<String> lines = new ArrayList<>();
+            List<int[]> order = new ArrayList<>();
+            for (LeafReaderContext leaf : reader.leaves()) {
+                LeafReader r = leaf.reader();
+                Terms terms = r.terms("id");
+                if (terms == null) continue;
+                Bits live = r.getLiveDocs();
+                StoredFields stored = r.storedFields();
+                TermsEnum te = terms.iterator();
+                if (te.seekCeil(new BytesRef(prefix)) == TermsEnum.SeekStatus.END) continue;
+                do {
+                    String key = te.term().utf8ToString();
+                    if (!key.startsWith(prefix)) break;
+                    PostingsEnum pe = te.postings(null, PostingsEnum.NONE);
+                    for (int d = pe.nextDoc(); d != PostingsEnum.NO_MORE_DOCS; d = pe.nextDoc()) {
+                        if (live != null && !live.get(d)) continue;
+                        int page;
+                        try { page = Integer.parseInt(key.substring(prefix.length())); } catch (NumberFormatException e) { page = Integer.MAX_VALUE; }
+                        order.add(new int[] {page, lines.size()});
+                        lines.add(json(stored.document(d)));
+                    }
+                } while (te.next() != null);
+            }
+            if (lines.isEmpty()) continue;
+            order.sort(Comparator.comparingInt(a -> a[0]));
+            try (Writer w = open(out.resolve(book + "." + kind + ".jsonl"))) {
+                for (int[] o : order) { w.write(lines.get(o[1])); w.write('\n'); }
+            }
+            kept.put(book, lines.size());
+        }
+        System.out.println(kind + ": entries kept per book " + kept);
+        Set<String> missing = new TreeSet<>(wanted);
+        missing.removeAll(kept.keySet());
+        if (!missing.isEmpty()) System.out.println(kind + ": not found " + missing);
+    }
+
+    static void exportByScan(Path index, Path out, Set<String> wanted, String kind) throws IOException {
         Map<String, Writer> files = new HashMap<>();
         long seen = 0, kept = 0;
         String rule = null;
