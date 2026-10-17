@@ -17,7 +17,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, referrals, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, quran_count, referrals, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -49,7 +49,7 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "counted": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
 _stats_lock = threading.Lock()
 
 
@@ -519,6 +519,25 @@ class Muhawir:
         self._cache_lock = threading.Lock()
         self.store = store
         self._inflight: dict = {}  # question key -> lock: the same question arriving twice at once is written once
+        self._quran_index: quran_count.QuranIndex | None = None  # built on the first counting question
+        self._quran_index_lock = threading.Lock()
+
+    def _count_reply(self, word: str, surah: str, root_asked: bool, lang: str) -> Response:
+        """«كم مرة وردت كلمة الرشد في القرآن»: counted by code over every verse, with each place listed and cited.
+        No model is asked: a model counts only the places it happened to retrieve (quran_count)."""
+        with self._quran_index_lock:
+            if self._quran_index is None:
+                self._quran_index = quran_count.QuranIndex.from_corpus(self.corpus)
+        _stat("counted")
+        c = self._quran_index.count(word, surah, root_asked)
+        lead, lines, places, note = quran_count.reply(c, lang)
+        if not self._quran_index.verses:
+            return Response(ABSTAINED, TEXT[lang]["abstain"], synthetic=self.corpus.synthetic)
+        claims = [{"text": f"{p.location}: {p.snippet}", "passage_ids": [p.verse_id]} for p in places]
+        res = Response(ANSWERED if places else ABSTAINED, " ".join([lead, *lines]), claims=claims,
+                       sources=self._cards([p.verse_id for p in places], lang=lang),
+                       synthetic=self.corpus.synthetic, note=note, as_list=True)
+        return res
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -940,6 +959,9 @@ class Muhawir:
         if question and len(question) <= MAX_QUESTION_CHARS and classify.is_small_talk(question):
             reply = "thanks" if classify.is_thanks(question) else "small_talk"
             return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
+        counting = quran_count.asked(question) if question and len(question) <= MAX_QUESTION_CHARS else None
+        if counting:
+            return self._count_reply(*counting, lang_ok)
         turns = [{"role": t.get("role"), "text": str(t.get("text", ""))[:MAX_TURN_CHARS]}
                  for t in (history or []) if isinstance(t, dict) and t.get("role") in ("user", "assistant")]
         turns = turns[-MAX_HISTORY_TURNS:]
