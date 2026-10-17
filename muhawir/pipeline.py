@@ -782,11 +782,11 @@ class Muhawir:
         words, and the different word a form of the same word (the same first letters). The answer is not built on
         the wrong wording; the note shows the verse as it is (EVALUATION.md, Q11; guide p. 6)."""
         for groups in _QUOTED.findall(question):
-            for quoted in _quote_parts(next(g for g in groups if g)):
+            for i, quoted in enumerate(_quote_parts(next(g for g in groups if g))):
                 words = normalize(quoted).split()
-                if len(words) < 3 or self._verse(quoted) is not None:
+                if len(words) < 3 or (i == 0 and self._verse(quoted) is not None):
                     continue
-                for verse in self._near_verses(quoted):
+                for verse in self._near_verses(quoted, search=i == 0):
                     verse_words = normalize(verse.text).split()
                     for start in range(len(verse_words) - len(words) + 1):
                         window = verse_words[start:start + len(words)]
@@ -795,13 +795,14 @@ class Muhawir:
                             return verse, quoted.strip()
         return None
 
-    def _near_verses(self, quoted: str) -> list[Passage]:
+    def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
         """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
         holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
-        found = [h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
         # The live retriever may be HybridRetriever, which wraps SQLite and has no .corpus.
         # Use this engine's corpus so the near-verse lookup still works with vectors enabled.
         con = getattr(self.corpus, "con", None)
+        found = ([h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
+                 if search or con is None else [])
         terms = tokenize(quoted)
         if con is None or not terms:
             return found
