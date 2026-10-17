@@ -242,6 +242,7 @@ class Response:
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
     follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
     referral: dict = field(default_factory=dict)  # who to ask, when Muhawir refers the user on (see referrals.py)
+    by_code: bool = False  # counted or quoted by code with no model (a word count, a verse shown): nothing to detail
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -541,7 +542,7 @@ class Muhawir:
         claims = [{"text": f"{p.location}: {p.snippet}", "passage_ids": [p.verse_id]} for p in places]
         res = Response(ANSWERED if places else ABSTAINED, " ".join([lead, *lines]), claims=claims,
                        sources=self._cards([p.verse_id for p in places], lang=lang),
-                       synthetic=self.corpus.synthetic, note=note, as_list=True)
+                       synthetic=self.corpus.synthetic, note=note, as_list=True, by_code=True)
         return res
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
@@ -864,7 +865,7 @@ class Muhawir:
         """The verse as it is in the mushaf, with its source card, and an offer to explain it. No model is asked."""
         res = Response(ANSWERED, "", claims=[{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
                                          "passage_ids": [verse.id]}],
-                       sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic)
+                       sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic, by_code=True)
         parts = verse.id.split(":")
         surah = verse.location.split("،")[0].strip()
         if len(parts) == 3 and surah:
