@@ -44,3 +44,18 @@ def test_the_note_shows_the_verse_as_it_is():
 
 def test_a_verse_quoted_correctly_gets_no_note():
     assert muhawir()._misquoted("«اذكر الآية: اشربوا ماء كثيرا إن النخل مع الصائمين»") is None
+
+
+def test_a_verse_asked_for_is_shown_whole_with_no_model_and_an_offer_to_explain():
+    calls = []
+    m = muhawir()
+    m.generator = ModelGenerator([("m", lambda *a, **k: calls.append(1) or "{}")])
+    res = m.ask(f"«اذكر الآية: {WRONG_END}»")
+    assert res.status == "answered" and not calls
+    assert res.claims[0]["text"].startswith(f"﴿{VERSE}﴾") and res.claims[0]["passage_ids"] == ["test-q:1"]
+    assert "تنبيه" in res.note
+
+
+def test_a_verse_quoted_without_its_first_and_is_still_found():
+    res = muhawir().ask("اذكر الآية: ايها الناس اشربوا ماء كثيرا")
+    assert res.status == "answered" and res.claims[0]["passage_ids"] == ["test-q:1"]

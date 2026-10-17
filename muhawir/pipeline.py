@@ -49,7 +49,7 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "counted": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
 _stats_lock = threading.Lock()
 
 
@@ -116,6 +116,11 @@ def _same_word(a: str, b: str) -> bool:
 _ASK_BEFORE_VERSE = re.compile(
     r"^\s*(?:(?:\u0645\u0646 \u0641\u0636\u0644\u0643|\u0644\u0648 \u0633\u0645\u062D\u062A|\u0631\u062C\u0627\u0621[\u064B\u0627]?)\s+)?(?:\u0627\u0630\u0643\u0631|\u0623\u0630\u0643\u0631|\u0627\u0643\u062A\u0628|\u0623\u0643\u062A\u0628|\u0623\u0643\u0645\u0644|\u0627\u0643\u0645\u0644|\u0635\u062D\u062D|\u0635\u062D\u0651\u062D|\u0641\u0633\u0631|\u0641\u0633\u0651\u0631|\u0627\u0634\u0631\u062D|\u0645\u0627 \u0645\u0639\u0646\u0649|\u0645\u0627 \u062A\u0641\u0633\u064A\u0631)"
     r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
+
+
+# «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
+_ASKS_VERSE_TEXT = re.compile(
+    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
 
 
 def _quote_parts(quoted: str) -> list[str]:
@@ -814,6 +819,59 @@ class Muhawir:
                             return verse, quoted.strip()
         return None
 
+    def _asked_verse(self, question: str) -> Passage | None:
+        """The verse a message asks to be shown («اذكر الآية: …», «أكمل الآية …»), found in the mushaf by its words,
+        or by the misquoted-verse check when one word is in the wrong form. None when no verse is asked for."""
+        m = _ASKS_VERSE_TEXT.search(question)
+        if not m:
+            return None
+        quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
+        after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
+        tried = 0
+        for text in [*quoted, after]:
+            for part in _quote_parts(text):
+                if len(normalize(part).split()) < 3 or tried >= 8:
+                    continue
+                tried += 1
+                verse = self._verse(part) or self._verse_loosely(part)
+                if verse is not None:
+                    return verse
+        fix = self._misquoted(question)
+        return fix[0] if fix else None
+
+    def _verse_loosely(self, text: str) -> Passage | None:
+        """As _verse, with «و» or «ف» the quote left off its first word («كلوا واشربوا» for «وكلوا واشربوا»)."""
+        words = normalize(text).split()
+        if len(words) < 3:
+            return None
+        candidates = [h.passage for h in self.retriever.search(text, k=5) if h.passage.kind == "quran"]
+        con, terms = getattr(self.corpus, "con", None), tokenize(text)
+        if con is not None and terms:  # every verse holding all the quote's words, however the search ranked them
+            # the first word may carry a «و» or «ف» the quote left off: it is checked below, not searched
+            match = " AND ".join('"' + t.replace('"', '""') + '"' for t in (terms[1:] if len(terms) >= 3 else terms))
+            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
+                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 50", (match,)).fetchall()
+            candidates += [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
+        for passage in candidates:
+            verse_words = normalize(passage.text).split()
+            for i in range(len(verse_words) - len(words) + 1):
+                window = verse_words[i:i + len(words)]
+                if window[1:] == words[1:] and window[0] in (words[0], "و" + words[0], "ف" + words[0]):
+                    return passage
+        return None
+
+    def _verse_reply(self, verse: Passage, lang: str) -> Response:
+        """The verse as it is in the mushaf, with its source card, and an offer to explain it. No model is asked."""
+        res = Response(ANSWERED, "", claims=[{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
+                                         "passage_ids": [verse.id]}],
+                       sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic)
+        parts = verse.id.split(":")
+        surah = verse.location.split("،")[0].strip()
+        if len(parts) == 3 and surah:
+            res.follow_up = (f"ما تفسير الآية {parts[2]} من {surah}؟" if lang != "en"
+                             else f"What does verse {parts[2]} of {surah} mean?")
+        return res
+
     def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
         """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
         holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
@@ -962,6 +1020,11 @@ class Muhawir:
         counting = quran_count.asked(question) if question and len(question) <= MAX_QUESTION_CHARS else None
         if counting:
             return self._count_reply(*counting, lang_ok)
+        if question and len(question) <= MAX_QUESTION_CHARS:
+            verse = self._asked_verse(question)
+            if verse is not None:
+                _stat("verse_shown")
+                return self._verse_reply(verse, lang_ok)
         turns = [{"role": t.get("role"), "text": str(t.get("text", ""))[:MAX_TURN_CHARS]}
                  for t in (history or []) if isinstance(t, dict) and t.get("role") in ("user", "assistant")]
         turns = turns[-MAX_HISTORY_TURNS:]
