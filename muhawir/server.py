@@ -86,6 +86,19 @@ def build() -> Muhawir:
 app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
 app.mount("/learning", StaticFiles(directory=ROOT / "static" / "learn"), name="learning")
+app.mount("/icons", StaticFiles(directory=ROOT / "static" / "icons"), name="icons")
+
+
+@app.get("/manifest.webmanifest")
+def manifest() -> FileResponse:
+    """Lets the site be added to a phone's home screen and open as an app (no app store)."""
+    return FileResponse(ROOT / "static" / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    """Keeps only the page, fonts and icons for a poor connection; questions and answers are never cached."""
+    return FileResponse(ROOT / "static" / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 engine = build()
 
 

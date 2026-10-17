@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>مُحاور</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#6150EA">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="مُحاور">
 <script>try { document.documentElement.dataset.theme = localStorage.getItem("muhawir-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
 <style>
 @font-face {
@@ -3123,6 +3129,11 @@ loadConversations();  // the conversations kept in this browser: listed in the h
 renderHistory();
 applyLang();
 fitQuestionBox();
+
+// Installable on a phone's home screen; the service worker keeps only the page itself (never questions or answers).
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
 </script>
 </body>
 </html>
