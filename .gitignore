@@ -29,3 +29,7 @@ data/vectors.partial.f16
 data/vectors.partial_ids.json
 data/vectors.partial_model.txt
 muhawir_test_report.txt
+# books copied out of Shamela (server only, never on GitHub)
+/shamela/
+/data/shamela/
+/muhawir-sources/
