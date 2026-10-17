@@ -112,6 +112,31 @@ def _same_word(a: str, b: str) -> bool:
     return short >= 4 and abs(len(a) - len(b)) <= 1 and a[:short - 2] == b[:short - 2]
 
 
+# a request written before the verse inside the same quotation marks: \u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 \u0628\u0627\u0644\u0635\u0628\u0631 ...\u00BB
+_ASK_BEFORE_VERSE = re.compile(
+    r"^\s*(?:(?:\u0645\u0646 \u0641\u0636\u0644\u0643|\u0644\u0648 \u0633\u0645\u062D\u062A|\u0631\u062C\u0627\u0621[\u064B\u0627]?)\s+)?(?:\u0627\u0630\u0643\u0631|\u0623\u0630\u0643\u0631|\u0627\u0643\u062A\u0628|\u0623\u0643\u062A\u0628|\u0623\u0643\u0645\u0644|\u0627\u0643\u0645\u0644|\u0635\u062D\u062D|\u0635\u062D\u0651\u062D|\u0641\u0633\u0631|\u0641\u0633\u0651\u0631|\u0627\u0634\u0631\u062D|\u0645\u0627 \u0645\u0639\u0646\u0649|\u0645\u0627 \u062A\u0641\u0633\u064A\u0631)"
+    r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
+
+
+def _quote_parts(quoted: str) -> list[str]:
+    """The quotation as written, then the verse part of it if a request came first inside the same marks
+    (\u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 ...\u00BB): after a colon, or after the asking words, then shorter runs of its words from
+    either end (four words or more), so the verse is found however the question was wrapped."""
+    parts = [quoted]
+    if re.search(r"[:\uFF1A]", quoted):
+        parts.append(re.split(r"[:\uFF1A]", quoted, maxsplit=1)[1])
+    parts.append(_ASK_BEFORE_VERSE.sub("", quoted))
+    words = quoted.split()
+    for n in range(len(words) - 1, 3, -1):
+        parts += [" ".join(words[-n:]), " ".join(words[:n])]
+    seen, out = set(), []
+    for p in (p.strip() for p in parts):
+        if p and p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
 _HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")
 
 
@@ -757,17 +782,17 @@ class Muhawir:
         words, and the different word a form of the same word (the same first letters). The answer is not built on
         the wrong wording; the note shows the verse as it is (EVALUATION.md, Q11; guide p. 6)."""
         for groups in _QUOTED.findall(question):
-            quoted = next(g for g in groups if g)
-            words = normalize(quoted).split()
-            if len(words) < 3 or self._verse(quoted) is not None:
-                continue
-            for verse in self._near_verses(quoted):
-                verse_words = normalize(verse.text).split()
-                for start in range(len(verse_words) - len(words) + 1):
-                    window = verse_words[start:start + len(words)]
-                    wrong = [(a, b) for a, b in zip(words, window) if a != b]
-                    if len(wrong) == 1 and _same_word(*wrong[0]):
-                        return verse, quoted.strip()
+            for quoted in _quote_parts(next(g for g in groups if g)):
+                words = normalize(quoted).split()
+                if len(words) < 3 or self._verse(quoted) is not None:
+                    continue
+                for verse in self._near_verses(quoted):
+                    verse_words = normalize(verse.text).split()
+                    for start in range(len(verse_words) - len(words) + 1):
+                        window = verse_words[start:start + len(words)]
+                        wrong = [(a, b) for a, b in zip(words, window) if a != b]
+                        if len(wrong) == 1 and _same_word(*wrong[0]):
+                            return verse, quoted.strip()
         return None
 
     def _near_verses(self, quoted: str) -> list[Passage]:
