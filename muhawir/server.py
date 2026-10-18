@@ -85,20 +85,6 @@ def build() -> Muhawir:
 
 app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
-app.mount("/learning", StaticFiles(directory=ROOT / "static" / "learn"), name="learning")
-app.mount("/icons", StaticFiles(directory=ROOT / "static" / "icons"), name="icons")
-
-
-@app.get("/manifest.webmanifest")
-def manifest() -> FileResponse:
-    """Lets the site be added to a phone's home screen and open as an app (no app store)."""
-    return FileResponse(ROOT / "static" / "manifest.webmanifest", media_type="application/manifest+json")
-
-
-@app.get("/sw.js")
-def service_worker() -> FileResponse:
-    """Keeps only the page, fonts and icons for a poor connection; questions and answers are never cached."""
-    return FileResponse(ROOT / "static" / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 engine = build()
 
 
@@ -121,34 +107,8 @@ _ask_calls: deque[float] = deque()
 _ask_lock = threading.Lock()
 
 
-# Questions per visitor, so one script cannot spend the prepaid model credit or keep the site busy for everyone.
-# Generous for a person (a question takes 10 to 20 seconds); the address is the peer uvicorn reports, which behind
-# the local Caddy proxy is the visitor's (uvicorn trusts X-Forwarded-For from 127.0.0.1 only).
-ASK_LIMITS = ((60, 20), (3600, 200))  # (seconds, questions)
-_visitor_calls: dict[str, deque[float]] = defaultdict(deque)
-_visitor_lock = threading.Lock()
-
-
-def _allow_question(address: str) -> bool:
-    now = time.monotonic()
-    longest = max(window for window, _ in ASK_LIMITS)
-    with _visitor_lock:
-        calls = _visitor_calls[address]
-        while calls and calls[0] <= now - longest:
-            calls.popleft()
-        if any(sum(1 for t in calls if t > now - window) >= most for window, most in ASK_LIMITS):
-            return False
-        calls.append(now)
-        if len(_visitor_calls) > 5000:  # forget visitors with nothing recent
-            for key in [k for k, v in _visitor_calls.items() if not v]:
-                del _visitor_calls[key]
-        return True
-
-
 @app.post("/api/ask")
-def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]  # called directly in tests
-    if not _allow_question(request.client.host if request is not None and request.client else "unknown"):
-        raise HTTPException(status_code=429, detail="Too many questions; please wait a minute", headers={"Retry-After": "60"})
+def ask(body: Ask) -> dict:
     with _ask_lock:
         now = time.monotonic()
         while _ask_calls and _ask_calls[0] <= now - 60:
@@ -255,8 +215,3 @@ def health() -> dict:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(ROOT / "static" / "index.html")
-
-
-@app.get("/how-it-works")
-def how_it_works() -> FileResponse:
-    return FileResponse(ROOT / "static" / "learn" / "index.html")

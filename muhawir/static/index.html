@@ -4,12 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>مُحاور</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#6150EA">
-<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="مُحاور">
 <script>try { document.documentElement.dataset.theme = localStorage.getItem("muhawir-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
 <style>
 @font-face {
@@ -1496,8 +1490,6 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 .welcome-wordmark { width:min(260px,65%); }
 .welcome-wordmark svg { filter:none; }
 .welcome-description { max-width:460px; margin:18px auto 16px; color:var(--muted); font-size:15px; line-height:1.9; text-wrap:pretty; }
-.learning-link { display:inline-block; color:var(--muted); font-size:12px; text-underline-offset:4px; margin:8px 0; }
-.learning-link:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 .welcome-kicker { white-space:normal; margin-bottom:0; color:var(--ink); }
 .msg:not(.pending) { border:0; background:transparent; box-shadow:none; padding-inline:0; }
 #ask { display:flex; align-items:flex-end; gap:8px; padding:8px; box-shadow:none; backdrop-filter:none; }
@@ -1552,7 +1544,6 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
     <nav class="history-list" id="historyList" aria-label=""></nav>
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
-    <a class="learning-link" href="/how-it-works" data-t="howItWorks"></a>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
@@ -1582,7 +1573,6 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
             <path d="m 234.98977,210.7 q -7.92,0 -18.9,-4.14 -10.98,-4.32 -15.48,-8.82 16.74,-4.86 36.36,-12.6 19.62,-7.74 30.06,-13.68 l 3.96,-10.44 5.4,0.72 q -1.8,12.06 -7.02,23.22 -5.22,11.16 -14.04,18.54 -8.64,7.2 -20.34,7.2 z"/>
           </svg><span class="sr-only">مُحاور</span></h2>
           <p class="welcome-description" data-t="welcomeDescription"></p>
-          <a class="learning-link" href="/how-it-works" data-t="howItWorks"></a>
           <p class="welcome-kicker"><span class="welcome-kicker-measure" data-t="welcomeKicker" aria-hidden="true"></span><span class="welcome-kicker-typed" aria-hidden="true"></span><span class="sr-only" data-t="welcomeKicker"></span></p>
 
         </div>
@@ -1607,33 +1597,33 @@ const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", howItWorks: "كيف يعمل مُحاور؟ · دليل تعليمي", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
+        welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
+        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
         generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
-        topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
+        topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
-        welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", howItWorks: "How Muhawir works · Learning guide", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
+        welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
+        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
         generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
-        topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
+        topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
         status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } }
 };
 const $ = (id) => document.getElementById(id);
@@ -1646,7 +1636,6 @@ const welcomeMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let welcomeTypingTimer = null;
 let nextConversationId = 2;
 const MAX_HISTORY = 6;
-let lastAskStatus = 0;
 
 // Conversation history is kept in this browser (localStorage), so a visitor can come back to it. A question and
 // recent turns are sent to /api/ask when asked; there is no account. Each answer is kept as
@@ -1725,12 +1714,6 @@ function logAnswer(conversation, context, res) {
 let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
 let activeRequest = null;
-
-// a link from a reply (or from a conversation kept in this browser) opens only as a web address, never as script
-function safeLink(url) {
-  try { const u = new URL(String(url || ""), location.href); return /^https?:$/.test(u.protocol) ? u.href : "#"; }
-  catch { return "#"; }
-}
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -2568,18 +2551,6 @@ function renderAnswer(res, style, context) {
     next.addEventListener("click", () => { setQuestionText(res.follow_up); $("ask").requestSubmit(); });
     if (!general) msg.append(next);
   }
-  // «وضّح أكثر»: the same question again in the detailed style, more sentences from more passages, each checked
-  // as before. The question as Muhawir understood it is asked on its own (a saved reply is reused at no cost).
-  if (context && res.status === "answered" && !res.by_code && style !== "extended" && (res.claims || []).length) {
-    const deeper = el("button", "follow-up more-detail", t.moreDetail);
-    deeper.type = "button"; deeper.dir = "auto";
-    deeper.addEventListener("click", () => {
-      nextAsk = { style: "extended", history: res.understood ? [] : (context.history || []) };
-      setQuestionText(res.understood || context.question);
-      $("ask").requestSubmit();
-    });
-    if (!general) msg.append(deeper);
-  }
   if (res.referral && res.referral.title) {  // who to ask when Muhawir refers on: official bodies, opened in a new tab
     const box = el("section", "referral");
     box.dir = "auto";
@@ -2589,7 +2560,7 @@ function renderAnswer(res, style, context) {
       for (const link of res.referral.links) {
         const item = el("li");
         const a = el("a", "", link.label);
-        a.href = safeLink(link.url); a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.href = link.url; a.target = "_blank"; a.rel = "noopener noreferrer";
         item.append(a);
         if (link.where) item.append(el("span", "where", ` · ${link.where}`));
         list.append(item);
@@ -2626,7 +2597,7 @@ function renderAnswer(res, style, context) {
     const meta = el("div", "meta", `${t.location}: ${s.location}` + (s.grade ? ` · ${t.grade}: ${s.grade}` : ""));
     if (s.source_url) {
       const a = el("a", "", t.open);
-      a.href = safeLink(s.source_url); a.target = "_blank"; a.rel = "noopener";
+      a.href = s.source_url; a.target = "_blank"; a.rel = "noopener";
       meta.append(" · ", a);
     }
     if (s.kind === "hadith") {  // check this hadith on dorar.net, as dorar's own search box for site owners does
@@ -3007,7 +2978,6 @@ $("thread").addEventListener("click", (e) => {
   $("q").focus();
 });
 
-let nextAsk = null;  // set by «وضّح أكثر» for the one question it sends
 $("ask").addEventListener("submit", async (e) => {
   e.preventDefault();
   const question = $("q").value.trim();
@@ -3018,11 +2988,9 @@ $("ask").addEventListener("submit", async (e) => {
   spokenTurn = false;
   stopListening();
   const conversation = activeConversation;
-  const override = nextAsk;  // «وضّح أكثر» asks once in the detailed style; the chosen style stays as it was
-  nextAsk = null;
-  const style = override?.style || $("style").value;
+  const style = $("style").value;
   const requestLang = lang;
-  const requestHistory = override ? override.history.slice() : conversation.turns.slice();
+  const requestHistory = conversation.turns.slice();
   const context = { conversation, question, style, lang: requestLang, history: requestHistory };
   $("empty")?.remove();
   const userMessage = el("div", "turn-user", question);
@@ -3045,10 +3013,8 @@ $("ask").addEventListener("submit", async (e) => {
   setQuestionText("");
   scrollDown();
   try {
-    lastAskStatus = 0;
     const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }), signal: request.controller.signal });
-    lastAskStatus = r.status;
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
     if (request.cancelled) return;
@@ -3069,7 +3035,7 @@ $("ask").addEventListener("submit", async (e) => {
     syncRegenerateButtons();
   } catch {
     if (request.cancelled) return;
-    const errorMessage = el("div", "msg", lastAskStatus === 429 ? UI[lang].tooMany : UI[lang].error);
+    const errorMessage = el("div", "msg", UI[lang].error);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
     pending.replaceWith(errorMessage);
@@ -3129,11 +3095,6 @@ loadConversations();  // the conversations kept in this browser: listed in the h
 renderHistory();
 applyLang();
 fitQuestionBox();
-
-// Installable on a phone's home screen; the service worker keeps only the page itself (never questions or answers).
-if ("serviceWorker" in navigator && location.protocol === "https:") {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
-}
 </script>
 </body>
 </html>

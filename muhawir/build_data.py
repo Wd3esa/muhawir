@@ -26,7 +26,7 @@ import json
 import zipfile
 from pathlib import Path
 
-from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, shamela, sira, translation
+from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, sira, translation
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -146,10 +146,6 @@ def build(folder: Path, out: Path) -> int:
             print(f"note: «بينات» left out: {exc}")
     else:
         print(f"note: «بينات» is not in this folder; put its PDF there as {bayyinat.FILE}")
-    if shamela.available(folder / shamela.FOLDER):
-        shamela.add_to_corpus(corpus, folder / shamela.FOLDER)
-    else:
-        print(f"note: no books copied out of Shamela in {folder / shamela.FOLDER} (tools/shamela/README.md)")
     out.parent.mkdir(parents=True, exist_ok=True)
     count = build_db(corpus, out)
     print(f"{count} passages written to {out} "
@@ -163,8 +159,7 @@ def build(folder: Path, out: Path) -> int:
           f"fatawa {'yes' if corpus['_provenance'].get('fatawa_commit') else 'no'}, "
           f"aqeedah {len(corpus['_provenance'].get('aqeedah_books', []))}, "
           f"translation {len(corpus.get('_translations', {}))}, "
-          f"bayyinat {'yes' if corpus['_provenance'].get('bayyinat_sha256') else 'no'}, "
-          f"shamela {len(corpus['_provenance'].get('shamela_books', []))})")
+          f"bayyinat {'yes' if corpus['_provenance'].get('bayyinat_sha256') else 'no'})")
     return count
 
 

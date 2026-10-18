@@ -17,7 +17,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, quran_count, referrals, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, referrals, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -49,7 +49,7 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
 _stats_lock = threading.Lock()
 
 
@@ -110,36 +110,6 @@ def _same_word(a: str, b: str) -> bool:
     """Two forms of one word («الصابرون»/«الصابرين»): the same letters but for the last one or two."""
     short = min(len(a), len(b))
     return short >= 4 and abs(len(a) - len(b)) <= 1 and a[:short - 2] == b[:short - 2]
-
-
-# a request written before the verse inside the same quotation marks: \u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 \u0628\u0627\u0644\u0635\u0628\u0631 ...\u00BB
-_ASK_BEFORE_VERSE = re.compile(
-    r"^\s*(?:(?:\u0645\u0646 \u0641\u0636\u0644\u0643|\u0644\u0648 \u0633\u0645\u062D\u062A|\u0631\u062C\u0627\u0621[\u064B\u0627]?)\s+)?(?:\u0627\u0630\u0643\u0631|\u0623\u0630\u0643\u0631|\u0627\u0643\u062A\u0628|\u0623\u0643\u062A\u0628|\u0623\u0643\u0645\u0644|\u0627\u0643\u0645\u0644|\u0635\u062D\u062D|\u0635\u062D\u0651\u062D|\u0641\u0633\u0631|\u0641\u0633\u0651\u0631|\u0627\u0634\u0631\u062D|\u0645\u0627 \u0645\u0639\u0646\u0649|\u0645\u0627 \u062A\u0641\u0633\u064A\u0631)"
-    r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
-
-
-# «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
-_ASKS_VERSE_TEXT = re.compile(
-    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
-
-
-def _quote_parts(quoted: str) -> list[str]:
-    """The quotation as written, then the verse part of it if a request came first inside the same marks
-    (\u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 ...\u00BB): after a colon, or after the asking words, then shorter runs of its words from
-    either end (four words or more), so the verse is found however the question was wrapped."""
-    parts = [quoted]
-    if re.search(r"[:\uFF1A]", quoted):
-        parts.append(re.split(r"[:\uFF1A]", quoted, maxsplit=1)[1])
-    parts.append(_ASK_BEFORE_VERSE.sub("", quoted))
-    words = quoted.split()
-    for n in range(len(words) - 1, 3, -1):
-        parts += [" ".join(words[-n:]), " ".join(words[:n])]
-    seen, out = set(), []
-    for p in (p.strip() for p in parts):
-        if p and p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
 
 
 _HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")
@@ -242,7 +212,6 @@ class Response:
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
     follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
     referral: dict = field(default_factory=dict)  # who to ask, when Muhawir refers the user on (see referrals.py)
-    by_code: bool = False  # counted or quoted by code with no model (a word count, a verse shown): nothing to detail
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -525,25 +494,6 @@ class Muhawir:
         self._cache_lock = threading.Lock()
         self.store = store
         self._inflight: dict = {}  # question key -> lock: the same question arriving twice at once is written once
-        self._quran_index: quran_count.QuranIndex | None = None  # built on the first counting question
-        self._quran_index_lock = threading.Lock()
-
-    def _count_reply(self, word: str, surah: str, root_asked: bool, lang: str) -> Response:
-        """«كم مرة وردت كلمة الرشد في القرآن»: counted by code over every verse, with each place listed and cited.
-        No model is asked: a model counts only the places it happened to retrieve (quran_count)."""
-        with self._quran_index_lock:
-            if self._quran_index is None:
-                self._quran_index = quran_count.QuranIndex.from_corpus(self.corpus)
-        _stat("counted")
-        c = self._quran_index.count(word, surah, root_asked)
-        lead, lines, places, note = quran_count.reply(c, lang)
-        if not self._quran_index.verses:
-            return Response(ABSTAINED, TEXT[lang]["abstain"], synthetic=self.corpus.synthetic)
-        claims = [{"text": f"{p.location}: {p.snippet}", "passage_ids": [p.verse_id]} for p in places]
-        res = Response(ANSWERED if places else ABSTAINED, " ".join([lead, *lines]), claims=claims,
-                       sources=self._cards([p.verse_id for p in places], lang=lang),
-                       synthetic=self.corpus.synthetic, note=note, as_list=True, by_code=True)
-        return res
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -807,80 +757,26 @@ class Muhawir:
         words, and the different word a form of the same word (the same first letters). The answer is not built on
         the wrong wording; the note shows the verse as it is (EVALUATION.md, Q11; guide p. 6)."""
         for groups in _QUOTED.findall(question):
-            for i, quoted in enumerate(_quote_parts(next(g for g in groups if g))):
-                words = normalize(quoted).split()
-                if len(words) < 3 or (i == 0 and self._verse(quoted) is not None):
-                    continue
-                for verse in self._near_verses(quoted, search=i == 0):
-                    verse_words = normalize(verse.text).split()
-                    for start in range(len(verse_words) - len(words) + 1):
-                        window = verse_words[start:start + len(words)]
-                        wrong = [(a, b) for a, b in zip(words, window) if a != b]
-                        if len(wrong) == 1 and _same_word(*wrong[0]):
-                            return verse, quoted.strip()
+            quoted = next(g for g in groups if g)
+            words = normalize(quoted).split()
+            if len(words) < 3 or self._verse(quoted) is not None:
+                continue
+            for verse in self._near_verses(quoted):
+                verse_words = normalize(verse.text).split()
+                for start in range(len(verse_words) - len(words) + 1):
+                    window = verse_words[start:start + len(words)]
+                    wrong = [(a, b) for a, b in zip(words, window) if a != b]
+                    if len(wrong) == 1 and _same_word(*wrong[0]):
+                        return verse, quoted.strip()
         return None
 
-    def _asked_verse(self, question: str) -> Passage | None:
-        """The verse a message asks to be shown («اذكر الآية: …», «أكمل الآية …»), found in the mushaf by its words,
-        or by the misquoted-verse check when one word is in the wrong form. None when no verse is asked for."""
-        m = _ASKS_VERSE_TEXT.search(question)
-        if not m:
-            return None
-        quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
-        after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
-        tried = 0
-        for text in [*quoted, after]:
-            for part in _quote_parts(text):
-                if len(normalize(part).split()) < 3 or tried >= 8:
-                    continue
-                tried += 1
-                verse = self._verse(part) or self._verse_loosely(part)
-                if verse is not None:
-                    return verse
-        fix = self._misquoted(question)
-        return fix[0] if fix else None
-
-    def _verse_loosely(self, text: str) -> Passage | None:
-        """As _verse, with «و» or «ف» the quote left off its first word («كلوا واشربوا» for «وكلوا واشربوا»)."""
-        words = normalize(text).split()
-        if len(words) < 3:
-            return None
-        candidates = [h.passage for h in self.retriever.search(text, k=5) if h.passage.kind == "quran"]
-        con, terms = getattr(self.corpus, "con", None), tokenize(text)
-        if con is not None and terms:  # every verse holding all the quote's words, however the search ranked them
-            # the first word may carry a «و» or «ف» the quote left off: it is checked below, not searched
-            match = " AND ".join('"' + t.replace('"', '""') + '"' for t in (terms[1:] if len(terms) >= 3 else terms))
-            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
-                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 50", (match,)).fetchall()
-            candidates += [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
-        for passage in candidates:
-            verse_words = normalize(passage.text).split()
-            for i in range(len(verse_words) - len(words) + 1):
-                window = verse_words[i:i + len(words)]
-                if window[1:] == words[1:] and window[0] in (words[0], "و" + words[0], "ف" + words[0]):
-                    return passage
-        return None
-
-    def _verse_reply(self, verse: Passage, lang: str) -> Response:
-        """The verse as it is in the mushaf, with its source card, and an offer to explain it. No model is asked."""
-        res = Response(ANSWERED, "", claims=[{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
-                                         "passage_ids": [verse.id]}],
-                       sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic, by_code=True)
-        parts = verse.id.split(":")
-        surah = verse.location.split("،")[0].strip()
-        if len(parts) == 3 and surah:
-            res.follow_up = (f"ما تفسير الآية {parts[2]} من {surah}؟" if lang != "en"
-                             else f"What does verse {parts[2]} of {surah} mean?")
-        return res
-
-    def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
+    def _near_verses(self, quoted: str) -> list[Passage]:
         """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
         holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
+        found = [h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
         # The live retriever may be HybridRetriever, which wraps SQLite and has no .corpus.
         # Use this engine's corpus so the near-verse lookup still works with vectors enabled.
         con = getattr(self.corpus, "con", None)
-        found = ([h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
-                 if search or con is None else [])
         terms = tokenize(quoted)
         if con is None or not terms:
             return found
@@ -1018,14 +914,6 @@ class Muhawir:
         if question and len(question) <= MAX_QUESTION_CHARS and classify.is_small_talk(question):
             reply = "thanks" if classify.is_thanks(question) else "small_talk"
             return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
-        counting = quran_count.asked(question) if question and len(question) <= MAX_QUESTION_CHARS else None
-        if counting:
-            return self._count_reply(*counting, lang_ok)
-        if question and len(question) <= MAX_QUESTION_CHARS:
-            verse = self._asked_verse(question)
-            if verse is not None:
-                _stat("verse_shown")
-                return self._verse_reply(verse, lang_ok)
         turns = [{"role": t.get("role"), "text": str(t.get("text", ""))[:MAX_TURN_CHARS]}
                  for t in (history or []) if isinstance(t, dict) and t.get("role") in ("user", "assistant")]
         turns = turns[-MAX_HISTORY_TURNS:]
