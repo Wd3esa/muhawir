@@ -85,7 +85,6 @@ def build() -> Muhawir:
 
 app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
-app.mount("/learning", StaticFiles(directory=ROOT / "static" / "learn"), name="learning")
 app.mount("/icons", StaticFiles(directory=ROOT / "static" / "icons"), name="icons")
 
 
@@ -255,8 +254,3 @@ def health() -> dict:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(ROOT / "static" / "index.html")
-
-
-@app.get("/how-it-works")
-def how_it_works() -> FileResponse:
-    return FileResponse(ROOT / "static" / "learn" / "index.html")
