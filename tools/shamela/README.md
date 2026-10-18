@@ -30,8 +30,13 @@ server only. Only classical books are imported, and editors' footnotes are left 
    java -cp "lucene-core-10.4.0.jar;lucene-backward-codecs-10.4.0.jar" ShamelaExport.java "D:\path\to\shamela\database" out 1263,856,6056,8566,23587,22928,23636,8473,20855,41,2348,1956,197
    ```
    It reads the whole index once (several minutes) and prints how many pages of each book it kept.
-5. **Zip the `out` folder** and send it, or copy it to the server:
-   `scp -r out muhawir:~/muhawir-sources/shamela/`
+5. **Copy the files to the server**, into the folder the database is built from, then rebuild:
+   ```
+   scp out/*.jsonl out/*.db muhawir:~/muhawir/data/dumps/shamela/
+   ssh muhawir "cd ~/muhawir && .venv/bin/python -m muhawir.build_data --from-dir data/dumps"
+   ```
+   `muhawir/shamela.py` reads them: the author's text only (no editor's footnotes, introduction or indexes),
+   each passage placed by heading, volume and page.
 
 | No. | Book | Author (d. AH) |
 |---|---|---|
