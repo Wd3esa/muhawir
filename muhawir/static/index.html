@@ -715,6 +715,13 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   margin:0;
   line-height:1.95
 }
+.answer + .answer { margin-top:10px }
+.answer-lead { font-weight:600 }
+.answer-part { margin-top:12px }
+.answer-part .answer { margin-top:2px }
+.answer-detail { margin-top:10px }
+.answer-detail > summary { color:var(--accent); cursor:pointer; font-weight:600; min-height:44px; align-content:center }
+.answer-detail[open] > summary { margin-bottom:6px }
 .answer-section {
   margin:14px 0 4px;
   font-size:16px;
@@ -752,6 +759,18 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   text-decoration:none;
   font-weight:700
 }
+.cite a:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+.sources-more {
+  margin-top:10px;
+  min-height:44px;
+  padding:8px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+  color:var(--accent);
+  font:inherit;
+  cursor:pointer
+}
 .sources-title {
   color:var(--muted);
   font-size:12px;
@@ -772,7 +791,9 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .card summary,.views summary {
   cursor:pointer;
   font-weight:650;
-  font-size:13px
+  font-size:13px;
+  min-height:44px;
+  align-content:center
 }
 .card[open] summary,.views[open] summary {
   margin-bottom:7px
@@ -899,7 +920,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   gap:4px
 }
 .action-btn {
-  min-height:34px;
+  min-height:44px;
   display:inline-flex;
   align-items:center;
   gap:6px;
@@ -932,7 +953,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .listen-controls { display:inline-flex; align-items:center; gap:4px }
 .voice-choice { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--muted) }
 .voice-choice select {
-  min-height:34px;
+  min-height:44px;
   padding:3px 7px;
   border:1px solid var(--line);
   border-radius:9px;
@@ -959,6 +980,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .more-item {
   width:100%;
   display:block;
+  min-height:44px;
   border:0;
   border-radius:8px;
   padding:8px 10px;
@@ -970,17 +992,22 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   cursor:pointer
 }
 .more-item:hover { background:color-mix(in srgb,var(--accent) 9%,transparent) }
+.more-item:disabled { opacity:.5; cursor:not-allowed }
+.mobile-only-item { display:none }
 .no-voice {
   font-size:12px;
   color:var(--muted);
   margin-top:4px
 }
 @media(max-width:620px) {
-  .tools { gap:2px }
-  .action-btn { width:36px; min-width:36px; justify-content:center; padding:0 }
+  .tools { gap:4px }
+  .tools > .secondary-action { display:none }
+  .action-btn { width:44px; min-width:44px; justify-content:center; padding:0 }
   .action-label { display:none }
-  .listen-group .action-btn { width:auto; min-width:42px; padding:0 7px }
+  .listen-group .action-btn { width:auto; min-width:44px; padding:0 7px }
   .listen-group .action-label { display:inline }
+  .mobile-only-item { display:block }
+  .more-menu { inset-block-start:auto; inset-block-end:calc(100% + 5px) }
 }
 
   #ask {
@@ -1501,11 +1528,11 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 .mic[hidden],.stop-request[hidden],.send[hidden] { display:none; }
 .voice-note { flex:1 1 100%; }
 #ask:has(.voice-note:not([hidden])) { flex-wrap:wrap; }
-.style-settings { padding:10px 8px; color:var(--muted); font-size:13px; }
-.style-settings summary { cursor:pointer; }
 .action-btn[aria-pressed="true"],.action-btn[aria-pressed="true"]:disabled { color:var(--ink); opacity:1; background:var(--sidebar); }
-.style-settings .style-wrap { display:flex; flex-direction:column; align-items:stretch; gap:5px; margin-top:12px; font-size:13px; }
-.style-settings .style-wrap select { max-width:100%; }
+.composer-preferences { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; margin:8px 10px 6px; }
+.composer-preferences .style-wrap { font-size:13px; }
+.composer-preferences .style-wrap select { min-height:44px; max-width:min(56vw,210px); }
+.style-help { color:var(--muted); font-size:13px; line-height:1.5; }
 @media(max-width:620px) { .welcome-wordmark { width:min(230px,65%); } .msg.pending.rider-status { width:max-content; padding:4px 0; } .composer-row { flex-wrap:nowrap; } textarea { min-height:44px; padding:7px; } .disclaimer { font-size:12px; } }
 @media(prefers-reduced-motion:reduce) { .is-searching .scholar-visual,.is-found .scholar-visual,.is-settled .scholar-visual { animation:none; } .is-found .scholar-visual,.is-settled .scholar-visual { background-position:100% 0; } }
 
@@ -1538,7 +1565,6 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
       <button class="icon-button sidebar-close" id="closeHistory" type="button" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
     </div>
     <button class="new-chat" id="newChat" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span data-t="newChat"></span></button>
-    <details class="style-settings"><summary data-t="settings"></summary><label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label></details>
     <p class="history-heading" data-t="historyHeading"></p>
     <label class="history-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg><input id="historySearch" type="search" autocomplete="off" placeholder="" aria-label=""></label>
     <nav class="history-list" id="historyList" aria-label=""></nav>
@@ -1577,6 +1603,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 
         </div>
       </section>
+      <div class="composer-preferences"><label class="style-wrap" for="style"><span data-t="style"></span><select id="style" aria-describedby="styleHelp"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label><span class="style-help" id="styleHelp"></span></div>
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
@@ -1599,12 +1626,12 @@ const UI = {
         newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
-        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
+        style: "مستوى الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", styleHelpKids: "جمل قصيرة وكلمات مألوفة.", styleHelpYouth: "جواب مباشر مع شرح موجز.", styleHelpExtended: "تفصيل أوسع للمسألة.", styleHelpNewcomer: "توضيح المصطلحات الأساسية.", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
-        generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
+        generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "فهمت سؤالك هكذا:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر", moreExplanation: "اقرأ بقية الشرح", showAllSources: "عرض جميع المصادر", showFewerSources: "عرض مصادر أقل",
         disclaimer: "مُحاور أداة معرفية، وليس مصدرًا للفتوى.",
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.",
@@ -1615,12 +1642,12 @@ const UI = {
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
+        style: "Explanation level", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", styleHelpKids: "Short sentences and familiar words.", styleHelpYouth: "A direct answer with a brief explanation.", styleHelpExtended: "A fuller explanation of the topic.", styleHelpNewcomer: "Basic terms explained.", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
-        generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
+        generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "I understood your question as:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources", moreExplanation: "Read the rest of the explanation", showAllSources: "Show all sources", showFewerSources: "Show fewer sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.",
@@ -1922,6 +1949,7 @@ function applyLang() {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
+  updateStyleHelp();
   $("q").placeholder = t.placeholder;
   $("q").setAttribute("aria-label", t.qlabel);
   $("mic").lastElementChild.textContent = recognizing ? t.micStop : t.mic;
@@ -1946,12 +1974,22 @@ function applyLang() {
   $("synthetic").textContent = t.synthetic;
   conversations.forEach((conversation) => conversation.messages.forEach((message) => {
     if (message?.responseActions) applyActionTranslations(message);
+    message?.querySelectorAll(".answer-detail > summary").forEach((node) => { node.textContent = t.moreExplanation; });
+    message?.querySelectorAll(".sources-more").forEach((button) => {
+      button.textContent = t[button.getAttribute("aria-expanded") === "true" ? "showFewerSources" : "showAllSources"]
+        + ` (${message.responseData?.sources?.length || 0})`;
+    });
     if (message?.classList.contains("rider-status")) translateSearchStatus(message, lang);
     message?.querySelectorAll(".search-outcome[data-t]").forEach((node) => { node.textContent = t[node.dataset.t]; });
   }));
   renderHistory();
   typeWelcomeKicker();
   requestAnimationFrame(fitQuestionBox);
+}
+
+function updateStyleHelp() {
+  const key = { kids:"styleHelpKids", youth:"styleHelpYouth", extended:"styleHelpExtended", newcomer:"styleHelpNewcomer" }[$("style").value];
+  $("styleHelp").textContent = UI[lang][key] || "";
 }
 
 function updateThemeToggle() {
@@ -2361,7 +2399,7 @@ function answerBadgeState(response) {
 
 // How the understood question differs from what was typed. «same»: only spaces, punctuation, hamza or
 // diacritics («ماهي الزكاة» / «ما هي الزكاة؟»): nothing is shown. «added»: every typed word is still there and
-// words were added («الزكاة» / «ما هي الزكاة؟»): a quiet line. «changed»: a typed word was replaced («ضيام» /
+// words were added («الزكاة» / «ما هي الزكاة؟»): no redundant line. «changed»: a typed word was replaced («ضيام» /
 // «صيام»): a first question asks «هل تقصد…؟ نعم / لا».
 function plainLetters(text) {
   return (text || "").replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه")
@@ -2410,7 +2448,7 @@ function renderAnswer(res, style, context) {
   const change = rewordKind(context?.question || "", res.understood || "");
   const confirmFirst = change === "changed" && !(context?.history || []).length && !context?.restored
     && ["answered", "referred", "abstained"].includes(res.status);
-  if (res.understood && change !== "same") {
+  if (res.understood && change === "changed") {
     understoodLine = el("p", "understood");
     understoodLine.dir = "auto";
     const label = el("span", "understood-label", (confirmFirst ? t.didYouMean : t.understoodAs) + " ");
@@ -2437,6 +2475,7 @@ function renderAnswer(res, style, context) {
   const number = new Map((res.sources || []).map((s, i) => [s.passage_id, i + 1]));
   const cardFor = new Map();
   const sourceCards = [];
+  let revealAllSources = () => {};
   const quoted = new Set((res.sources || []).map((s) => `«${s.quote}»`));
   // A claim that only repeats a passage word for word is already shown in its source card.
   const shown = new Set();  // passages whose text is itself the answer stay open
@@ -2445,15 +2484,23 @@ function renderAnswer(res, style, context) {
     for (const id of new Set(c.passage_ids)) {
       const n = number.get(id);
       if (!n) continue;
-      const a = el("a", "", `[${n}]`);
-      a.href = "#"; a.title = t.source;
+      if (sup.childNodes.length) sup.append(lang === "ar" ? "، " : ", ");
+      else sup.append("[");
+      const a = el("a", "", String(n));
+      a.href = "#"; a.title = `${t.source} ${n}`;
       a.addEventListener("click", (e) => {
         e.preventDefault();
         const card = cardFor.get(id);
-        if (card) { card.open = true; card.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+        if (card) {
+          revealAllSources();
+          if (general) general.open = true;
+          card.open = true;
+          card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       });
       sup.append(a);
     }
+    if (sup.childNodes.length) sup.append("]");
     return sup;
   };
   const sentences = (res.claims || []).filter((c) => {
@@ -2473,7 +2520,7 @@ function renderAnswer(res, style, context) {
   const paragraph = () => { const p = el("p", "answer"); p.dir = "auto"; return p; };
   const list = () => { const u = el("ul", "answer-list"); u.dir = "auto"; return u; };
   if (sentences.some((c) => c.section)) {
-    // a short definition, then each part under its own heading, as a list
+    // A short definition, then each part under its heading without a redundant one-item bullet.
     let block = null, current = null, outro = null;
     const intro = paragraph();
     for (const c of sentences) {
@@ -2486,11 +2533,12 @@ function renderAnswer(res, style, context) {
       if (c.section !== current) {
         if (intro.childNodes.length && !intro.parentNode) msg.append(intro);
         current = c.section;
+        block = el("section", "answer-part");
         const h = el("h4", "answer-section", current); h.dir = "auto";
-        block = list();
-        msg.append(h, block);
+        block.append(h);
+        msg.append(block);
       }
-      const li = el("li"); fill(li, c); block.append(li);
+      const p = paragraph(); fill(p, c); block.append(p);
     }
     if (intro.childNodes.length && !intro.parentNode) msg.append(intro);
     if (outro) msg.append(outro);
@@ -2511,13 +2559,29 @@ function renderAnswer(res, style, context) {
     const items = res.as_list && sentences.length > 1 ? list() : null;
     // the first sentence leads the list only when it introduces it (ends with a colon)
     const lead = items && /[:：]\s*$/.test(sentences[0].text);
+    const longExplanation = !items && sentences.length >= 4 && !referredInfo;
+    const detail = longExplanation ? el("details", "answer-detail") : null;
+    if (detail) detail.open = style === "extended";
+    if (detail) detail.append(el("summary", "", t.moreExplanation));
+    const continuation = [];
     sentences.forEach((c, i) => {
       if (items && (i > 0 || !lead)) { const li = el("li"); fill(li, c); items.append(li); return; }
+      if (detail && i > 0) {
+        const p = paragraph(); fill(p, c); detail.append(p); return;
+      }
+      if (!items && i > 0) {
+        const p = paragraph(); fill(p, c); continuation.push(p); return;
+      }
       if (answer.childNodes.length) answer.append(" ");
       fill(answer, c);
     });
-    if (answer.childNodes.length) msg.append(answer);
+    if (answer.childNodes.length) {
+      if (sentences.length > 1) answer.classList.add("answer-lead");
+      msg.append(answer);
+    }
     if (items) msg.append(items);
+    continuation.forEach((p) => msg.append(p));
+    if (detail) msg.append(detail);
   }
   if (res.note) msg.append(el("p", "note", res.note));
   if ((res.views || []).length) {
@@ -2610,6 +2674,20 @@ function renderAnswer(res, style, context) {
     sourcesHome.append(card);
     sourceCards.push(card);
   }
+  if (sourceCards.length > 3) {
+    const extraCards = sourceCards.slice(3);
+    const moreSources = el("button", "sources-more");
+    moreSources.type = "button";
+    const setVisibleSourceCards = (expanded) => {
+      extraCards.forEach((card) => { card.hidden = !expanded; if (!expanded) card.open = false; });
+      moreSources.setAttribute("aria-expanded", String(expanded));
+      moreSources.textContent = UI[lang][expanded ? "showFewerSources" : "showAllSources"] + ` (${sourceCards.length})`;
+    };
+    setVisibleSourceCards(false);
+    revealAllSources = () => setVisibleSourceCards(true);
+    moreSources.addEventListener("click", () => setVisibleSourceCards(moreSources.getAttribute("aria-expanded") !== "true"));
+    sourcesHome.append(moreSources);
+  }
   if (general && next) msg.append(next);
   const actions = el("div", "tools");
   actions.setAttribute("role", "group");
@@ -2625,7 +2703,7 @@ function renderAnswer(res, style, context) {
   });
   actions.append(copy);
 
-  const share = makeActionButton(t.shareAnswer, "share", "", "shareAnswer");
+  const share = makeActionButton(t.shareAnswer, "share", "secondary-action", "shareAnswer");
   share.addEventListener("click", async () => {
     const text = answerText(res);
     try {
@@ -2640,11 +2718,12 @@ function renderAnswer(res, style, context) {
   const listen = listenButton(res, status);
   if (listen) { actions.append(listen); msg.listen = listen; }
 
-  const regenerate = makeActionButton(t.regenerate, "regenerate", "", "regenerate");
+  const regenerate = makeActionButton(t.regenerate, "regenerate", "secondary-action", "regenerate");
   regenerate.disabled = !context;
   regenerate.addEventListener("click", () => regenerateAnswer(msg));
   actions.append(regenerate);
 
+  let clearButton = null, unclearButton = null;
   if (res.status === "answered") {  // a rating only counts on the server: no model is asked anything
     const rate = (verdict) => {
       clearButton.disabled = unclearButton.disabled = true;
@@ -2653,8 +2732,8 @@ function renderAnswer(res, style, context) {
       fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ verdict }) }).catch(() => {});
     };
-    const clearButton = makeActionButton(t.clear, "clear", "", "clear");
-    const unclearButton = makeActionButton(t.unclear, "unclear", "", "unclear");
+    clearButton = makeActionButton(t.clear, "clear", "secondary-action", "clear");
+    unclearButton = makeActionButton(t.unclear, "unclear", "secondary-action", "unclear");
     clearButton.addEventListener("click", () => rate("clear"));
     unclearButton.addEventListener("click", () => rate("unclear"));
     actions.append(clearButton, unclearButton);
@@ -2687,8 +2766,28 @@ function renderAnswer(res, style, context) {
     $("ask").requestSubmit();
   });
   menu.append(copySources, simplify);
+  const addMobileAction = (key, target) => {
+    if (!target) return;
+    const item = el("button", "more-item mobile-only-item", t[key]);
+    item.type = "button";
+    item.dataset.itemKey = key;
+    item.targetButton = target;
+    item.disabled = target.disabled;
+    item.addEventListener("click", () => {
+      more.open = false;
+      if (!target.disabled) target.click();
+    });
+    menu.append(item);
+  };
+  addMobileAction("shareAnswer", share);
+  addMobileAction("regenerate", regenerate);
+  addMobileAction("clear", clearButton);
+  addMobileAction("unclear", unclearButton);
   more.append(menu);
-  more.addEventListener("toggle", () => moreSummary.setAttribute("aria-expanded", String(more.open)));
+  more.addEventListener("toggle", () => {
+    moreSummary.setAttribute("aria-expanded", String(more.open));
+    if (more.open) menu.querySelectorAll(".mobile-only-item").forEach((item) => { item.disabled = item.targetButton.disabled; });
+  });
   actions.append(more);
 
   if (sourceCards.length) {
@@ -2705,6 +2804,7 @@ function renderAnswer(res, style, context) {
     setSourceLabel(sourceCards.every((card) => card.open));
     sourcesButton.addEventListener("click", () => {
       const expanded = !sourceCards.every((card) => card.open);
+      if (expanded) revealAllSources();
       sourceCards.forEach((card) => { card.open = expanded; });
       if (expanded && general) general.open = true;
       setSourceLabel(expanded);
@@ -2957,6 +3057,7 @@ window.addEventListener("resize", syncChatViewport, { passive: true });
 syncChatViewport();
 
 $("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
+$("style").addEventListener("change", updateStyleHelp);
 $("themeToggle").addEventListener("click", toggleTheme);
 $("stopRequest").addEventListener("click", stopAnswerRequest);
 $("newChat").addEventListener("click", startNewConversation);
