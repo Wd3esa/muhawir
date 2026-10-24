@@ -18,6 +18,7 @@ build/
 .DS_Store
 # نصوص المصادر المولّدة من ملفات البيانات (لا تُرفع، انظر SOURCES.md)
 data/quran_corpus.json
+data/wn-data-arb.tab
 data/dumps/
 data/muhawir.db
 data/answers.db
