@@ -168,7 +168,7 @@ def _run_ask(body: Ask) -> dict:
             raise HTTPException(status_code=429, detail="Too many questions; please try again shortly", headers={"Retry-After": "60"})
         _ask_calls.append(now)
     return engine.ask(body.question, body.style, body.lang,
-                      select_context([t.model_dump() for t in body.history])).to_dict()
+                      select_context([t.model_dump() for t in body.history], question=body.question)).to_dict()
 
 
 @app.post("/api/ask_again")
