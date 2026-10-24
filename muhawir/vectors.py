@@ -24,6 +24,7 @@ from urllib.parse import quote
 import httpx
 import numpy as np
 
+from . import bayyinat
 from .normalize import tokenize
 from .retrieve import Hit
 
@@ -380,7 +381,7 @@ class HybridRetriever:
     def search(self, question: str, k: int = 3) -> list[Hit]:
         bm25_hits = self.sqlite_retriever.search(question, k * self.bm25_pool_factor)
         if self._disabled or k <= 0:
-            return bm25_hits[:k]
+            return [h for h in bm25_hits if bayyinat.is_answer_part(h.passage)][:k]
         try:
             vector_ids = self._vector_ids(question, max(k * 4, 20))
             weights: dict[str, float] = {}
@@ -388,23 +389,27 @@ class HybridRetriever:
             vector_ranks: dict[str, int] = {}
             hits_by_id: dict[str, Hit] = {}
             for rank, hit in enumerate(bm25_hits, 1):
+                if not bayyinat.is_answer_part(hit.passage):
+                    continue
                 pid = hit.passage.id
                 bm25_ranks[pid] = rank
                 hits_by_id[pid] = hit
                 weights[pid] = weights.get(pid, 0.0) + 1.0 / (RRF_K + rank)
             for rank, pid in enumerate(vector_ids, 1):
+                if pid not in hits_by_id:
+                    passage = self.sqlite_retriever.corpus.passage(pid)
+                    if passage is None or not bayyinat.is_answer_part(passage):
+                        continue
                 vector_ranks[pid] = rank
                 weights[pid] = weights.get(pid, 0.0) + 1.0 / (RRF_K + rank)
                 if pid not in hits_by_id:
-                    passage = self.sqlite_retriever.corpus.passage(pid)
-                    if passage is not None:
-                        # Keep the existing lexical coverage gate for downstream retrieval. Strict
-                        # mode also rejects this zero BM25 score, so vector similarity alone does
-                        # not establish that a passage supports an answer.
-                        terms = list(dict.fromkeys(tokenize(question)))
-                        passage_terms = set(tokenize(f"{passage.text} {passage.keywords}"))
-                        coverage = sum(term in passage_terms for term in terms) / len(terms) if terms else 0.0
-                        hits_by_id[pid] = Hit(passage, 0.0, coverage)
+                    # Keep the existing lexical coverage gate for downstream retrieval. Strict
+                    # mode also rejects this zero BM25 score, so vector similarity alone does
+                    # not establish that a passage supports an answer.
+                    terms = list(dict.fromkeys(tokenize(question)))
+                    passage_terms = set(tokenize(f"{passage.text} {passage.keywords}"))
+                    coverage = sum(term in passage_terms for term in terms) / len(terms) if terms else 0.0
+                    hits_by_id[pid] = Hit(passage, 0.0, coverage)
             order = sorted(
                 (pid for pid in weights if pid in hits_by_id),
                 key=lambda pid: (
@@ -418,7 +423,7 @@ class HybridRetriever:
         except Exception as exc:  # vector search is optional; keep the BM25 path available
             self._disabled = True
             self._warn_once(f"query embedding/search failed ({type(exc).__name__})")
-            return bm25_hits[:k]
+            return [h for h in bm25_hits if bayyinat.is_answer_part(h.passage)][:k]
 
 
 def _index_fingerprint(folder: Path, vectors: VectorIndex) -> str:
