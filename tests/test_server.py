@@ -35,3 +35,13 @@ def test_health_shows_the_credit_left_on_an_openrouter_key(monkeypatch):
     assert server.credit_remaining() == 0.8
     monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://ollama.com/v1")
     assert server.credit_remaining() is None  # not OpenRouter: unknown
+
+
+def test_one_visitor_asking_too_fast_is_told_to_wait(monkeypatch):
+    from fastapi.testclient import TestClient
+    from muhawir import server
+    monkeypatch.setattr(server, "ASK_LIMITS", ((60, 3),))
+    monkeypatch.setattr(server, "_visitor_calls", server.defaultdict(server.deque))
+    client = TestClient(server.app)
+    codes = [client.post("/api/ask", json={"question": "ماذا تحتاج النخلة في الصيف؟"}).status_code for _ in range(4)]
+    assert codes == [200, 200, 200, 429]

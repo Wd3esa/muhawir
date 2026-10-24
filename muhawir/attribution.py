@@ -134,7 +134,9 @@ def without_meta(text: str, passage_ids, corpus, lang: str = "ar") -> str:
 # a sentence that gives a ruling of its own («… حرام في الإسلام», «الراجح أن…»)
 _RULING = frozenset(normalize(w) for w in (
     "حرام", "محرم", "يحرم", "تحرم", "حلال", "يجوز", "تجوز", "جائز", "لا يجوز", "واجب", "يجب", "تجب", "فرض",
-    "مكروه", "يكره", "مستحب", "يستحب", "مباح", "يلزم", "يلزمه"))
+    "مكروه", "يكره", "مستحب", "يستحب", "مباح", "يلزم", "يلزمه",
+    # whether an act of worship or a contract stands: a ruling too («تبطل الصلاة», «ينقض الوضوء», «لا بأس»)
+    "باطل", "باطلة", "يبطل", "تبطل", "فاسد", "يفسد", "تفسد", "ينقض", "تنقض", "لا بأس"))
 # a sentence that prefers one view of its own («الراجح أن…», «الصحيح أن…»): a ruling in any answer
 _PREFERS = frozenset(normalize(w) for w in ("الراجح", "الصحيح", "الأرجح", "والراجح", "والصحيح"))
 _RULING_EN = re.compile(r"\b(?:forbidden|prohibited|haram|halal|permissible|permitted|obligatory|"

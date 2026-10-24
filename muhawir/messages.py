@@ -39,7 +39,15 @@ TEXT = {
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
                             "إن كان لديك سؤال، فاكتبه وسأبحث عنه في المصادر، أو اسأل مختصًا.",
         "reexplain_lead": "لا بأس، سأشرح لك الجواب نفسه بطريقة أبسط:",
+        "partial_note": "ما في مصادري يجيب عن جزء من سؤالك فقط، وليس فيها ما يغطيه كله. فهذا ما وجدته، ولا أزيد عليه من عندي.",
         "ruling_note": "هذا عرض لأقوال العلماء كما وردت في المصدر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
+        "ruling_note_agreed": "هذا ما ورد في المصادر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
+        "choose_lang": "يجيب مُحاور حاليًا بالعربية والإنجليزية فقط. بأي لغة تريد الجواب؟",
+        "closest_hadith": "لم أجد هذا الحديث بلفظه في المصادر المتاحة لي. أقرب نص وجدته في {where} "
+                          "معروض أدناه، فقارن بينهما؛ فقد لا يكون هو المقصود.{grade} وللحكم على صحة حديث اسأل مختصًا في علم الحديث.",
+        "closest_hadith_grade": " وحكم المحدث عليه كما في المصدر: {grade}.",
+        "choose_ar": "بالعربية",
+        "choose_en": "In English",
         "translation_pending": "",
         "synthetic": "بيانات تجريبية مصطنعة للاختبار، وليست نصوصًا دينية.",
         "too_long": "السؤال طويل جدًا. اختصره من فضلك.",
@@ -86,8 +94,18 @@ TEXT = {
                             "give fatwas of my own. Ask your question and I will look for it in the "
                             "sources, or ask a qualified scholar.",
         "reexplain_lead": "No problem, I will explain the same answer again, more simply:",
+        "partial_note": "What is in my sources answers only part of your question; they do not cover all of it. This is what I found, and I add nothing of my own.",
         "ruling_note": "This presents the scholars' views as the source states them; it is not a fatwa. "
                        "For a matter that concerns you, ask a qualified scholar.",
+        "ruling_note_agreed": "This is what the sources state; it is not a fatwa. "
+                              "For a matter that concerns you, ask a qualified scholar.",
+        "choose_lang": "Muhawir currently answers in Arabic and English only. Which language would you like the answer in?",
+        "closest_hadith": "I could not find this hadith in these words in the sources available to me. The closest text I "
+                          "found, in {where}, is shown below; compare them, as it may not be the one you "
+                          "mean.{grade} To know whether a hadith is authentic, ask a specialist in hadith.",
+        "closest_hadith_grade": " Its grading as the source gives it: {grade}.",
+        "choose_ar": "بالعربية",
+        "choose_en": "In English",
         "translation_pending": "The quotation is shown in its original language. Translation will be "
                                "added once a language model is connected.",
         "synthetic": "Synthetic test data, not religious texts.",

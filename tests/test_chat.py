@@ -175,7 +175,7 @@ def test_rules_ask_for_lists_and_plain_modern_wording():
 
 def test_hadith_answers_start_by_attributing_to_the_prophet():
     from muhawir.generate import SYSTEM_PROMPT
-    assert "أخبرنا النبي ﷺ" in SYSTEM_PROMPT and "يخبرنا الله تعالى" in SYSTEM_PROMPT
+    assert "بيّن النبي ﷺ" in SYSTEM_PROMPT and "يخبرنا الله تعالى" in SYSTEM_PROMPT
 
 
 def test_i_did_not_understand_explains_the_same_question_again_more_simply():

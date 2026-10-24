@@ -102,6 +102,7 @@ MAX_PHRASE_MATCHES = 60  # a phrase found in more passages than this (e.g. «ق�
 MIN_SUBPHRASE = 3        # shortest piece of a long phrase tried when the whole phrase is not found
 # among passages holding the same phrase, the text itself comes before the books that discuss it
 _ORIGINAL_FIRST = {"quran": 0, "hadith": 1}
+_PRIMARY_HADITH = ("sahih-bukhari", "sahih-muslim")  # then the Sunan and al-Muwatta, whose hadiths are of every grade
 
 
 class SqliteRetriever:
@@ -116,11 +117,12 @@ class SqliteRetriever:
     def __init__(self, corpus: SqliteCorpus) -> None:
         self.corpus = corpus
 
-    def _match(self, match: str, limit: int) -> list:
+    def _match(self, match: str, limit: int, originals: bool = False) -> list:
+        only = f" AND p.kind IN ({', '.join(repr(k) for k in _ORIGINAL_FIRST)})" if originals else ""
         return self.corpus.con.execute(
             "SELECT p.id, p.source_id, p.location, p.kind, p.grade, p.text, p.keywords, p.tokens, "
             "bm25(passages_fts) FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
-            "WHERE passages_fts MATCH ? ORDER BY bm25(passages_fts) LIMIT ?", (match, limit)).fetchall()
+            f"WHERE passages_fts MATCH ?{only} ORDER BY bm25(passages_fts) LIMIT ?", (match, limit)).fetchall()
 
     def _phrase_rows(self, tokens: list[str], limit: int) -> list:
         """Passages holding the tokens one after the other: the whole run, else its longest pieces."""
@@ -132,10 +134,14 @@ class SqliteRetriever:
             for start in range(len(tokens) - size + 1):
                 phrase = '"' + " ".join(t.replace('"', '""') for t in tokens[start:start + size]) + '"'
                 rows = self._match(phrase, MAX_PHRASE_MATCHES + 1)
+                if len(rows) > MAX_PHRASE_MATCHES:
+                    # quoted in too many books to point to one passage: the verse or hadith itself still does
+                    # («الحلال بين والحرام بين» is in dozens of fatwas and commentaries, and in three hadiths)
+                    rows = self._match(phrase, MAX_PHRASE_MATCHES + 1, originals=True)
                 if len(rows) <= MAX_PHRASE_MATCHES:
                     found.update((r[0], r) for r in rows if r[0] not in found)
             if found:
-                return sorted(found.values(), key=lambda r: (_ORIGINAL_FIRST.get(r[3], 2), r[8]))[:limit]
+                return sorted(found.values(), key=lambda r: (_ORIGINAL_FIRST.get(r[3], 2), r[1] not in _PRIMARY_HADITH, r[8]))[:limit]
         return []
 
     def search(self, question: str, k: int = 3) -> list[Hit]:

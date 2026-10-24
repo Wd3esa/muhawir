@@ -38,7 +38,7 @@ def answers_version(sources: Path, generator) -> str:
     import hashlib
     h = hashlib.sha256()
     for f in sorted(ROOT.glob("*.py")):  # what writes and checks a reply; not the page, the voice or the web server
-        if f.name not in ("server.py", "tts.py", "build_data.py"):
+        if f.name not in ("server.py", "tts.py", "build_data.py", "tashkeel.py", "tashkeel_worker.py"):
             h.update(f.read_bytes())
     if sources.exists():
         st = sources.stat()
@@ -103,26 +103,112 @@ class Ask(BaseModel):
 # Bound paid work across all visitors, including deployments behind a reverse proxy.
 ASK_PER_MINUTE = max(1, int(os.environ.get("MUHAWIR_ASK_PER_MINUTE", "60")))
 _ask_slots = threading.BoundedSemaphore(max(1, int(os.environ.get("MUHAWIR_ASK_CONCURRENCY", "4"))))
+# Bound waiting requests separately. Raising generation concurrency on a small VM
+# would multiply model calls and could exhaust the upstream provider's free quota.
+ASK_QUEUE_SIZE = max(0, int(os.environ.get("MUHAWIR_ASK_QUEUE_SIZE", "12")))
+ASK_QUEUE_TIMEOUT = max(0.0, float(os.environ.get("MUHAWIR_ASK_QUEUE_TIMEOUT", "10")))
+_ask_waiters = threading.BoundedSemaphore(ASK_QUEUE_SIZE) if ASK_QUEUE_SIZE else None
 _ask_calls: deque[float] = deque()
 _ask_lock = threading.Lock()
 
 
+# Questions per visitor, so one script cannot spend the prepaid model credit or keep the site busy for everyone.
+# Generous for a person (a question takes 10 to 20 seconds); the address is the peer uvicorn reports, which behind
+# the local Caddy proxy is the visitor's (uvicorn trusts X-Forwarded-For from 127.0.0.1 only).
+ASK_LIMITS = ((60, 20), (3600, 200))  # (seconds, questions)
+_visitor_calls: dict[str, deque[float]] = defaultdict(deque)
+_visitor_lock = threading.Lock()
+
+
+def _allow_question(address: str) -> bool:
+    now = time.monotonic()
+    longest = max(window for window, _ in ASK_LIMITS)
+    with _visitor_lock:
+        calls = _visitor_calls[address]
+        while calls and calls[0] <= now - longest:
+            calls.popleft()
+        if any(sum(1 for t in calls if t > now - window) >= most for window, most in ASK_LIMITS):
+            return False
+        calls.append(now)
+        if len(_visitor_calls) > 5000:  # forget visitors with nothing recent
+            for key in [k for k, v in _visitor_calls.items() if not v]:
+                del _visitor_calls[key]
+        return True
+
+
 @app.post("/api/ask")
-def ask(body: Ask) -> dict:
+def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]  # called directly in tests
+    if not _allow_question(request.client.host if request is not None and request.client else "unknown"):
+        raise HTTPException(status_code=429, detail="Too many questions; please wait a minute", headers={"Retry-After": "60"})
+    # Never wait while holding _ask_lock: queued requests must not block rate checks.
+    acquired = _ask_slots.acquire(blocking=False)
+    if not acquired:
+        if _ask_waiters is None or not _ask_waiters.acquire(blocking=False):
+            raise HTTPException(status_code=429, detail="All answer slots are busy; please try again shortly", headers={"Retry-After": "5"})
+        try:
+            acquired = _ask_slots.acquire(timeout=ASK_QUEUE_TIMEOUT)
+        finally:
+            _ask_waiters.release()
+        if not acquired:
+            raise HTTPException(status_code=429, detail="All answer slots are busy; please try again shortly", headers={"Retry-After": "5"})
+    try:
+        return _run_ask(body)
+    finally:
+        _ask_slots.release()
+
+
+def _run_ask(body: Ask) -> dict:
+    # Charge the global request budget only for a request admitted to a model slot.
     with _ask_lock:
         now = time.monotonic()
         while _ask_calls and _ask_calls[0] <= now - 60:
             _ask_calls.popleft()
         if len(_ask_calls) >= ASK_PER_MINUTE:
             raise HTTPException(status_code=429, detail="Too many questions; please try again shortly", headers={"Retry-After": "60"})
-        if not _ask_slots.acquire(blocking=False):
-            raise HTTPException(status_code=429, detail="All answer slots are busy; please try again shortly", headers={"Retry-After": "5"})
         _ask_calls.append(now)
+    return engine.ask(body.question, body.style, body.lang,
+                      [t.model_dump() for t in body.history]).to_dict()
+
+
+@app.post("/api/ask_again")
+def ask_again(body: Ask, request: Request) -> dict:
+    """For the nightly review on this server only (scripts/nightly.py): a question kept as «not found» is answered
+    again from scratch, through every check, and the new reply replaces the kept one. Refused from any other address."""
+    # a visit through the web proxy (Caddy) carries X-Forwarded-For: only a call made on the server itself is served
+    proxied = any(h in request.headers for h in ("x-forwarded-for", "x-real-ip", "forwarded"))
+    if proxied or request.client is None or request.client.host not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=404)
+    if not _ask_slots.acquire(timeout=120):
+        raise HTTPException(status_code=429, detail="busy", headers={"Retry-After": "60"})
     try:
-        return engine.ask(body.question, body.style, body.lang,
-                          [t.model_dump() for t in body.history]).to_dict()
+        before, now = engine.ask_again(body.question, body.style, body.lang)
+        return {"before": before.status if before else "", "now": now.to_dict()}
     finally:
         _ask_slots.release()
+
+
+class TashkeelRequest(BaseModel):
+    texts: list[str] = Field(min_length=1, max_length=30)
+    passage_ids: list[str] = Field(default_factory=list, max_length=50)
+
+
+@app.post("/api/tashkeel")
+def tashkeel_answer(body: TashkeelRequest) -> dict:
+    """Display-only transformation; no generation, answer-cache write or corpus mutation."""
+    from . import tashkeel
+    if sum(map(len, body.texts)) > 6000 or any(len(p) > 200 for p in body.passage_ids):
+        raise HTTPException(status_code=422, detail="Text too long")
+    sources = []
+    for passage_id in dict.fromkeys(body.passage_ids):
+        passage = engine.corpus.passage(passage_id)
+        if passage:
+            sources.append(passage.text)
+    if sum(map(len, sources)) > 100000:
+        raise HTTPException(status_code=422, detail="Sources too long")
+    try:
+        return tashkeel.diacritize(body.texts, tuple(sources))
+    except tashkeel.Unavailable as exc:
+        raise HTTPException(status_code=503, detail="Tashkeel unavailable; original text preserved") from exc
 
 
 class Feedback(BaseModel):

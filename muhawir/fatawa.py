@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from .bidaya import _PAGE, _clean
+from .bidaya import _GOES_ON, _PAGE, _clean, _joined, continues
 
 COMMIT = "6d71d2af1be5a49f1db3b52cdda15ea11da569de"
 REPO = "1425AH"
@@ -86,8 +86,32 @@ def _heading(line: str) -> str:
     return text.strip("[]$ ").rstrip(":.").strip()  # "$" is an OpenITI tag before some numbered titles
 
 
-def parse(text: str, title: str) -> list[dict]:
-    """Paragraphs in order: {"text", "heading", "pages": [(volume, page), ...]}."""
+_LAST_END = re.compile(r".*[.؟?!](?:\s*[(\[][\d٠-٩]+[)\]])?\s*", re.S)
+
+
+def _cut_tail(paragraph: dict | None) -> tuple[str, int] | None:
+    """When `paragraph` ends inside a sentence: the unfinished words after its last sentence end, taken off it,
+    with their page index. None when it ends a sentence (or there is none)."""
+    if paragraph is None or not paragraph["pieces"]:
+        return None
+    piece, page = paragraph["pieces"][-1]
+    if _LIST_ITEM.match(piece) or not continues(piece, ""):
+        return None
+    m = _LAST_END.match(piece)
+    done, tail = (piece[:m.end()].strip(), piece[m.end():].strip()) if m else ("", piece)
+    if done:
+        paragraph["pieces"][-1] = (done, page)
+    else:
+        paragraph["pieces"].pop()
+    return tail, page
+
+
+def parse(text: str, title: str, join_cut: bool = True) -> list[dict]:
+    """Paragraphs in order: {"text", "heading", "pages": [(volume, page), ...]}.
+
+    `join_cut`: join a paragraph or heading cut in the middle of a sentence to the rest of it (the fatwa
+    collections). The creed books pass False: their old text has few sentence marks, so nearly every paragraph
+    would look unfinished and whole chapters would become one passage (21 October 2026)."""
     head, sep, body = text.partition("#META#Header#End#")
     if not sep or title not in head:
         raise ImportError_(f"this is not the OpenITI file of «{title}»")
@@ -116,13 +140,26 @@ def parse(text: str, title: str) -> list[dict]:
                 add_piece(title_text)
                 continue
             heading = title_text
+            # the digital text sometimes made a heading of words in the middle of a sentence: «…س11: ما هي» then
+            # the heading «العبارات التي تطلق في حق الأموات» then «، فنحن نسمع…». The unfinished words go with the
+            # heading into the new fatwa, so neither passage is cut in the middle of the question
+            tail = _cut_tail(current) if join_cut else None
             current = None
+            if tail is not None:
+                current = {"heading": heading, "pieces": [(f"{tail[0]} {title_text}", tail[1])]}
+                paragraphs.append(current)
             continue
         if line.startswith("#") and not line.startswith("# "):
             continue  # other OpenITI tags
         if line.startswith("# ") and not _PAGE.fullmatch(line[2:].strip()):
-            current = {"heading": heading, "pieces": []}
-            paragraphs.append(current)
+            last = current["pieces"][-1][0] if current is not None and current["pieces"] else ""
+            first = _clean(_PAGE.sub("", line[2:]))
+            if not join_cut or _LIST_ITEM.match(last) or not continues(last, first):
+                # a heading cut in the middle («مشروعية الصلاة على النبي» then «صلى الله عليه وسلم إذا مر ذكره…»):
+                # the text opens with the whole heading, not with its second half
+                opens = join_cut and current is None and heading and _GOES_ON.match(first)
+                current = {"heading": heading, "pieces": [(heading, len(ends))] if opens else []}
+                paragraphs.append(current)
             line = line[2:]
         elif line.startswith("~~"):
             line = line[2:]
@@ -140,7 +177,7 @@ def parse(text: str, title: str) -> list[dict]:
         if not p["pieces"]:
             continue
         pages = [ends[min(i, len(ends) - 1)] for _, i in p["pieces"]] if ends else []
-        out.append({"text": " ".join(t for t, _ in p["pieces"]), "heading": p["heading"], "pages": pages})
+        out.append({"text": _joined(t for t, _ in p["pieces"]) if join_cut else " ".join(t for t, _ in p["pieces"]), "heading": p["heading"], "pages": pages})
     return out
 
 

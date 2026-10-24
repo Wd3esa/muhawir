@@ -92,7 +92,7 @@ def build(source_id: str, text: str, min_passages: int | None = None) -> tuple[d
     text = _DOLLAR.sub("", _PAGE_HEADING.sub("", text))
     text = text.replace("@QB@", "﴿").replace("@QE@", "﴾")  # verses marked in the al-Tahawi file
     try:
-        paragraphs = parse(text, book["title"])
+        paragraphs = parse(text, book["title"], join_cut=False)
     except ValueError as exc:
         raise ImportError_(str(exc)) from exc
     passages: list[dict] = []
