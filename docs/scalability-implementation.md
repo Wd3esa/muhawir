@@ -13,6 +13,8 @@ The supplied audit describes an older revision and includes unmeasured performan
 
 On a staging server, first compare the existing exact search with `HF_HUB_OFFLINE=1 MUHAWIR_VECTORS=1 .venv/bin/python scripts/eval_retrieval.py` (omit `--pipeline`: that option uses answer-model calls). Install the optional dependency with `.venv/bin/pip install -r requirements-ann.txt`, then build the ANN index in a separate process, without changing `MUHAWIR_VECTOR_INDEX`. Repeat the same retrieval evaluation with `MUHAWIR_VECTOR_INDEX=usearch`; inspect both hit rates and latency before configuring it on the service. A quick side-by-side result is not a substitute for the source-grounding checks.
 
+For a single offline diagnostic report, run `.venv/bin/python scripts/eval_search_candidates.py` on Oracle. It checks which labeled passages still exist in the current database and reports each question's rank under BM25, exact hybrid, a wider BM25 candidate pool, USearch, and USearch with exact shortlist reranking. It uses the existing local embedding model, never calls the answer model, and does not alter the live setting. The production search defaults are unchanged; enable a candidate strategy only after its gains hold on a larger reviewed set, including Arabic, English and Urdu questions and alternate valid citations.
+
 The new answer-cache WAL files (`answers.db-wal`, `answers.db-shm`) are runtime files and should remain alongside the cache database. `scripts/forget.py` is read-only by default and can remove cached replies matching a question phrase with `--delete`.
 
 ## Reducing model calls without weakening the source check
