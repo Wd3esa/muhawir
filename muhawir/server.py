@@ -70,7 +70,11 @@ def build() -> Muhawir:
         if os.environ.get("MUHAWIR_VECTORS") == "1":
             from .vectors import HybridRetriever, load_vectors
 
-            retriever = HybridRetriever(retriever, load_vectors())
+            # Keep more lexical candidates for reciprocal-rank fusion. The 20-question
+            # offline comparison improved top-10 recall from 3 to 4 without a top-5
+            # regression. Set this to 1 to restore the former ranking immediately.
+            bm25_pool_factor = int(os.environ.get("MUHAWIR_BM25_POOL_FACTOR", "4"))
+            retriever = HybridRetriever(retriever, load_vectors(), bm25_pool_factor=bm25_pool_factor)
             threading.Thread(target=retriever.warm_up, daemon=True).start()
         engine = Muhawir(corpus, generator, retriever, answer_store(db, generator))
     else:
