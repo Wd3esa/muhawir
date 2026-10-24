@@ -261,6 +261,11 @@ def test_server_wraps_sqlite_retriever_only_when_vector_flag_is_enabled(tmp_path
 
     assert isinstance(engine.retriever, HybridRetriever)
     assert engine.retriever._disabled is True
+    assert engine.retriever.bm25_pool_factor == 4
+
+    monkeypatch.setenv("MUHAWIR_BM25_POOL_FACTOR", "1")
+    reverted = server.build()
+    assert reverted.retriever.bm25_pool_factor == 1
 
 
 class FakeLocalEmbedder:
