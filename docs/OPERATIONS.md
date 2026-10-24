@@ -46,6 +46,26 @@
 
 ## تحديث المتجهات بعد تغيير المصادر
 
+### تجهيز اختبارات المصحف وفهرس USearch الاختياري على Oracle
+
+بعد تحديث الشيفرة، شغّل الأداة من بيئة المشروع: `cd ~/muhawir && .venv/bin/python scripts/prepare_optional_assets.py`. إن غاب `usearch` تثبّته في البيئة الافتراضية. وتستخرج `mushafs-1.json.gz` من `data/dumps/mushafs-all.zip`، أو تنزّل الأرشيف الأصلي من quranpedia.net عند غيابه، دون إضافته إلى Git. وتبني `data/vectors.usearch` من المتجهات الموجودة دون إعادة تضمين النصوص أو طلب النموذج. يتطلب البناء وجود `vectors.npy` ومعرّفاتها واسم النموذج. يمكن استعمال `--no-download` لمنع تنزيل ملف المصحف تلقائيًا.
+
+ثم تحقق من الاختبارين (لا يطلبان نموذج إجابة):
+
+```bash
+QURANPEDIA_MUSHAF="$PWD/data/dumps/mushafs-1.json.gz" .venv/bin/python -m pytest -q -rs tests/test_quranpedia.py tests/test_scalability.py
+```
+
+**بناء الفهرس لا يفعّله في الخدمة.** قارن الاسترجاع قبل تفعيله، بعد تحميل إعدادات الخادم، دون `--pipeline` لأنه يستدعي النموذج:
+
+```bash
+set -a; . "$HOME/muhawir.env"; set +a
+HF_HUB_OFFLINE=1 MUHAWIR_VECTORS=1 MUHAWIR_VECTOR_INDEX=exact .venv/bin/python scripts/eval_retrieval.py > /tmp/muhawir-exact.txt
+HF_HUB_OFFLINE=1 MUHAWIR_VECTORS=1 MUHAWIR_VECTOR_INDEX=usearch .venv/bin/python scripts/eval_retrieval.py > /tmp/muhawir-usearch.txt
+```
+
+راجع صف `keywords + vectors (RRF)` في الملفين، خصوصًا top 1/5/10 والوقت. لا تضف `MUHAWIR_VECTOR_INDEX=usearch` إلى `~/muhawir.env` ولا تعِد تشغيل الخدمة به إلا إذا كانت النتائج مقبولة؛ عند غياب الفهرس أو عدم تطابق بصمته يعود النظام تلقائيًا إلى البحث المتجهي الدقيق.
+
 البحث بالمعنى (المتجهات) مفعّل على خادم Oracle بالإعداد `MUHAWIR_VECTORS=1` في `~/muhawir.env`. فهرس المتجهات مرتبط بقائمة المقاطع: إذا تغيرت المصادر وأُعيد بناء قاعدة البيانات، وجب بناء فهرس جديد، وإلا رجع البحث إلى الكلمات وحدها.
 
 1. **بناء الفهرس على Kaggle** (معالج رسومي مجاني، نحو 90 دقيقة): دفتر `muhawir-notebook` بخلية واحدة تنزّل المستودع وتبني قاعدة البيانات والمتجهات، وتخرج `muhawir-vectors.tar.gz`. ملف «بينات» مرفوع في الدفتر مجموعةَ بيانات خاصة (Private)، لأن موقع dawa.center يمنع التنزيل الآلي. افتح الدفتر ثم Save Version ← Save & Run All، وتأكد في السجل أن عدد المقاطع يساوي عدد مقاطع الخادم.
