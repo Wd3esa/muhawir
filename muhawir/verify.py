@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from . import attribution, wordforms
+from . import attribution, bayyinat, wordforms
 from .corpus import Corpus
 from .normalize import normalize, tokenize
 
@@ -247,6 +247,9 @@ def verify(claims: list[Claim], corpus: Corpus,
         unknown = [pid for pid in claim.passage_ids if pid not in allowed_ids]
         if unknown:
             rejected.append(Rejected(claim, f"cites passages that were not retrieved: {unknown}"))
+            continue
+        if any(not bayyinat.is_answer_part(corpus.passage(pid)) for pid in claim.passage_ids):
+            rejected.append(Rejected(claim, "cites a question without its answer"))
             continue
         # compared without diacritics or punctuation: «الكوثر» matches الْكَوْثَرَ; the card shows the exact text
         displayed = " ".join(part for part in (claim.section, claim.label, claim.school, claim.text) if part)

@@ -11,6 +11,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from . import bayyinat
 from .corpus import Passage, Source, parse_corpus
 from .normalize import tokenize
 from .retrieve import Hit
@@ -145,17 +146,27 @@ class SqliteRetriever:
         return []
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
+        if k <= 0:
+            return []
         ordered = tokenize(question)
         terms = list(dict.fromkeys(ordered))
         if not terms:
             return []
         quote = lambda t: '"' + t.replace('"', '""') + '"'  # noqa: E731
-        rows = self._phrase_rows(ordered, min(k, MAX_PHRASE_HITS))
+        # A Bayyinat objection is split into question, gist and answer passages.
+        # Look slightly deeper so question-only parts do not consume answer slots.
+        scan = k + 8
+        rows = self._phrase_rows(ordered, min(scan, MAX_PHRASE_HITS))
         seen = {r[0] for r in rows}
-        rows += [r for r in self._match(" OR ".join(quote(t) for t in terms), k + len(rows)) if r[0] not in seen]
+        rows += [r for r in self._match(" OR ".join(quote(t) for t in terms), scan + len(rows)) if r[0] not in seen]
         hits = []
-        for r in rows[:k]:
+        for r in rows:
+            passage = SqliteCorpus._row(r)
+            if not bayyinat.is_answer_part(passage):
+                continue
             doc_terms = set(r[7].split())
             coverage = sum(1 for t in terms if t in doc_terms) / len(terms)
-            hits.append(Hit(SqliteCorpus._row(r), -r[8], coverage))  # FTS5 bm25: lower is better
+            hits.append(Hit(passage, -r[8], coverage))  # FTS5 bm25: lower is better
+            if len(hits) == k:
+                break
         return hits
