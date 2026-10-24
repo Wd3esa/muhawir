@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .conversation import select_context
 from .corpus import load_corpus
 from .generate import get_generator
 from .generate import USAGE
@@ -97,7 +98,7 @@ class Ask(BaseModel):
     question: str = Field(max_length=MAX_QUESTION_CHARS * 2)
     style: Literal["kids", "youth", "extended", "newcomer"] = "youth"
     lang: Literal["ar", "en"] = "ar"
-    history: list[Turn] = Field(default_factory=list, max_length=20)  # kept by the browser, not stored here
+    history: list[Turn] = Field(default_factory=list, max_length=100)  # client-controlled; bounded before passing to the model
 
 
 # Bound paid work across all visitors, including deployments behind a reverse proxy.
@@ -167,7 +168,7 @@ def _run_ask(body: Ask) -> dict:
             raise HTTPException(status_code=429, detail="Too many questions; please try again shortly", headers={"Retry-After": "60"})
         _ask_calls.append(now)
     return engine.ask(body.question, body.style, body.lang,
-                      [t.model_dump() for t in body.history]).to_dict()
+                      select_context([t.model_dump() for t in body.history])).to_dict()
 
 
 @app.post("/api/ask_again")
