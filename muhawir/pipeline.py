@@ -286,8 +286,8 @@ def _still_a_question(message: str, turns: list[dict]) -> bool:
 ALL_MODELS_FAILED = "every model call failed"
 DEBUG = os.environ.get("MUHAWIR_DEBUG") == "1"  # adds the reason for not answering to each response
 log = logging.getLogger("muhawir")
-MAX_HISTORY_TURNS = 6
-MAX_TURN_CHARS = 600
+MAX_HISTORY_TURNS = 14
+MAX_TURN_CHARS = 1200
 
 
 @dataclass
