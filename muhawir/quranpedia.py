@@ -28,6 +28,8 @@ import json
 import re
 from pathlib import Path
 
+from .bidaya import _joined, continues
+
 EXPECTED_SURAHS = 114
 EXPECTED_AYAHS = 6236
 HAFS_MUSHAF_ID = 1
@@ -76,6 +78,15 @@ def clean_html(text: str) -> list[str]:
     return [p for p in paragraphs if p]
 
 
+def _join_cut_sentences(pages: list[list[str]]) -> None:
+    """The text of one ayah comes page by page, and a page often ends inside a sentence: the first paragraph of
+    the next page then goes back to the end of the page it continues (in place), so no passage starts or ends in
+    the middle of a sentence («صلى الله عليه وسلم عن هذه الآية…», 21 October 2026). A page left empty is dropped."""
+    for before, after in zip(pages, pages[1:]):
+        while before and after and continues(before[-1], after[0]):
+            before[-1] = _joined([before[-1], after.pop(0)])
+
+
 def chunk(paragraphs: list[str], limit: int = MAX_CHUNK) -> list[str]:
     """Join whole paragraphs up to about `limit` characters; never cut a paragraph."""
     chunks, current = [], ""
@@ -116,12 +127,19 @@ def build_tafsir(tafsir_dump: dict, surah_names: dict[int, str],
     groups: dict[str, dict] = {}  # one tafsir text may cover several ayahs
     for row in tafsir_dump.get("ayahs", []):
         surah, ayah = int(row["surah"]), int(row["ayah"])
+        pages = []
         for part in row.get("content", []):
             text = part.get("text", "")
             if drop_footnotes:
                 text = _FOOTNOTES.sub("", text)
-            if not text.strip():
+            paragraphs = clean_html(text)
+            if paragraphs:
+                pages.append((paragraphs, part))
+        _join_cut_sentences([p for p, _ in pages])
+        for paragraphs, part in pages:
+            if not paragraphs:
                 continue
+            text = "\n".join(paragraphs)
             g = groups.setdefault(text, {"surah": surah, "ayahs": [], "part": part.get("part"),
                                          "page": part.get("page")})
             g["ayahs"].append(ayah)
@@ -135,7 +153,7 @@ def build_tafsir(tafsir_dump: dict, surah_names: dict[int, str],
             where += f" (ج{g['part']}، ص{g['page']})"
         kw = "؛ ".join(dict.fromkeys(k for a in sorted(set(g["ayahs"]))
                                      for k in keywords.get(f"{g['surah']}:{a}", "").split("؛ ") if k))
-        for i, piece in enumerate(chunk(clean_html(text)), 1):
+        for i, piece in enumerate(chunk(text.split("\n")), 1):
             passages.append({"id": f"{prefix}{book['id']}:{g['surah']}:{first}:{n}:{i}",
                              "source_id": source_id, "location": where, "kind": kind,
                              "text": piece, "keywords": kw})

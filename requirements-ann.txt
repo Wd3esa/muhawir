@@ -1,0 +1,2 @@
+-r requirements-vectors.txt
+usearch>=2.16,<3

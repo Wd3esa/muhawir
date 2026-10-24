@@ -97,3 +97,37 @@ def test_a_fatwa_on_another_product_is_not_quoted_under_the_question():
     res = engine.ask("ما حكم التداول بالعملات الرقمية؟")
     assert res.status == REFERRED and res.claims == [] and not res.sources
     assert res.referral["kind"] == "finance"
+
+
+def test_a_paragraph_cut_in_the_middle_of_a_sentence_goes_on_in_the_same_passage():
+    text = SAMPLE.replace("### | حكم آخر\n# س: سؤال آخر. PageV19P17\n",
+                          "### | أركان الإسلام\n# وقد بين النبي PageV23P326\n"
+                          "# صلى الله عليه وسلم أنها خمسة. PageV23P327\n# س: سؤال آخر. PageV23P327\n")
+    _, ps = fatawa.build("fatawa-ibn-baz", text, min_passages=1)
+    arkan = [p for p in ps if p["keywords"] == "أركان الإسلام"][0]["text"]
+    assert arkan == "وقد بين النبي صلى الله عليه وسلم أنها خمسة.\nس: سؤال آخر."
+
+
+def test_words_made_into_a_heading_in_the_middle_of_a_question_stay_with_their_question():
+    text = SAMPLE.replace("### | حكم آخر\n# س: سؤال آخر. PageV19P17\n",
+                          "### | حكم آخر\n# ج: لا بأس بذلك. س11: ما هي\n### | العبارات التي تطلق في حق الأموات\n"
+                          "# ، فنحن نسمع (المرحوم) فهل هي صحيحة؟ PageV19P17\n")
+    _, ps = fatawa.build("fatawa-ibn-baz", text, min_passages=1)
+    assert ps[1]["text"] == "ج: لا بأس بذلك."
+    assert ps[2]["text"] == "س11: ما هي العبارات التي تطلق في حق الأموات، فنحن نسمع (المرحوم) فهل هي صحيحة؟"
+    assert ps[2]["keywords"] == "العبارات التي تطلق في حق الأموات"
+
+
+def test_a_heading_cut_in_the_middle_opens_its_text_whole():
+    text = SAMPLE.replace("### | حكم آخر\n# س: سؤال آخر. PageV19P17\n",
+                          "### | مشروعية الصلاة على النبي\n# صلى الله عليه وسلم إذا مر ذكره في الخطبة PageV19P17\n")
+    _, ps = fatawa.build("fatawa-ibn-baz", text, min_passages=1)
+    assert ps[1]["text"] == "مشروعية الصلاة على النبي صلى الله عليه وسلم إذا مر ذكره في الخطبة"
+
+
+def test_the_creed_books_keep_their_paragraphs_as_they_are():
+    """The old creed texts have few sentence marks: joining «unfinished» paragraphs made «العقيدة الطحاوية» five
+    passages instead of eleven and stopped the build (21 October 2026). They are parsed as before."""
+    from muhawir.fatawa import parse
+    text = "كتاب #META#Header#End#\n### | باب\n# الأول بلا علامة\n# الثاني بلا علامة\n# الثالث بلا علامة\n"
+    assert len(parse(text, "كتاب", join_cut=False)) == 3

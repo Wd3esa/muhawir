@@ -1,0 +1,16 @@
+# Scalability work against the October 24 server snapshot
+
+The supplied audit describes an older revision and includes unmeasured performance claims. The deployed server snapshot has 94,431 passages, a validated 1,024-dimensional float16 BGE-M3 matrix, and an existing single-request batch verification path. No answer-model calls were made while implementing this change.
+
+| Audit recommendation | Result |
+| --- | --- |
+| Batch second-reader calls | Already available with `MUHAWIR_READ_EACH_SENTENCE=0`. The production default remains individual readings: a prior batched reading accepted a claim that merged two hadith narrations. Switching the default requires a measured claim-level safety evaluation with the actual provider, and will consume model quota. JSON schema alone does not prevent a false positive. |
+| Concurrency | Four active model requests by default; at most 12 additional requests may wait 10 seconds. `MUHAWIR_ASK_CONCURRENCY`, `MUHAWIR_ASK_QUEUE_SIZE`, and `MUHAWIR_ASK_QUEUE_TIMEOUT` are adjustable. A timed-out waiter does not consume the global model-request budget. Setting 16 active requests would multiply upstream usage and exceed an unmeasured VM/provider capacity. |
+| Vector ANN | Optional USearch index from the **existing** matrix (`requirements-ann.txt`, `python -m muhawir.vectors build-ann`). It carries a full source fingerprint and falls back to exact vector search on absence, staleness or query error. Only enable with `MUHAWIR_VECTOR_INDEX=usearch` after measuring retrieval recall against the existing exact index. Neither command nor install re-embeds the corpus. |
+| SQLite WAL | Enabled for the writable answer cache. The corpus is opened read-only, and its builder atomically replaces an SQLite file; it does not need a WAL sidecar. No Redis account or external network service is needed for a single-node cache. |
+| SSE answer streaming | Deferred. The answer pipeline verifies a complete draft and drops unsupported sentences before display. Streaming draft tokens would bypass that safety gate. A mere heartbeat would not make a verified answer arrive faster. |
+| Corpus expansion | Deferred until vetted source dumps, provenance checks and evaluation are available. It changes passage IDs and requires matching corpus/vector validation; a vector build must not be started automatically from a scalability audit. |
+
+On a staging server, first compare the existing exact search with `HF_HUB_OFFLINE=1 MUHAWIR_VECTORS=1 .venv/bin/python scripts/eval_retrieval.py` (omit `--pipeline`: that option uses answer-model calls). Install the optional dependency with `.venv/bin/pip install -r requirements-ann.txt`, then build the ANN index in a separate process, without changing `MUHAWIR_VECTOR_INDEX`. Repeat the same retrieval evaluation with `MUHAWIR_VECTOR_INDEX=usearch`; inspect both hit rates and latency before configuring it on the service. A quick side-by-side result is not a substitute for the source-grounding checks.
+
+The new answer-cache WAL files (`answers.db-wal`, `answers.db-shm`) are runtime files and should remain alongside the cache database. `scripts/forget.py` is read-only by default and can remove cached replies matching a question phrase with `--delete`.

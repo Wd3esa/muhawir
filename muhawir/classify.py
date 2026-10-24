@@ -49,7 +49,14 @@ _PERSONAL = [re.compile(p) for p in (
     r"\bmy (husband|wife|marriage|divorce)\b",
     # the person's own circumstance that changes the ruling (Codex audit, 6 October 2026). A general question
     # with no circumstance («فاتتني الصلاة، ماذا أفعل؟», how to make up a prayer) is answered from the sources.
-    r"\bانا (مريض|مريضه|مسافر|مسافره|حامل|مرضع|حائض|نفساء|مصاب|مصابه)\b",
+    r"\b(?:و|ف)?انا (مريض|مريضه|مسافر|مسافره|حامل|مرضع|حائض|نفساء|مصاب|مصابه|عيان|عيانه|تعبان|تعبانه)\b",
+    # the same in the main dialects (19 October 2026: real questions came in Sudanese): «can I…» with a dialect
+    # word and a first-person act, «my wife / my husband», and a divorce the person says they pronounced
+    r"\b(?:يصير|بيصير|ينفع|بينفع|بقدر|بجوز|بيجوز|يزبط|بيزبط)( لي| ليا)?( اني| ان)? "
+    r"(افطر|اصوم|اصلي|اتوضا|اغتسل|احج|اعتمر|اجمع|اقصر|اتيمم|اطلق|ارجع)\b",
+    r"\b(?:يصير|بيصير|ينفع|بينفع|بجوز|بيجوز) (لي|ليا)\b",
+    r"\b(مراتي|مرتي|جوزي|راجلي)\b",
+    r"\bقلت ?لها (انتي|انت|انتِ) طالق\b",
     r"\b(لا|ما) (استطيع|اقدر|اقوى)( علي)? (ان )?(اصوم|الصوم|الصيام|اصلي|الصلاه|اتوضا|الوضوء|احج|الحج|اغتسل|الغسل)\b",
     r"\bi (can ?t|cannot|can not|am unable to) (fast|pray|make wudu|do wudu|perform hajj|go to hajj)\b",
     r"\bi am (sick|ill|pregnant|breastfeeding|travell?ing|menstruating)\b",
@@ -63,6 +70,14 @@ _CRISIS = [re.compile(p) for p in (
     r"\bافكر (?:في |ب)(?:ال)?انتحار", r"\bافكر ان انتحر", r"\bافكر في قتل نفسي\b", r"\bاقتل نفسي\b", r"\bاقتل حالي\b", r"\bانهي حياتي\b", r"\bانهاء حياتي\b",
     r"\bاوذي نفسي\b", r"\bايذاء نفسي\b", r"\bاذي نفسي\b",
     r"\bلا اريد ان اعيش\b", r"\bما ابي اعيش\b", r"\bما بدي عيش\b", r"\bمش عايز اعيش\b",
+    # the main dialects (19 October 2026): Sudanese «داير», Levantine «بدي», Egyptian «عايز / عاوز»,
+    # Gulf «ودي / ابي», Maghrebi «بغيت / حاب»
+    r"\b(?:ما |مش )?(?:داير|دايره|بدي|عايز|عايزه|عاوز|عاوزه|ودي|ابي|ابغي|بغيت|حاب|حابه) (?:ا|ن)?موت\b",
+    r"\b(?:داير|دايره|بدي|عايز|عايزه|عاوز|عاوزه|ودي|ابغي|بغيت|حاب|حابه) (?:ا|ن)?نتحر\b",
+    r"\b(?:داير|دايره|بدي|عايز|عايزه|عاوز|عاوزه|ابي|ابغي|ودي|بغيت|حاب|حابه) (?:اقتل|نقتل) (?:نفسي|حالي|روحي)\b",
+    r"\b(?:ما|مش|مو|موش)(?: \S+)? (?:داير|دايره|عايز|عاوز|عاوزه|عايزه|ابي|ابغي|ودي|بدي|اريد|بغيت|باغي|باغيه|حاب|حابه|نبغي) (?:ا|ن)?عيش\b",
+    r"\b(?:اريد|باغي|باغيه) (?:ا|ن)?(?:موت|نتحر)\b",
+    r"\b(?:راح|رح|حا) انتحر\b", r"\b(?:هنتحر|حنتحر|بنتحر)\b", r"\bهموت نفسي\b", r"\bبقتل نفسي\b", r"\bنقتل روحي\b",
     r"\bاريد ان اموت\b", r"\bابغي اموت\b", r"\bابي اموت\b", r"\bنفسي اموت\b", r"\bتمنيت الموت\b",
     r"\bkill myself\b", r"\bend my life\b", r"\bwant to die\b", r"\bhurt myself\b",
     r"\bi (?:want|am going|m going|will|plan) to (?:commit suicide|end it all)\b", r"\bthinking (?:about|of) (?:suicide|killing myself)\b",

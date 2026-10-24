@@ -8,6 +8,7 @@ interrupted build can continue without re-embedding the completed passages.
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import sys
@@ -221,6 +222,7 @@ class VectorIndex:
     matrix: np.ndarray
     model_name: str
     query_embedder: Callable[[str], Sequence[float]] | None = None
+    ann: object | None = None
 
 
 class _LazyQueryEmbedder:
@@ -254,7 +256,13 @@ def load_vectors(data_dir: str | Path = DATA_DIR) -> VectorIndex | None:
             return None
         if not all(isinstance(item, str) for item in ids):
             return None
-        return VectorIndex(ids, matrix, model_name, _LazyQueryEmbedder(model_name))
+        result = VectorIndex(ids, matrix, model_name, _LazyQueryEmbedder(model_name))
+        if os.environ.get("MUHAWIR_VECTOR_INDEX") == "usearch":
+            try:
+                result.ann = _load_ann(folder, result)
+            except (ImportError, OSError, ValueError, RuntimeError) as exc:
+                log.warning("USearch index unavailable (%s); using exact vector search", type(exc).__name__)
+        return result
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return None
 
@@ -328,6 +336,18 @@ class HybridRetriever:
     def _vector_ids(self, question: str, limit: int) -> list[str]:
         assert self.vectors is not None
         query = self._query_vector(question)
+        if self.vectors.ann is not None:
+            try:
+                matches = self.vectors.ann.search(query, count=limit)
+                keys = [int(match.key) for match in matches]
+                if len(keys) == min(limit, len(self.vectors.ids)) and len(set(keys)) == len(keys) and all(
+                    0 <= key < len(self.vectors.ids) for key in keys
+                ):
+                    return [self.vectors.ids[key] for key in keys]
+                raise ValueError("invalid ANN search result")
+            except (OSError, ValueError, RuntimeError) as exc:
+                log.warning("USearch query failed (%s); using exact vector search", type(exc).__name__)
+                self.vectors.ann = None
         matrix = self.vectors.matrix
         similarities = np.empty(len(self.vectors.ids), dtype=np.float32)
         # Convert in small chunks to avoid keeping a second full float32 copy of the index.
@@ -340,6 +360,7 @@ class HybridRetriever:
             )
         order = np.argsort(-similarities, kind="stable")[:limit]
         return [self.vectors.ids[int(i)] for i in order]
+
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
         bm25_hits = self.sqlite_retriever.search(question, k)
@@ -383,6 +404,61 @@ class HybridRetriever:
             self._disabled = True
             self._warn_once(f"query embedding/search failed ({type(exc).__name__})")
             return bm25_hits
+
+
+def _index_fingerprint(folder: Path, vectors: VectorIndex) -> str:
+    """Bind the optional index to the *exact* vectors, IDs and embedding model."""
+    digest = hashlib.sha256()
+    for name in ("vectors.npy", "vectors_ids.json", "vectors_model.txt"):
+        with (folder / name).open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _load_ann(folder: Path, vectors: VectorIndex):
+    from usearch.index import Index
+
+    info = json.loads((folder / "vectors.usearch.json").read_text(encoding="utf-8"))
+    if info != {"sha256": _index_fingerprint(folder, vectors), "count": len(vectors.ids),
+                "dimensions": vectors.matrix.shape[1]}:
+        raise ValueError("USearch metadata does not match source vectors")
+    index = Index.restore(str(folder / "vectors.usearch"), view=True)
+    if index is None or len(index) != len(vectors.ids) or index.ndim != vectors.matrix.shape[1]:
+        raise ValueError("USearch size or dimensions do not match source vectors")
+    return index
+
+
+def build_ann(data_dir: str | Path = DATA_DIR) -> int:
+    """Build USearch from existing embeddings. Never re-embed or change the source matrix."""
+    from usearch.index import Index
+
+    folder = Path(data_dir)
+    vectors = load_vectors(folder)
+    if vectors is None:
+        raise ValueError("complete vectors.npy, IDs and model are required")
+    matrix = vectors.matrix
+    index = Index(ndim=matrix.shape[1], metric="cos", dtype="f16", connectivity=16,
+                  expansion_add=128, expansion_search=96)
+    for start in range(0, len(vectors.ids), 512):
+        stop = min(start + 512, len(vectors.ids))
+        index.add(np.arange(start, stop, dtype=np.uint64), np.asarray(matrix[start:stop], dtype=np.float32))
+    if len(index) != len(vectors.ids):
+        raise ValueError("USearch build is incomplete")
+    temporary = folder / "vectors.usearch.tmp"
+    temporary.unlink(missing_ok=True)
+    try:
+        index.save(str(temporary))
+        # Publish the index first and the checksum manifest last. A failed build
+        # never makes an incomplete index appear valid to a new server process.
+        os.replace(temporary, folder / "vectors.usearch")
+        _atomic_write_text(folder / "vectors.usearch.json", json.dumps({
+            "sha256": _index_fingerprint(folder, vectors), "count": len(vectors.ids),
+            "dimensions": matrix.shape[1],
+        }))
+    finally:
+        temporary.unlink(missing_ok=True)
+    return len(index)
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
@@ -617,7 +693,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                               help="local: open model on this machine (default); gemini: Gemini API")
     test_parser = commands.add_parser("test", help="compare BM25 and hybrid results (no language model used)")
     test_parser.add_argument("question", nargs="?", help="one question; default: a fixed set of problem questions")
+    ann_parser = commands.add_parser("build-ann", help="build optional USearch index from existing vectors; no embedding calls")
+    ann_parser.add_argument("--data-dir", default=str(DATA_DIR))
     args = parser.parse_args(argv)
+    if args.command == "build-ann":
+        try:
+            print(f"Indexed {build_ann(args.data_dir)} existing vectors (no API calls)")
+            return 0
+        except (ImportError, OSError, ValueError, RuntimeError) as exc:
+            print(f"USearch build failed: {exc}", file=sys.stderr)
+            return 2
     if args.command == "build":
         try:
             batch = int(os.environ.get("MUHAWIR_EMBED_BATCH", "32"))  # more passages per step on a GPU

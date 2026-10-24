@@ -23,10 +23,11 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import shutil
 import zipfile
 from pathlib import Path
 
-from . import aqeedah, bayyinat, bidaya, fatawa, sahihayn, sira, translation
+from . import aqeedah, bayyinat, bidaya, fatawa, gharib, ibnkathir, maqasid, sahihayn, sira, translation, wordforms
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -66,11 +67,15 @@ def download_hadith(folder: Path) -> None:
         _fetch([u.format(file=name) for u in sahihayn.DOWNLOAD], folder / name)
     _fetch(list(bidaya.DOWNLOAD), folder / bidaya.FILE)
     _fetch(list(sira.DOWNLOAD), folder / sira.FILE)
+    _fetch(list(gharib.DOWNLOAD), folder / gharib.FILE)
+    _fetch(list(ibnkathir.DOWNLOAD), folder / ibnkathir.FILE)
+    _fetch(list(maqasid.DOWNLOAD), folder / maqasid.FILE)
     for book in fatawa.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
     for book in aqeedah.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
     _fetch(list(translation.DOWNLOAD), folder / translation.FILE)
+    _fetch(list(wordforms.AWN_DOWNLOAD), folder / wordforms.AWN_FILE)
     if not (folder / bayyinat.FILE).exists():
         try:  # one site: if it cannot be reached, the other sources are still built
             _fetch(list(bayyinat.DOWNLOAD), folder / bayyinat.FILE)
@@ -146,7 +151,26 @@ def build(folder: Path, out: Path) -> int:
             print(f"note: «بينات» left out: {exc}")
     else:
         print(f"note: «بينات» is not in this folder; put its PDF there as {bayyinat.FILE}")
+    # books added after the first vector index come LAST, in the order they were added: the passages before them
+    # keep their order, so «vectors build» reuses the index already made and embeds only the new passages
+    # (muhawir.vectors._start_checkpoint). A new book goes below the last one here, never between the others.
+    if (folder / gharib.FILE).exists():
+        gharib.add_to_corpus(corpus, (folder / gharib.FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: al-Raghib's «المفردات» is not in this folder; add it with --get-hadith")
+    if (folder / ibnkathir.FILE).exists():
+        ibnkathir.add_to_corpus(corpus, (folder / ibnkathir.FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: Ibn Kathir's Tafsir is not in this folder; add it with --get-hadith")
+    if (folder / maqasid.FILE).exists():
+        maqasid.add_to_corpus(corpus, (folder / maqasid.FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: al-Sakhawi's «المقاصد الحسنة» is not in this folder; add it with --get-hadith")
     out.parent.mkdir(parents=True, exist_ok=True)
+    if (folder / wordforms.AWN_FILE).exists():  # synonyms for the check on definitions, read beside the database
+        shutil.copyfile(folder / wordforms.AWN_FILE, out.parent / wordforms.AWN_FILE)
+    else:
+        print("note: the Arabic WordNet is not in this folder; add it with --get-hadith")
     count = build_db(corpus, out)
     print(f"{count} passages written to {out} "
           f"(Quranpedia mushaf {corpus['_provenance']['version']}, "
@@ -156,6 +180,9 @@ def build(folder: Path, out: Path) -> int:
           f"muslim {corpus['_provenance'].get('muslim_entries', 0)}, "
           f"bidaya {'yes' if corpus['_provenance'].get('bidaya_commit') else 'no'}, "
           f"sira {'yes' if corpus['_provenance'].get('sira_commit') else 'no'}, "
+          f"mufradat {'yes' if corpus['_provenance'].get('mufradat_commit') else 'no'}, "
+          f"ibn kathir {'yes' if corpus['_provenance'].get('ibnkathir_commit') else 'no'}, "
+          f"maqasid {'yes' if corpus['_provenance'].get('maqasid_commit') else 'no'}, "
           f"fatawa {'yes' if corpus['_provenance'].get('fatawa_commit') else 'no'}, "
           f"aqeedah {len(corpus['_provenance'].get('aqeedah_books', []))}, "
           f"translation {len(corpus.get('_translations', {}))}, "

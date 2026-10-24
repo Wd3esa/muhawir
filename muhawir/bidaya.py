@@ -45,6 +45,24 @@ _ISSUE = re.compile(r"^(?:[وف]?أما\s+)?المسألة\s")
 _MILESTONE = re.compile(r"\bms\d+\b")
 _SPACES = re.compile(r"[ \t ]+")
 _TAG = re.compile(r"</?span\b[^>]*>")  # HTML left in some OpenITI files (e.g. <span class="matn">)
+# A printed page that ends inside a sentence starts a new paragraph in the digital text, and a passage then began
+# «، ومن رأى أن…» or «صلى الله عليه وسلم أنها خمسة…» (21 October 2026). A paragraph goes on in the next one when
+# it does not end a sentence (a footnote number after the end is allowed), or when the next one opens with a comma
+# or with words that cannot start a sentence.
+_SENTENCE_DONE = re.compile(r"[.؟?!»\"”)\]﴾}]\s*(?:[(\[][\d٠-٩]+[)\]])?\s*$")
+_GOES_ON = re.compile(r"^(?:[،؛,]|(?:صلى الله عليه وسلم|عليه السلام|رضي الله عنهما|رضي الله عنه|رحمه الله|تعالى)(?:\s|$|[:،.]))")
+
+
+def _joined(pieces) -> str:
+    """Pieces of one paragraph joined by a space, with no space left before a comma that goes on a sentence."""
+    return re.sub(r" (?=[،؛,])", "", " ".join(pieces))
+
+
+def continues(before: str, after: str) -> bool:
+    """True when paragraph `after` is the rest of the sentence that paragraph `before` left unfinished."""
+    if not before or _ISSUE.match(after):
+        return False
+    return not _SENTENCE_DONE.search(before) or bool(_GOES_ON.match(after))
 
 
 class ImportError_(ValueError):
@@ -91,8 +109,10 @@ def parse(text: str) -> list[dict]:
         if line.startswith("#") and not line.startswith("# "):
             continue  # other OpenITI tags
         if line.startswith("# ") and not _PAGE.fullmatch(line[2:].strip()):
-            current = {"heading": heading, "book": book, "pieces": []}
-            paragraphs.append(current)
+            last = current["pieces"][-1][0] if current is not None and current["pieces"] else ""
+            if not continues(last, _clean(_PAGE.sub("", line[2:]))):
+                current = {"heading": heading, "book": book, "pieces": []}
+                paragraphs.append(current)
             line = line[2:]
         elif line.startswith("~~"):
             line = line[2:]
@@ -111,7 +131,7 @@ def parse(text: str) -> list[dict]:
         if not p["pieces"]:
             continue
         pages = [ends[min(i, len(ends) - 1)] for _, i in p["pieces"]] if ends else []
-        out.append({"text": " ".join(t for t, _ in p["pieces"]), "heading": p["heading"],
+        out.append({"text": _joined(t for t, _ in p["pieces"]), "heading": p["heading"],
                     "book": p["book"], "pages": pages})
     return out
 

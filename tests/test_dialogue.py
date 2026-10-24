@@ -11,6 +11,7 @@ from muhawir.generate import ModelGenerator, _has_evidence
 from muhawir.pipeline import ABSTAINED, ANSWERED, REFERRED, TRANSLATED, Muhawir, _strip_ids
 from muhawir.store import SqliteCorpus, SqliteRetriever, build_db
 from muhawir.verify import Claim, is_named
+from muhawir.messages import TEXT
 from muhawir.corpus import Passage
 
 CORPUS = load_corpus(Path(__file__).resolve().parent.parent / "data" / "synthetic_corpus.json")
@@ -44,8 +45,14 @@ def test_a_wrong_word_at_the_edge_of_a_recalled_phrase_still_finds_the_passage(r
 
 
 def test_a_phrase_found_in_too_many_passages_identifies_nothing(retriever, monkeypatch):
-    monkeypatch.setattr(store, "MAX_PHRASE_MATCHES", 1)
-    assert retriever._phrase_rows(["تحتاج", "ماء", "كثير"], 8) == []  # held by two passages: not selective
+    monkeypatch.setattr(store, "MAX_PHRASE_MATCHES", 0)
+    assert retriever._phrase_rows(["تحتاج", "ماء", "كثير"], 8) == []  # held by a verse and more: not selective
+
+
+def test_a_phrase_quoted_in_too_many_books_still_finds_the_verse_or_hadith_it_comes_from(retriever, monkeypatch):
+    monkeypatch.setattr(store, "MAX_PHRASE_MATCHES", 1)  # two passages hold it: one verse, one other text
+    rows = retriever._phrase_rows(["تحتاج", "ماء", "كثير"], 8)
+    assert len(rows) == 1 and rows[0][3] == "quran"
 
 
 # --- one more search when the first found nothing usable ------------------------------------------
@@ -265,11 +272,20 @@ def test_a_partial_answer_is_rewritten_once_and_told_what_is_missing():
     full = {"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]},
                                          {"text": "وتثمر التمر في آخره.", "passage_ids": ["test-a:1"]}]}
     first = {"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]}
-    m, seen = _judged(["partly"], answers=[first, full])
+    m, seen = _judged(["partly", "yes"], answers=[first, full])
     res = m.ask(QUESTION)
     assert [c["text"] for c in res.claims] == ["ماء كثير.", "وتثمر التمر في آخره."]
     assert len(seen["answer_prompts"]) == 2 and "لا يغطي السؤال كله" in seen["answer_prompts"][1]
-    assert seen["judged"] == 1  # one rewrite only, and the rewrite is not judged again
+    assert seen["judged"] == 2  # one rewrite only; it is judged again, to know whether a notice is still needed
+    assert TEXT["ar"]["partial_note"] not in res.note  # the rewrite covers it: no notice
+
+
+def test_a_rewrite_that_still_covers_only_part_keeps_the_notice():
+    first = {"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]}
+    m, seen = _judged(["partly", "partly"], answers=[first, first])
+    res = m.ask(QUESTION)
+    assert res.status == ANSWERED and TEXT["ar"]["partial_note"] in res.note
+    assert len(seen["answer_prompts"]) == 2 and seen["judged"] == 2  # never a third writing
 
 
 def test_when_the_judge_cannot_run_the_checked_answer_stands():
@@ -1000,6 +1016,9 @@ def test_each_style_keeps_its_own_length_whatever_the_model_wrote():
     assert len(fit_style(short, "kids", False)) == STYLE_LIMITS["kids"][0]
     assert len(fit_style(short, "kids", True)) == STYLE_LIMITS["kids"][1]
     assert len(fit_style(short, "extended", False)) == STYLE_LIMITS["extended"][0]
-    kids = fit_style([long_one] + short[:4], "kids", False)
-    assert long_one not in kids and len(kids) == 4  # shorter sentences are enough: the long one goes
-    assert fit_style([long_one, short[0]], "kids", False) == [long_one, short[0]]  # too few short ones: kept
+    # a long sentence is dropped only when the answer is too long for a child, and then before any short one:
+    # within the limit it stays, as it may carry the condition the sentence before it depends on (19 October 2026)
+    assert fit_style([long_one] + short[:4], "kids", False) == [long_one] + short[:4]
+    kids = fit_style([long_one] + short[:6], "kids", False)
+    assert long_one not in kids and kids == short[:5]
+    assert fit_style([long_one, short[0]], "kids", False) == [long_one, short[0]]

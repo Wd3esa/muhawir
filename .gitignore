@@ -21,10 +21,15 @@ data/quran_corpus.json
 data/dumps/
 data/muhawir.db
 data/answers.db
+data/answers.db-wal
+data/answers.db-shm
 data/*.tmp
 data/vectors.npy
 data/vectors_ids.json
 data/vectors_model.txt
+data/vectors.usearch
+data/vectors.usearch.json
+data/vectors.usearch.tmp
 data/vectors.partial.f16
 data/vectors.partial_ids.json
 data/vectors.partial_model.txt

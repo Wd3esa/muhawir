@@ -17,7 +17,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, referrals, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -25,7 +25,7 @@ from .messages import LANGS, STYLES, TEXT
 from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
-from .verify import Rejected, verify
+from .verify import Rejected, invented_definition, verify
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
@@ -36,6 +36,10 @@ MAX_NEIGHBOURS = 4
 MAX_UNDERSTOOD_QUERIES = 14  # search phrases kept after the understanding step has run twice
 MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
+MAX_QUOTED_HADITHS = 2  # hadiths fetched from their own book because a fatwa offered to the model quotes them
+MAX_QUOTE_WORDS = 12  # the opening words of a quoted hadith are looked up (narrations differ further on)
+QUOTE_CANDIDATES = 10  # matches read for each quoted hadith
+QUOTE_MIN_COVERAGE = 0.8  # a hadith passage must hold nearly all the quoted words to be the one quoted
 SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "newcomer"}  # for "I did not understand"
 
 ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED = (
@@ -49,7 +53,7 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
 _stats_lock = threading.Lock()
 
 
@@ -58,6 +62,8 @@ def _stat(name: str, add: float = 1) -> None:
         STATS[name] += add
 CACHED = frozenset({"answered", "referred", "declined", "abstained", "translated"})
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
+_CHOOSE_LANG = {TEXT[lang]["choose_lang"] for lang in TEXT}
+_CHOICES = {normalize(TEXT[lang][k]): v for lang in TEXT for k, v in (("choose_ar", "ar"), ("choose_en", "en"))}
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
 _VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ةه]\b|\bسور[ةه]\b|\bالقرآن\b|\b(?:verse|ayah|aya|surah|sura|quran|qur'an)\b",
                          re.IGNORECASE)
@@ -99,17 +105,86 @@ KIDS_LONGEST = 18
 
 def fit_style(answer: list, style: str, listing: bool) -> list:
     prose, items = STYLE_LIMITS.get(style, STYLE_LIMITS["youth"])
-    if style == "kids":
-        short = [c for c in answer if len(c.text.split()) <= KIDS_LONGEST]
-        if len(short) >= 3:
-            answer = short
-    return answer[:items if listing else prose]
+    limit = items if listing else prose
+    if style == "kids" and len(answer) > limit:
+        # too many for a child: the longest sentences go first, but only as many as needed, so a sentence that
+        # carries a needed condition is not dropped from an answer that already fits (19 October 2026)
+        long = sorted((i for i, c in enumerate(answer) if len(c.text.split()) > KIDS_LONGEST),
+                      key=lambda i: -len(answer[i].text.split()))
+        drop = set(long[:len(answer) - limit])
+        answer = [c for i, c in enumerate(answer) if i not in drop]
+    return answer[:limit]
 
 
 def _same_word(a: str, b: str) -> bool:
     """Two forms of one word («الصابرون»/«الصابرين»): the same letters but for the last one or two."""
     short = min(len(a), len(b))
     return short >= 4 and abs(len(a) - len(b)) <= 1 and a[:short - 2] == b[:short - 2]
+
+
+# a request written before the verse inside the same quotation marks: \u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 \u0628\u0627\u0644\u0635\u0628\u0631 ...\u00BB
+_ASK_BEFORE_VERSE = re.compile(
+    r"^\s*(?:(?:\u0645\u0646 \u0641\u0636\u0644\u0643|\u0644\u0648 \u0633\u0645\u062D\u062A|\u0631\u062C\u0627\u0621[\u064B\u0627]?)\s+)?(?:\u0627\u0630\u0643\u0631|\u0623\u0630\u0643\u0631|\u0627\u0643\u062A\u0628|\u0623\u0643\u062A\u0628|\u0623\u0643\u0645\u0644|\u0627\u0643\u0645\u0644|\u0635\u062D\u062D|\u0635\u062D\u0651\u062D|\u0641\u0633\u0631|\u0641\u0633\u0651\u0631|\u0627\u0634\u0631\u062D|\u0645\u0627 \u0645\u0639\u0646\u0649|\u0645\u0627 \u062A\u0641\u0633\u064A\u0631)"
+    r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
+
+
+# «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
+_ASKS_VERSE_TEXT = re.compile(
+    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
+
+
+# a hadith quoted in a fatwa: «…» or ((…)), or the words after «صلى الله عليه وسلم:» up to the end of the sentence
+_HADITH_QUOTE = re.compile(r"«([^»]+)»|\(\(([^)]+)\)\)|(?:صلى الله عليه وسلم|ﷺ|عليه الصلاة والسلام)\s*(?:أنه\s+)?(?:قال\s*)?:\s*([^.«(\n]+)")
+
+
+def _hadith_quotes(text: str) -> list[str]:
+    """The opening words of each quotation of four words or more in `text`, in order, without repeats."""
+    out: list[str] = []
+    for m in _HADITH_QUOTE.finditer(text):
+        words = next(g for g in m.groups() if g is not None).split()
+        if len(words) >= 4:
+            q = " ".join(words[:MAX_QUOTE_WORDS])
+            if q not in out:
+                out.append(q)
+    return out
+
+
+def _quote_parts(quoted: str) -> list[str]:
+    """The quotation as written, then the verse part of it if a request came first inside the same marks
+    (\u00AB\u0627\u0630\u0643\u0631 \u0627\u0644\u0622\u064A\u0629: \u0648\u0627\u0633\u062A\u0639\u064A\u0646\u0648\u0627 ...\u00BB): after a colon, or after the asking words, then shorter runs of its words from
+    either end (four words or more), so the verse is found however the question was wrapped."""
+    parts = [quoted]
+    if re.search(r"[:\uFF1A]", quoted):
+        parts.append(re.split(r"[:\uFF1A]", quoted, maxsplit=1)[1])
+    parts.append(_ASK_BEFORE_VERSE.sub("", quoted))
+    words = quoted.split()
+    for n in range(len(words) - 1, 3, -1):
+        parts += [" ".join(words[-n:]), " ".join(words[:n])]
+    seen, out = set(), []
+    for p in (p.strip() for p in parts):
+        if p and p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+# words that ask about a hadith rather than quote it («أريد مصدر وصحة حديث …»), and words in nearly every hadith
+_HADITH_ASK_WORDS = {"حديث", "احاديث", "مصدر", "صحه", "وصحه", "صحيح", "سند", "درجه", "تخريج", "اريد", "داير", "دايره",
+                     "عايز", "عاوز", "ابي", "ابغي", "بدي", "نص", "معني", "شرح", "هل", "ما", "شو", "ايش", "وش", "شنو", "قال",
+                     "الله", "رسول", "نبي", "صلي", "عليه", "وسلم", "يقول", "كان", "hadith"}
+
+def _without_label(text: str, label: str) -> str:
+    """«ربا الفضل: ربا الفضل أن تبيع…» shows the label twice: the sentence keeps its words after the label."""
+    if not label:
+        return text
+    words, start = text.split(), normalize(label).split()
+    first = [normalize(w) for w in words[:len(start)]]
+    if first and first[0].startswith("و") and first[0][1:] == (start[0] if start else ""):
+        first[0] = first[0][1:]  # «وربا النسيئة» under the label «ربا النسيئة»
+    if len(words) > len(start) + 2 and first == start:
+        rest = " ".join(words[len(start):]).lstrip(":،, ")
+        return rest or text
+    return text
 
 
 _HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")
@@ -191,6 +266,23 @@ _LATIN = re.compile(r"[A-Za-z]{2,}")
 _ASKS_FOR_KINDS = re.compile(r"(?<!\w)[وفبل]?(?:ال)?(?:انواع|اقسام)")
 # fixed replies (greetings, offers to explain again): never taken as "the previous answer"
 _CANNED = {v for t in TEXT.values() for v in t.values() if isinstance(v, str)}
+# words that open a question («كم», «ما حكم», «هل», «how»): a message with one of them, or a question mark, is a question
+# («ما» and «لم» are left out: «ما فهمت» is no question, and is handled as a request to explain again)
+_ASK_WORDS = {"كم", "ماذا", "متى", "اين", "كيف", "لماذا", "هل", "ماهو", "ماهي", "حكم", "شنو", "ايش", "وش", "ليش",
+              "امتى", "فين", "وين", "قداش", "معنى", "what", "how", "why", "when", "where"}
+
+
+def _still_a_question(message: str, turns: list[dict]) -> bool:
+    """The understanding step found no question, yet the message is one: a question asked again word for word
+    (20 October 2026: a visitor repeated his question and was told «يبدو أن جوابي لم يكن واضحًا…»), or a message
+    with a question mark or a question word. It is answered, not met with an offer to explain again."""
+    said = normalize(message)
+    if not said:
+        return False
+    if any(t["role"] == "user" and normalize(t["text"]) == said for t in turns):
+        return True
+    words = said.split()
+    return "؟" in message or "?" in message or (len(words) >= 2 and bool(set(words) & _ASK_WORDS))
 ALL_MODELS_FAILED = "every model call failed"
 DEBUG = os.environ.get("MUHAWIR_DEBUG") == "1"  # adds the reason for not answering to each response
 log = logging.getLogger("muhawir")
@@ -212,6 +304,8 @@ class Response:
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
     follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
     referral: dict = field(default_factory=dict)  # who to ask, when Muhawir refers the user on (see referrals.py)
+    choices: list[str] = field(default_factory=list)  # buttons that each send their text as the next message
+    by_code: bool = False  # counted or quoted by code with no model (a word count, a verse shown): nothing to detail
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -237,6 +331,7 @@ class _Written:
     rejected: list
     retried: bool = False  # written after a second search with new search phrases
     off_topic: bool = False  # the checked answer was about another matter than the question, so it was dropped
+    partial: bool = False  # the answer is sourced and checked but covers only part of what was asked (said in a notice)
 
 
 # why a sentence was rejected, told to the model in its own language when it is asked to write again
@@ -247,11 +342,15 @@ _REJECTED_BECAUSE = (
     ("cites passages", "أسندتَها إلى مقطع غير موجود"),
     ("an example that", "كتبتَ مثالًا يشبّه أمرًا شرعيًا بشيء من الدنيا، فلا تكتب مثالًا هنا"),
     ("an everyday example", "كتبتَ مثالًا من عندك، ولا تُكتب أمثلة هنا"),
+    ("definition not in", "عرّفتَ الشيء بكلمات ليست في المقطع؛ اكتب التعريف بألفاظ المقطع نفسها، أو اذكر ما ورد عنه بلا تعريف"),
+    ("names a hadith book", "نسبتَ الحديث إلى كتاب (البخاري أو مسلم) لم تستند إلى مقطع منه؛ انسبه إلى الكتاب الذي في المقطع"),
     ("ruling word", "ذكرتَ نوعًا من الحكم (وجوبًا أو جوازًا أو تحريمًا أو استحبابًا…) غير الذي في المقطع"),
     ("no citation", "بلا مقطع تستند إليه"),
     ("is not named", "فيها اسم لم يرد في المقطع"),
     ("starts with a conclusion", "بدأتَها باستنتاج من عندك («وبالتالي»، «إذن»)"),
     ("says almost nothing", "جملة ناقصة لا تقول شيئًا"),
+    ("dropped_condition", "حذفتَ قيدًا أو شرطًا من المقطع فصار الحكم أعمّ مما فيه؛ اذكر القيد كما في المقطع"),
+    ("distortion", "غيّرتَ معنى المقطع (من قال لمن، أو النفي والإثبات، أو نسبة القول)"),
 )
 
 
@@ -417,12 +516,70 @@ def _asks_for_kinds(*questions: str) -> bool:
     return any(_ASKS_FOR_KINDS.search(normalize(q)) for q in questions if q)
 
 
-def _copies_a_source(text: str, translations: tuple[str, ...] = ()) -> bool:
+_BOTH_BOOKS = re.compile(r"^(و?)(?:روى|رواه|أخرج)\s+(?:الإمام\s+)?(?:البخاري\s+و(?:الإمام\s+)?مسلم|مسلم\s+والبخاري)\s+")
+
+
+def _agreed_upon(text: str, source_ids: set[str]) -> str:
+    """A hadith cited from both al-Bukhari and Muslim is named as the scholars name it, «متفق عليه»:
+    «روى البخاري ومسلم أن النبي ﷺ قال…» → «وفي الحديث المتفق عليه (رواه البخاري ومسلم) أن النبي ﷺ قال…».
+    Only when the sentence cites a passage of each book; any other sentence is left as written."""
+    if not {"sahih-bukhari", "sahih-muslim"} <= source_ids or "متفق عليه" in text:
+        return text
+    return _BOTH_BOOKS.sub(lambda m: f"{m.group(1)}في الحديث المتفق عليه (رواه البخاري ومسلم) ", text, count=1)
+
+
+_WEAK_GRADE = re.compile(r"ضعيف|منكر|موضوع|شاذ|باطل|معلول")
+_SAHIH_BOOKS = {"sahih-bukhari", "sahih-muslim"}
+
+
+def _hadith_notice(text: str, passages: list[Passage]) -> str:
+    """A hadith of the Sunan or al-Muwatta that the scholars named in its card grade as weak is not left to be read
+    as established: the system says so, as the sentence the model wrote may not (21 October 2026). Each scholar's
+    grading is one part of the card's grade («الألباني: ضعيف؛ زبير علي زئي: إسناده حسن»); when all are weak the
+    notice says so, when they differ it says they differ. A sentence that already says it is left as written."""
+    if re.search(r"ضعيف|ضعف|اختلف|منكر|موضوع", text):
+        return text
+    weak = mixed = False
+    for p in passages:
+        if p.kind != "hadith" or p.source_id in _SAHIH_BOOKS or not p.grade or p.grade == sahihayn.NO_GRADE:
+            continue
+        verdicts = [bool(_WEAK_GRADE.search(part)) for part in p.grade.split("؛")]
+        if all(verdicts):
+            weak = True
+        elif any(verdicts):
+            mixed = True
+    if weak:
+        return f"{text.rstrip()} (وهذا الحديث ضعيف عند المحدثين الذين نُقل حكمهم في بطاقة المصدر)"
+    if mixed:
+        return f"{text.rstrip()} (واختلف المحدثون في الحكم على هذا الحديث، وأحكامهم في بطاقة المصدر)"
+    return text
+
+
+_SAYS_PROPHET = re.compile(r"قال\s+(?:النبي|رسول\s+الله)|عن\s+النبي|أن\s+النبي\s+ﷺ?\s*قال|حديث")
+_NAMES_VERDICT = re.compile(r"السخاوي|ضعيف|موضوع|لا أصل له|باطل|صحيح|حسن|اختلف")
+
+
+def _saying_notice(text: str, passages: list[Passage]) -> str:
+    """A saying from «المقاصد الحسنة» (kind «takhrij») is one people repeat as a hadith, of any grade down to invented:
+    a sentence that gives it as the Prophet's words ﷺ with no verdict on it gets one from the system (21 October 2026),
+    whatever the model wrote. A sentence that rests also on a hadith book is left to the checks on hadith."""
+    kinds = {p.kind for p in passages}
+    if kinds != {"takhrij"} or not _SAYS_PROPHET.search(text) or _NAMES_VERDICT.search(text):
+        return text
+    return f"{text.rstrip()} (ذكره السخاوي في «المقاصد الحسنة» في الأقوال المشتهرة، وحكمه عليه في بطاقة المصدر)"
+
+
+def _copies_a_source(text: str, translations: tuple[str, ...] = (), hadiths: tuple[str, ...] = ()) -> bool:
     """The sentence is mostly a long quotation (five words or more). A short quotation inside the model's own
     explanation is fine: the source card shows the text, and the sentence explains it. A quotation of a verse's
-    approved English translation is what an English answer is asked to do, so it does not count."""
+    approved English translation is what an English answer is asked to do, so it does not count, and neither does
+    the words of the Prophet ﷺ quoted as they are in a hadith passage («بُني الإسلام على خمس…»): a hadith is quoted,
+    not retold in other words (21 October 2026). `hadiths` are the hadith passages, normalized."""
     def approved(quote: str) -> bool:
         inner = " ".join(quote.strip('"“”').split()).lower()
+        if inner.startswith("«") and hadiths:
+            said = normalize(inner.strip("«»"))
+            return bool(said) and any(said in h for h in hadiths)
         return bool(inner) and any(inner in t for t in translations)
     quoted = sum(len(m.group(0).split()) for m in _COPIED.finditer(text) if not approved(m.group(0)))
     return quoted > 0 and quoted / max(1, len(text.split())) > MAX_QUOTED_SHARE
@@ -451,6 +608,10 @@ class AnswerStore:
         self.version = version
         self._lock = threading.Lock()
         self._db = sqlite3.connect(str(path), check_same_thread=False)
+        # The answer cache is written while other requests read it. WAL keeps readers
+        # independent of the writer; SQLite still serializes writes via _lock.
+        self._db.execute("PRAGMA busy_timeout=5000")
+        self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("CREATE TABLE IF NOT EXISTS replies (key TEXT PRIMARY KEY, version TEXT, at REAL, reply TEXT)")
         self._db.execute("DELETE FROM replies WHERE version != ?", (version,))
         self._db.commit()
@@ -482,6 +643,11 @@ class AnswerStore:
         with self._lock:
             return self._db.execute("SELECT COUNT(*) FROM replies").fetchone()[0]
 
+    def delete(self, key: tuple) -> None:
+        with self._lock:
+            self._db.execute("DELETE FROM replies WHERE key = ?", (self._key(key),))
+            self._db.commit()
+
 
 class Muhawir:
     def __init__(self, corpus: Corpus, generator: Generator, retriever=None, store: AnswerStore | None = None) -> None:
@@ -494,6 +660,59 @@ class Muhawir:
         self._cache_lock = threading.Lock()
         self.store = store
         self._inflight: dict = {}  # question key -> lock: the same question arriving twice at once is written once
+        self._quran_index: quran_count.QuranIndex | None = None  # built on the first counting question
+        self._quran_index_lock = threading.Lock()
+
+    def _count_reply(self, word: str, surah: str, root_asked: bool, lang: str) -> Response:
+        """«كم مرة وردت كلمة الرشد في القرآن»: counted by code over every verse, with each place listed and cited.
+        No model is asked: a model counts only the places it happened to retrieve (quran_count)."""
+        with self._quran_index_lock:
+            if self._quran_index is None:
+                self._quran_index = quran_count.QuranIndex.from_corpus(self.corpus)
+        _stat("counted")
+        c = self._quran_index.count(word, surah, root_asked)
+        lead, lines, places, note = quran_count.reply(c, lang)
+        if not self._quran_index.verses:
+            return Response(ABSTAINED, TEXT[lang]["abstain"], synthetic=self.corpus.synthetic)
+        claims = [{"text": f"{p.location}: {p.snippet}", "passage_ids": [p.verse_id]} for p in places]
+        res = Response(ANSWERED if places else ABSTAINED, " ".join([lead, *lines]), claims=claims,
+                       sources=self._cards([p.verse_id for p in places], lang=lang),
+                       synthetic=self.corpus.synthetic, note=note, as_list=True, by_code=True)
+        return res
+
+    def _closest_hadith(self, question: str, passages: list[Passage], corpus, lang: str) -> Response | None:
+        """A hadith asked about in words no passage holds («حديث سيسخط قوم من أمتي… قردة وخنازير», 19 October 2026):
+        when the model found no answer but a hadith among the passages shares at least three of the quote's words
+        and two fifths of them, that hadith is shown as it is in its source, with a plain note that the wording
+        differs and that its authenticity is for a specialist. No model writes anything here."""
+        plain = normalize(question)
+        if not re.search(r"\bحديث\b|\bhadith\b", plain):
+            return None  # «أحاديث عن الصيام» asks for hadiths on a topic, not about one hadith's wording
+        quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
+        if quoted:
+            text = " ".join(quoted)
+        else:  # the hadith's words as the user wrote them: what follows «حديث»
+            text = re.split(r"\bحديث\b|\bhadith\b", plain, maxsplit=1)[-1]
+        words = [w for w in tokenize(text) if w not in _HADITH_ASK_WORDS]
+        if len(set(words)) < (3 if quoted else 4):
+            return None
+        bare = lambda w: w[1:] if len(w) > 3 and w[0] in "وف" else w  # noqa: E731
+        asked = {bare(w) for w in words}
+        best, best_shared = None, 0
+        for p in passages:
+            if p.kind != "hadith":
+                continue
+            shared = len(asked & {bare(w) for w in tokenize(p.text)})
+            if shared > best_shared:
+                best, best_shared = p, shared
+        if best is None or best_shared < 3 or best_shared < 0.4 * len(asked):
+            return None
+        t = TEXT[lang]
+        source = corpus.source_of(best)
+        grade = t["closest_hadith_grade"].format(grade=best.grade) if best.grade else ""
+        where = best.location if best.location.startswith(source.name) else f"«{source.name}» ({best.location})"
+        message = t["closest_hadith"].format(where=where, grade=grade)
+        return Response(ABSTAINED, message, sources=self._cards([best.id], corpus, lang), synthetic=self.corpus.synthetic)
 
     def _abstain(self, question: str, t: dict, synthetic: bool) -> Response:
         """General abstain, or a precise one when the reasons-of-revelation source has no entry."""
@@ -526,9 +745,23 @@ class Muhawir:
                   if not _opens_with_conclusion(c.text) and _says_almost_nothing(c.text)]
         kept, rejected = verify([c for c in draft if c not in [r.claim for r in shape]], corpus, allowed)
         rejected = shape + rejected
+        # a definition of what was asked must say what the cited passages say: words the code cannot match in any
+        # form or synonym are put to the model, and the sentence goes only when it confirms they are not there
+        invented = {}
+        judge = getattr(self.generator, "judge_definition", None)
+        for c in kept:
+            texts = [corpus.passage(pid).text for pid in c.passage_ids]
+            suspects = invented_definition(c.text, texts, question)
+            absent = judge(c.text, suspects, texts) if suspects and judge else None
+            if absent:
+                invented[id(c)] = absent
+        rejected += [Rejected(c, f"definition not in the source's words: {', '.join(invented[id(c)])}")
+                     for c in kept if id(c) in invented]
+        kept = [c for c in kept if id(c) not in invented]
         if self.generator.name != "extractive":  # the model must explain, not paste the sources
             translations = tuple(" ".join(p.translation.split()).lower() for p in passages if p.translation)
-            copied = [c for c in kept if _copies_a_source(c.text, translations)]
+            hadiths = tuple(normalize(p.text) for p in passages if p.kind == "hadith")
+            copied = [c for c in kept if _copies_a_source(c.text, translations, hadiths)]
             rejected += [Rejected(c, "copied a source sentence instead of explaining it") for c in copied]
             kept = [c for c in kept if c not in copied]
             if not ALLOW_EXAMPLES:
@@ -608,6 +841,38 @@ class Muhawir:
                     have.add(q.id)
         return out
 
+    def _quoted_hadith(self, quote: str) -> Passage | None:
+        """The hadith in «الصحيحان» (or another hadith book of the corpus) whose text holds `quote`: the best
+        hadith match that has nearly all the quote's words. None when no hadith passage matches that closely."""
+        # by words only (the quoted words in a row first): no call to the meaning model for each quotation
+        words = getattr(self.retriever, "sqlite_retriever", self.retriever)
+        for h in words.search(quote, k=QUOTE_CANDIDATES):
+            if h.passage.kind == "hadith" and h.coverage >= QUOTE_MIN_COVERAGE:
+                return h.passage
+        return None
+
+    def _with_quoted_hadiths(self, passages: list[Passage]) -> list[Passage]:
+        """A fatwa that quotes a hadith comes after that hadith from its own book: the hadith is the source, the
+        fatwa a scholar's word about it. «اركان الاسلام» found Ibn Baz's fatwa first (it has those words) and not
+        «بُني الإسلام على خمس» in al-Bukhari and Muslim, which does not (21 October 2026). A hadith already in
+        the list moves up before the fatwa; one not there is looked up by the quoted words and added."""
+        out: list[Passage] = []
+        have: set[str] = set()
+        added = 0
+        for p in passages:
+            if p.kind == "fatwa" and added < MAX_QUOTED_HADITHS:
+                for quote in _hadith_quotes(p.text):
+                    h = self._quoted_hadith(quote)
+                    if h is not None and h.id not in have:
+                        out.append(h)
+                        have.add(h.id)
+                        added += 1
+                        break
+            if p.id not in have:
+                out.append(p)
+                have.add(p.id)
+        return out
+
     @staticmethod
     def _understood(understand, question: str, turns: list[dict]) -> dict | None:
         """The understanding step, run twice at once. The model's recall of verses and hadith differs from one
@@ -653,6 +918,8 @@ class Muhawir:
             best.setdefault(p.id, Hit(p, 0.0, 1.0))
         # and whatever fiqh passage was found, the passage that opens its issue (the views) comes before it
         offered = self._with_issue_openers([h.passage for h in best.values()])
+        # and a hadith a fatwa quotes comes from its own book, before the fatwa
+        offered = self._with_quoted_hadiths(offered)
         # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
         return [p for p in offered if not _confused(p, f"{original} {question}")], queries
 
@@ -697,11 +964,15 @@ class Muhawir:
             rewrite(_feedback(rejected))
         judge = getattr(self.generator, "judge_relevance", None)
         verdict = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
-        if verdict == "partly" and not rewritten and can_review:  # it answers only part of what was asked
+        partial = verdict == "partly"
+        if partial and not rewritten and can_review:  # it answers only part of what was asked
             rewrite(_feedback(rejected, incomplete=True))
+            # the rewrite may now cover the question: it is judged again, and a notice is kept only if it still does not
+            again = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+            partial = again != "yes"
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
-        return _Written(passages, allowed, corpus, kept, rejected)
+        return _Written(passages, allowed, corpus, kept, rejected, partial=partial)
 
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
                first: _Written | None) -> _Written | Response | None:
@@ -757,26 +1028,80 @@ class Muhawir:
         words, and the different word a form of the same word (the same first letters). The answer is not built on
         the wrong wording; the note shows the verse as it is (EVALUATION.md, Q11; guide p. 6)."""
         for groups in _QUOTED.findall(question):
-            quoted = next(g for g in groups if g)
-            words = normalize(quoted).split()
-            if len(words) < 3 or self._verse(quoted) is not None:
-                continue
-            for verse in self._near_verses(quoted):
-                verse_words = normalize(verse.text).split()
-                for start in range(len(verse_words) - len(words) + 1):
-                    window = verse_words[start:start + len(words)]
-                    wrong = [(a, b) for a, b in zip(words, window) if a != b]
-                    if len(wrong) == 1 and _same_word(*wrong[0]):
-                        return verse, quoted.strip()
+            for i, quoted in enumerate(_quote_parts(next(g for g in groups if g))):
+                words = normalize(quoted).split()
+                if len(words) < 3 or (i == 0 and self._verse(quoted) is not None):
+                    continue
+                for verse in self._near_verses(quoted, search=i == 0):
+                    verse_words = normalize(verse.text).split()
+                    for start in range(len(verse_words) - len(words) + 1):
+                        window = verse_words[start:start + len(words)]
+                        wrong = [(a, b) for a, b in zip(words, window) if a != b]
+                        if len(wrong) == 1 and _same_word(*wrong[0]):
+                            return verse, quoted.strip()
         return None
 
-    def _near_verses(self, quoted: str) -> list[Passage]:
+    def _asked_verse(self, question: str) -> Passage | None:
+        """The verse a message asks to be shown («اذكر الآية: …», «أكمل الآية …»), found in the mushaf by its words,
+        or by the misquoted-verse check when one word is in the wrong form. None when no verse is asked for."""
+        m = _ASKS_VERSE_TEXT.search(question)
+        if not m:
+            return None
+        quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
+        after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
+        tried = 0
+        for text in [*quoted, after]:
+            for part in _quote_parts(text):
+                if len(normalize(part).split()) < 3 or tried >= 8:
+                    continue
+                tried += 1
+                verse = self._verse(part) or self._verse_loosely(part)
+                if verse is not None:
+                    return verse
+        fix = self._misquoted(question)
+        return fix[0] if fix else None
+
+    def _verse_loosely(self, text: str) -> Passage | None:
+        """As _verse, with «و» or «ف» the quote left off its first word («كلوا واشربوا» for «وكلوا واشربوا»)."""
+        words = normalize(text).split()
+        if len(words) < 3:
+            return None
+        candidates = [h.passage for h in self.retriever.search(text, k=5) if h.passage.kind == "quran"]
+        con, terms = getattr(self.corpus, "con", None), tokenize(text)
+        if con is not None and terms:  # every verse holding all the quote's words, however the search ranked them
+            # the first word may carry a «و» or «ف» the quote left off: it is checked below, not searched
+            match = " AND ".join('"' + t.replace('"', '""') + '"' for t in (terms[1:] if len(terms) >= 3 else terms))
+            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
+                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 50", (match,)).fetchall()
+            candidates += [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
+        for passage in candidates:
+            verse_words = normalize(passage.text).split()
+            for i in range(len(verse_words) - len(words) + 1):
+                window = verse_words[i:i + len(words)]
+                if window[1:] == words[1:] and window[0] in (words[0], "و" + words[0], "ف" + words[0]):
+                    return passage
+        return None
+
+    def _verse_reply(self, verse: Passage, lang: str) -> Response:
+        """The verse as it is in the mushaf, with its source card, and an offer to explain it. No model is asked."""
+        res = Response(ANSWERED, "", claims=[{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
+                                         "passage_ids": [verse.id]}],
+                       sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic, by_code=True)
+        parts = verse.id.split(":")
+        surah = verse.location.split("،")[0].strip()
+        if len(parts) == 3 and surah:
+            res.follow_up = (f"ما تفسير الآية {parts[2]} من {surah}؟" if lang != "en"
+                             else f"What does verse {parts[2]} of {surah} mean?")
+        return res
+
+    def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
         """Verses that may hold the quote with one word in another form: with the SQLite store, every verse
         holding the quote's other search words and a word beginning like the varied one; otherwise the search."""
-        found = [h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
         # The live retriever may be HybridRetriever, which wraps SQLite and has no .corpus.
         # Use this engine's corpus so the near-verse lookup still works with vectors enabled.
         con = getattr(self.corpus, "con", None)
+        found = ([h.passage for h in self.retriever.search(quoted, k=5) if h.passage.kind == "quran"]
+                 if search or con is None else [])
         terms = tokenize(quoted)
         if con is None or not terms:
             return found
@@ -842,6 +1167,18 @@ class Muhawir:
                 lock[1] -= 1
                 if not lock[1]:
                     self._inflight.pop(key, None)
+
+    def ask_again(self, question: str, style: str = "youth", lang: str = "ar") -> tuple[Response | None, Response]:
+        """The nightly review (scripts/nightly.py): a first question kept as «not found» is answered once more from
+        scratch, through every check as usual, and the new reply replaces the kept one. Returns (kept before, now).
+        The model's search phrases and reading differ from one run to the next, so a miss is often not repeated."""
+        key = (normalize(as_question(question or "")), style, lang)
+        before = self._kept(key)
+        with self._cache_lock:
+            self._cache.pop(key, None)
+        if self.store is not None:
+            self.store.delete(key)
+        return before, self.ask(question, style, lang)
 
     def _kept(self, key: tuple, waited: bool = False) -> Response | None:
         """A reply kept in memory or on disk for this question, style and language."""
@@ -914,6 +1251,14 @@ class Muhawir:
         if question and len(question) <= MAX_QUESTION_CHARS and classify.is_small_talk(question):
             reply = "thanks" if classify.is_thanks(question) else "small_talk"
             return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
+        counting = quran_count.asked(question) if question and len(question) <= MAX_QUESTION_CHARS else None
+        if counting:
+            return self._count_reply(*counting, lang_ok)
+        if question and len(question) <= MAX_QUESTION_CHARS:
+            verse = self._asked_verse(question)
+            if verse is not None:
+                _stat("verse_shown")
+                return self._verse_reply(verse, lang_ok)
         turns = [{"role": t.get("role"), "text": str(t.get("text", ""))[:MAX_TURN_CHARS]}
                  for t in (history or []) if isinstance(t, dict) and t.get("role") in ("user", "assistant")]
         turns = turns[-MAX_HISTORY_TURNS:]
@@ -923,7 +1268,11 @@ class Muhawir:
                 return Response(ABSTAINED, TEXT[lang_ok]["no_reason"][missing["what"]].format(**missing),
                                 synthetic=self.corpus.synthetic)
         understand = getattr(self.generator, "understand", None)
-        understood, queries, previous, kind, feeling = "", None, "", "", ""
+        understood, queries, previous, kind, feeling, personal = "", None, "", "", "", False
+        # «بالعربية» / «In English» tapped under «بأي لغة تريد الجواب؟»: the language is the one tapped, decided here
+        # and not by the model, and the question is never sent back to that choice again
+        chosen = _CHOICES.get(normalize(question)) if turns and turns[-1]["role"] == "assistant" \
+            and turns[-1]["text"].strip() in _CHOOSE_LANG else None
         if question and understand and len(question) <= MAX_QUESTION_CHARS:
             gate = classify.check(question)  # the user's own words are checked before any rewording
             if gate.kind not in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
@@ -931,6 +1280,23 @@ class Muhawir:
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
+                    reply_lang = "ar" if _ARABIC.search(question) else "en" if _LATIN.search(question) else lang_ok
+                    if u.get("feeling") == "crisis":
+                        # thoughts of suicide or self-harm said in any words or dialect, which the word list above
+                        # cannot all hold: the same fixed caring reply, no answer from the sources
+                        return Response(REFERRED, TEXT[reply_lang]["crisis"], synthetic=self.corpus.synthetic)
+                    if chosen:
+                        u = {**u, "lang": chosen}
+                        if not u.get("question"):  # the model found no question in «بالعربية»: the one asked before
+                            asked = [t["text"] for t in turns if t["role"] == "user"]
+                            u["question"] = asked[-1] if asked else ""
+                    if u.get("lang") == "other" and not chosen:
+                        # a language Muhawir does not answer in («بالإسبانية»): say which it does and let the user
+                        # choose; the choice is sent as the next message and the question is taken from the conversation
+                        t_ = TEXT[reply_lang]
+                        res = Response(CHAT, t_["choose_lang"], synthetic=self.corpus.synthetic)
+                        res.choices = [t_["choose_ar"], t_["choose_en"]]
+                        return res
                     if not u["question"] and not u.get("translate") and u.get("feeling") == "sad":
                         # sorrow without a question: comfort first
                         return Response(CHAT, TEXT[lang_ok]["comfort"], synthetic=self.corpus.synthetic)
@@ -946,6 +1312,8 @@ class Muhawir:
                             return Response(UNAVAILABLE, TEXT[lang_ok]["unavailable"], synthetic=self.corpus.synthetic)
                         return Response(TRANSLATED, out, synthetic=self.corpus.synthetic,
                                         note=TEXT[lang_ok]["translation_label"])
+                    if not u["question"] and _still_a_question(question, turns):
+                        u = {**u, "question": question}
                     if not u["question"]:  # no question in the message (e.g. only an insult): no judgement, an invitation
                         # right after an answer, it usually means the answer did not help: offer to explain again
                         after = any(t["role"] == "assistant" for t in turns)
@@ -954,6 +1322,7 @@ class Muhawir:
                     queries = u["queries"]
                     kind = u.get("kind", "")
                     feeling = u.get("feeling", "")
+                    personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
                         previous = next((t["text"] for t in reversed(turns)
                                          if t["role"] == "assistant" and t["text"] not in _CANNED), "")
@@ -968,7 +1337,7 @@ class Muhawir:
                     if normalize(u["question"]) != normalize(question):
                         understood = u["question"]
         res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous,
-                        kind=kind, feeling=feeling)
+                        kind=kind, feeling=feeling, personal=personal)
         if classify.mentions_suicide(question) and res.status == ANSWERED:
             res.message = TEXT[lang_ok]["care_note"]  # the topic is answered, with a caring line above it
         if feeling == "sad" and res.status == ABSTAINED:
@@ -979,7 +1348,8 @@ class Muhawir:
         return res
 
     def _ask(self, question: str, style: str, lang: str, original: str = "",
-             queries: list[str] | None = None, previous: str = "", kind: str = "", feeling: str = "") -> Response:
+             queries: list[str] | None = None, previous: str = "", kind: str = "", feeling: str = "",
+             personal: bool = False) -> Response:
         lang = lang if lang in LANGS else "ar"
         style = style if style in STYLES else "youth"
         t = TEXT[lang]
@@ -995,6 +1365,10 @@ class Muhawir:
             own = classify.check(original)
             if own.kind:
                 gate = own
+        if personal and gate.kind is None:
+            # the understanding step read a case of the user's own in words no fixed rule holds (any dialect):
+            # general information and who to ask, as for a case the rules found
+            gate = classify.Gate(classify.PERSONAL_CASE, "understood as a personal case")
         if gate.kind in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
             return Response(DECLINED, t[gate.kind], synthetic=synthetic)
         # a contemporary financial matter: the published fatwas and the scholars' words are quoted, attributed,
@@ -1049,6 +1423,9 @@ class Muhawir:
                 return self._why(Response(REFERRED, t["personal_case"], synthetic=synthetic), f"{offered}; {reason}")
             if contemporary:
                 return self._why(Response(REFERRED, t["out_of_scope"], synthetic=synthetic), f"{offered}; {reason}")
+            closest = self._closest_hadith(original or question, passages, corpus, lang)
+            if closest is not None:  # a hadith asked about in other words: the nearest text, shown as it is
+                return self._why(closest, f"{offered}; {reason}; closest hadith shown")
             return self._why(self._abstain(question, t, synthetic), f"{offered}; {reason}", raw)
         # the dropped sentences themselves are shown only in the debug reply, never written to the log
         dropped = (f"{len(rejected)} sentence(s) dropped: " + " ## ".join(
@@ -1057,6 +1434,10 @@ class Muhawir:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
         answer = [c for c in kept if not c.school]
+        answer = [replace(c, text=_agreed_upon(c.text, {corpus.passage(pid).source_id for pid in c.passage_ids}))
+                  for c in answer]
+        answer = [replace(c, text=_saying_notice(_hadith_notice(c.text, ps), ps)) for c in answer
+                  for ps in [[corpus.passage(pid) for pid in c.passage_ids]]]
         if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
             answer = [c for c in answer if not classify.names_company(c.text)]
         # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
@@ -1083,7 +1464,7 @@ class Muhawir:
             if contemporary:
                 return Response(REFERRED, t["out_of_scope"], synthetic=synthetic)
             return self._why(self._abstain(question, t, synthetic), f"{offered}; no sourced sentence (only views or Muhawir's own explanation)")
-        claims = [{"text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids),
+        claims = [{"text": _without_label(_strip_ids(c.text, allowed), c.label), "passage_ids": list(c.passage_ids),
                    **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {}),
                    **({"example": True} if is_example(c.text) else {})}
                   for c in answer]
@@ -1097,14 +1478,18 @@ class Muhawir:
                             lang)
         note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
         if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage
-            note = t["ruling_note"]
+            # «the scholars' views» only when views are shown: an agreed ruling («are the five prayers obligatory?»)
+            # has no views to present
+            note = t["ruling_note"] if views else t["ruling_note_agreed"]
+        if written.partial:  # said by the system: what the sources hold covers only part of the question (21 October 2026)
+            note = f"{note}\n{t['partial_note']}" if note else t["partial_note"]
         if contemporary:  # quoted fatwas, never Muhawir's own ruling on the product; the card names who to ask
             return Response(REFERRED, t["contemporary_info"], claims, cards, synthetic, note, views)
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
             # the message already says this is no ruling on the case and to ask a qualified body:
             # the ruling notice would repeat it, so it is shown once only
-            return Response(REFERRED, message, claims, cards, synthetic, "" if note == t["ruling_note"] else note, views)
+            return Response(REFERRED, message, claims, cards, synthetic, "" if note in (t["ruling_note"], t["ruling_note_agreed"]) else note, views)
         # «I did not understand»: a short human line first, said by the system, with no religious content
         res = Response(ANSWERED, t["reexplain_lead"] if previous else "", claims, cards, synthetic, note, views)
         if DEBUG and (dropped or written.retried):
