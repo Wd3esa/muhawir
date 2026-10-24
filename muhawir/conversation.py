@@ -7,13 +7,12 @@ source-grounded understanding pipeline.
 from __future__ import annotations
 
 from collections.abc import Iterable
-import re
 
-_WORDS = re.compile(r"[\u0600-\u06ff]{3,}|[a-zA-Z]{3,}")
+from .normalize import tokenize
 
 
 def _terms(text: str) -> set[str]:
-    return {w.casefold() for w in _WORDS.findall(text)}
+    return set(tokenize(text))
 
 MAX_TURN_CHARS = 1200
 MAX_CONTEXT_CHARS = 9000
