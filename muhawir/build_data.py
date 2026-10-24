@@ -27,7 +27,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from . import aqeedah, bayyinat, bidaya, fatawa, gharib, ibnkathir, maqasid, sahihayn, sira, translation, wordforms
+from . import aqeedah, bayyinat, bidaya, extra_sources, fatawa, gharib, ibnkathir, maqasid, sahihayn, sira, translation, wordforms
 from .quranpedia import build_corpus
 from .store import build_db
 
@@ -166,6 +166,7 @@ def build(folder: Path, out: Path) -> int:
         maqasid.add_to_corpus(corpus, (folder / maqasid.FILE).read_text(encoding="utf-8"))
     else:
         print("note: al-Sakhawi's «المقاصد الحسنة» is not in this folder; add it with --get-hadith")
+    extra_sources.append_reviewed(corpus, folder)  # opt-in local manifest, always last for vector prefix reuse
     out.parent.mkdir(parents=True, exist_ok=True)
     if (folder / wordforms.AWN_FILE).exists():  # synonyms for the check on definitions, read beside the database
         shutil.copyfile(folder / wordforms.AWN_FILE, out.parent / wordforms.AWN_FILE)
