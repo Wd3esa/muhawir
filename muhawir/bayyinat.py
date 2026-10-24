@@ -170,6 +170,18 @@ PART_AR = {"question": "السؤال", "similar": "عبارات مشابهة ل�
            "short": "مختصر الإجابة", "detail": "الجواب التفصيلي", "closing": "خاتمة الجواب"}
 
 
+def is_answer_part(passage) -> bool:
+    """A question/gist in Bayyinat describes the objection; it is not evidence for an answer.
+
+    The importer records the part in the location. Keep its question in the corpus and
+    its keywords intact for browsing, but do not send that part to answer generation.
+    """
+    if getattr(passage, "source_id", None) != SOURCE_ID:
+        return True
+    part = passage.location.rsplit(" — ", 1)[-1]
+    return not any(part.startswith(f"{PART_AR[k]} (") for k in ("question", "gist"))
+
+
 def parse(lines: list[dict]) -> list[dict]:
     """Questions in order: {"number", "title", "keywords", "parts": [(part, [(page, paragraph), ...])]}."""
     questions: list[dict] = []
