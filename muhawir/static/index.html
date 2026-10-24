@@ -1525,6 +1525,85 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 .status[data-tone="missing"]::before { background:var(--status-missing); }
 .status[data-tone="missing"] { color:var(--status-missing); }
 .status[data-tone="referred"]::before { background:var(--status-referred); }
+
+/* Muhawir: quiet parchment and ink; dark mode uses black and charcoal. */
+:root {
+  --bg:#F6F1E6; --panel:#FFFBF2; --sidebar:#F1EBDC;
+  --ink:#25342D; --muted:#536258; --muted-soft:#647166;
+  --accent:#30694E; --accent-ink:#FFFFFF; --accent-soft:#E4EDE4;
+  --line:#C7D0C1; --card:#FFFBF2; --mine:#E6EDE3;
+  --deep:#25342D; --indigo:#30694E; --focus:#30694E;
+  --warn-bg:#E4EDE4; --warn-ink:#25342D;
+  --shadow:0 3px 18px rgba(30,48,35,.06);
+}
+:root[data-theme="dark"] {
+  --bg:#090A09; --panel:#202420; --sidebar:#171A18;
+  --ink:#EDECE5; --muted:#BEC9BE; --muted-soft:#B1C0B4;
+  --accent:#A2D2B2; --accent-ink:#102016; --accent-soft:#26362B;
+  --line:#4A5A4D; --card:#202420; --mine:#28342B;
+  --deep:#090A09; --indigo:#A2D2B2; --focus:#A2D2B2;
+  --warn-bg:#26362B; --warn-ink:#EDECE5;
+  --shadow:0 3px 18px rgba(0,0,0,.22);
+}
+body { background:var(--bg); }
+.sidebar,.topbar { background:var(--sidebar); }
+.topbar { height:60px; border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent); }
+.topbar select { min-height:40px; padding:5px 9px; background:var(--panel); }
+.welcome-wordmark { position:relative; width:min(200px,55%); margin-bottom:0; color:var(--accent); }
+.welcome-book { position:absolute; left:13%; top:4%; display:block; width:25px; height:25px; color:var(--accent); }
+.welcome-book svg { width:100%; height:100%; }
+.welcome-book .book-left { transform-origin:50% 80%; animation:book-open-left .48s ease-out both; }
+.welcome-book .book-right { transform-origin:50% 80%; animation:book-open-right .48s ease-out both; }
+.welcome-book .book-page { transform-origin:50% 80%; animation:book-page-turn 1.8s ease-in-out .5s 2; }
+@keyframes book-open-left { from { transform:scaleX(.2) } to { transform:scaleX(1) } }
+@keyframes book-open-right { from { transform:scaleX(.2) } to { transform:scaleX(1) } }
+@keyframes book-page-turn { 0%,100% { transform:scaleX(1) } 45% { transform:scaleX(-.7) } }
+.empty-state { padding:12px 0 30px; }
+.welcome-description { max-width:430px; margin:4px auto 2px; color:var(--muted); font-size:15px; line-height:1.75; }
+.welcome-kicker { margin:0; font-size:14px; font-weight:500; color:var(--muted); }
+.conversation-frame { max-width:860px; }
+#thread { gap:14px; }
+.turn-user { background:var(--mine); border-color:transparent; box-shadow:none; }
+.msg:not(.pending) { background:transparent; }
+#ask { display:flex; flex-direction:column; align-items:stretch; gap:0; padding:7px 10px 6px; background:var(--panel); border-color:var(--line); border-radius:20px; box-shadow:var(--shadow); }
+#ask:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent); }
+.composer-field { width:100%; align-self:stretch; }
+textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; }
+.composer-row { width:100%; display:flex; align-items:center; justify-content:flex-end; gap:7px; min-height:36px; padding:0; }
+.style-wrap { min-width:0; margin-inline-end:auto; gap:4px; color:var(--muted); font-size:12px; font-weight:500; }
+.style-wrap select { max-width:140px; min-height:36px; padding:2px 5px; border:0; background:transparent; color:var(--ink); font-size:13px; }
+.mic,.stop-request { width:38px; height:38px; min-height:38px; }
+.send { width:40px; height:40px; border-radius:12px; }
+.disclaimer { margin:7px 0 9px; font-size:11px; }
+.card { overflow:visible; background:var(--panel); border-color:var(--line); }
+.source-shelf { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); align-items:start; gap:8px 12px; margin-top:7px; padding-bottom:9px; border-bottom:2px solid color-mix(in srgb,var(--accent) 28%,var(--line)); }
+.source-shelf .card { min-width:0; margin:0; }
+.source-shelf .card[open] { grid-column:1/-1; }
+.card summary { position:relative; isolation:isolate; min-height:66px; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px 18px; border-radius:8px; background:radial-gradient(circle at 25% 30%,rgba(255,255,255,.11),transparent 45%),repeating-linear-gradient(105deg,transparent 0 3px,rgba(0,0,0,.035) 4px 5px),#365545; color:#F7EBD4; box-shadow:inset 0 0 0 2px #9E8561,inset 0 0 0 6px #365545,inset 0 0 0 7px rgba(224,197,139,.46),0 3px 5px rgba(0,0,0,.12); text-align:center; line-height:1.6; text-shadow:0 1px 1px #17291E,0 -1px rgba(255,244,204,.15); transition:transform .18s ease,box-shadow .18s ease; }
+.card summary::before,.card summary::after { content:"✦"; position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#D8C096; opacity:.75; }
+.card summary::after { inset-inline-start:auto; inset-inline-end:12px; }
+.card summary .num { flex:none; color:#F7EBD4; font-size:11px; }
+.card summary .book-title { display:block; min-width:0; max-width:calc(100% - 72px); overflow-wrap:anywhere; font-size:14px; font-weight:700; }
+.card[open] summary,.card summary:hover { transform:translateY(-3px); box-shadow:inset 0 0 0 2px #BBA073,inset 0 0 0 6px #365545,inset 0 0 0 7px rgba(224,197,139,.5),0 7px 13px rgba(0,0,0,.18); }
+:root[data-theme="dark"] .card summary { background-color:#304036; }
+.card blockquote { line-height:1.9; }
+@media(max-width:620px) {
+  .topbar { height:56px; padding-inline:12px; }
+  .topbar-start,.topbar-tools { gap:5px; }
+  .topbar h1 { max-width:30vw; font-size:14px; }
+  .topbar select { max-width:105px; font-size:12px; }
+  .welcome-wordmark { width:min(175px,52%); }
+  .welcome-book { width:22px; height:22px; }
+  .welcome-description { padding-inline:10px; font-size:14px; }
+  #ask { padding:5px 9px; }
+  textarea { min-height:42px; padding:5px 2px; }
+  .composer-row { flex-wrap:nowrap; row-gap:0; }
+  .style-wrap { flex:0 1 auto; justify-content:flex-start; white-space:nowrap; }
+  .style-wrap select { max-width:112px; }
+  .disclaimer { font-size:11px; }
+}
+@media(max-width:350px) { .style-wrap > span { display:none; } }
+@media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
 </head>
 <body>
@@ -1538,7 +1617,6 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
       <button class="icon-button sidebar-close" id="closeHistory" type="button" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
     </div>
     <button class="new-chat" id="newChat" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span data-t="newChat"></span></button>
-    <details class="style-settings"><summary data-t="settings"></summary><label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label></details>
     <p class="history-heading" data-t="historyHeading"></p>
     <label class="history-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg><input id="historySearch" type="search" autocomplete="off" placeholder="" aria-label=""></label>
     <nav class="history-list" id="historyList" aria-label=""></nav>
@@ -1571,7 +1649,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
             <path d="m 395.5501,182.44 -7.74,21.06 -3.78,3.24 -17.28,1.8 q -0.18,-17.64 -1.8,-43.02 -1.44,-25.56 -3.24,-45.36 5.04,-6.12 11.34,-11.7 6.3,-5.58 11.34,-8.28 0.9,3.6 0.9,11.34 0.18,13.86 -1.8,37.26 -1.98,23.22 -3.6,32.22 l 14.58,-1.62 z"/>
             <path d="m 349.10994,155.26 q 0,13.86 -5.22,26.64 -5.04,12.78 -14.4,20.88 -9.36,7.92 -21.06,7.92 -8.1,0 -18.72,-3.96 -10.62,-4.14 -15.66,-9 14.22,-4.14 31.68,-10.44 17.64,-6.48 28.98,-11.7 l -1.08,-6.3 h -8.46 q -6.84,0 -10.98,-1.98 -4.14,-2.16 -4.14,-5.94 0,-4.5 4.86,-12.06 4.86,-7.56 11.52,-13.32 6.66,-5.94 11.52,-5.94 4.86,0 7.92,7.02 3.24,7.02 3.24,18.18 z"/>
             <path d="m 234.98977,210.7 q -7.92,0 -18.9,-4.14 -10.98,-4.32 -15.48,-8.82 16.74,-4.86 36.36,-12.6 19.62,-7.74 30.06,-13.68 l 3.96,-10.44 5.4,0.72 q -1.8,12.06 -7.02,23.22 -5.22,11.16 -14.04,18.54 -8.64,7.2 -20.34,7.2 z"/>
-          </svg><span class="sr-only">مُحاور</span></h2>
+          </svg><span class="welcome-book" aria-hidden="true"><svg viewBox="0 0 36 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path class="book-left" d="M18 27C13 24 8 24 3 26V6c5-2 10-2 15 1v20Z"/><path class="book-right" d="M18 27c5-3 10-3 15-1V6c-5-2-10-2-15 1v20Z"/><path class="book-page" d="M21 11c3-1 6-1 9 0m-9 5c3-1 6-1 9 0"/><path d="M18 7v20"/></svg></span><span class="sr-only">مُحاور</span></h2>
           <p class="welcome-description" data-t="welcomeDescription"></p>
           <p class="welcome-kicker"><span class="welcome-kicker-measure" data-t="welcomeKicker" aria-hidden="true"></span><span class="welcome-kicker-typed" aria-hidden="true"></span><span class="sr-only" data-t="welcomeKicker"></span></p>
 
@@ -1580,7 +1658,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
-          
+          <label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label>
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
@@ -1596,8 +1674,8 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
-        newChat: "محادثة جديدة", historyHeading: "محادثاتك", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeDescription: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة.", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
+        newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
+        welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
@@ -1628,6 +1706,8 @@ const UI = {
 };
 const $ = (id) => document.getElementById(id);
 let lang = "ar";
+try { if (["ar", "en"].includes(localStorage.getItem("muhawir-lang"))) lang = localStorage.getItem("muhawir-lang"); } catch { /* private storage can be unavailable */ }
+$("lang").value = lang;
 const conversations = [];
 let activeConversation = { id: 1, title: UI.ar.newChat, messages: [], turns: [], updatedAt: Date.now() };
 conversations.push(activeConversation);
@@ -2605,7 +2685,8 @@ function renderAnswer(res, style, context) {
   }
   if (general) msg.append(general);
   const sourcesHome = general || msg;  // a folded answer keeps its sources with it
-  if ((res.sources || []).length) sourcesHome.append(el("div", "sources-title", t.sources));
+  const shelf = el("div", "source-shelf");
+  if ((res.sources || []).length) sourcesHome.append(el("div", "sources-title", t.sources), shelf);
   for (const s of res.sources || []) {
     const card = el("details", "card");
     // a reply with no sentences of its own (the closest hadith found) is its source: shown open
@@ -2616,7 +2697,7 @@ function renderAnswer(res, style, context) {
     const label = s.kind !== "hadith" ? `${s.source_name} · ${s.location}`
       : s.grade ? `${t.hadith} (${t.grade}: ${s.grade}) · ${s.source_name}`
       : s.location;  // e.g. «صحيح البخاري، رقم 1»
-    summary.append(el("span", "num", `[${number.get(s.passage_id)}]`), label);
+    summary.append(el("span", "num", `[${number.get(s.passage_id)}]`), el("span", "book-title", label));
     card.append(summary);
     card.append(el("div", "about", s.source_about));
     card.append(el("blockquote", "", s.quote));
@@ -2644,7 +2725,7 @@ function renderAnswer(res, style, context) {
       meta.append(" · ", a);
     }
     card.append(meta);
-    sourcesHome.append(card);
+    shelf.append(card);
     sourceCards.push(card);
   }
   if (general && next) msg.append(next);
@@ -3054,7 +3135,11 @@ window.visualViewport?.addEventListener("resize", syncChatViewport, { passive: t
 window.addEventListener("resize", syncChatViewport, { passive: true });
 syncChatViewport();
 
-$("lang").addEventListener("change", (e) => { lang = e.target.value; applyLang(); });
+$("lang").addEventListener("change", (e) => {
+  lang = e.target.value;
+  try { localStorage.setItem("muhawir-lang", lang); } catch { /* private storage can be unavailable */ }
+  applyLang();
+});
 $("themeToggle").addEventListener("click", toggleTheme);
 $("stopRequest").addEventListener("click", stopAnswerRequest);
 $("newChat").addEventListener("click", startNewConversation);
