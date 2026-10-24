@@ -136,6 +136,38 @@ def test_vector_only_hit_keeps_the_existing_lexical_coverage_gate(monkeypatch):
     assert semantic_hit.coverage == 1.0
 
 
+def test_wider_bm25_pool_promotes_a_lexical_vector_overlap(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "fake-test-key")
+    ids = ["gold", "x", "y", "z", "a", "b"]
+    base = FakeSqliteRetriever([hit("a"), hit("b"), hit("gold")], ids)
+    index = vector_index(ids, [[1, 0], [0.9, 0], [0.8, 0], [0.7, 0], [0.6, 0], [0.5, 0]],
+                         lambda _: [1, 0])
+
+    baseline = HybridRetriever(base, index).search("question", 2)
+    wider = HybridRetriever(base, index, bm25_pool_factor=2).search("question", 2)
+
+    assert baseline[0].passage.id == "a"
+    assert wider[0].passage.id == "gold"
+
+
+def test_ann_shortlist_can_be_reranked_using_original_vectors(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    index = VectorIndex(["best", "worse", "other", "last"],
+                        np.asarray([[1, 0], [0.8, 0.6], [0, 1], [-1, 0]], dtype=np.float16),
+                        "local:fake/model@abc", lambda _: [1, 0])
+    calls = []
+
+    def approximate(_query, count):
+        calls.append(count)
+        return [SimpleNamespace(key=i) for i in [1, 2, 0, 3][:count]]
+
+    index.ann = SimpleNamespace(search=approximate)
+    base = FakeSqliteRetriever([], all_ids=index.ids)
+    assert HybridRetriever(base, index)._vector_ids("query", 2) == ["worse", "other"]
+    assert HybridRetriever(base, index, ann_rerank_factor=2)._vector_ids("query", 2) == ["best", "worse"]
+    assert calls == [2, 4]
+
+
 def test_missing_vectors_and_missing_key_return_unchanged_bm25(caplog, monkeypatch):
     base = FakeSqliteRetriever([hit("bm25-a"), hit("bm25-b")])
     expected = base.search("question", 2)
