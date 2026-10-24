@@ -274,9 +274,15 @@ class HybridRetriever:
     SQLite retriever's original result list without changing its ordering or Hit values.
     """
 
-    def __init__(self, sqlite_retriever, vectors: VectorIndex | None) -> None:
+    def __init__(self, sqlite_retriever, vectors: VectorIndex | None, *,
+                 bm25_pool_factor: int = 1, ann_rerank_factor: int = 1) -> None:
+        """Optional factors are for offline retrieval experiments; defaults preserve live ranking."""
+        if bm25_pool_factor < 1 or ann_rerank_factor < 1:
+            raise ValueError("candidate factors must be positive")
         self.sqlite_retriever = sqlite_retriever
         self.vectors = vectors
+        self.bm25_pool_factor = bm25_pool_factor
+        self.ann_rerank_factor = ann_rerank_factor
         self._query_cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._query_lock = threading.Lock()
         self._warned = False
@@ -338,11 +344,20 @@ class HybridRetriever:
         query = self._query_vector(question)
         if self.vectors.ann is not None:
             try:
-                matches = self.vectors.ann.search(query, count=limit)
+                count = min(len(self.vectors.ids), limit * self.ann_rerank_factor)
+                matches = self.vectors.ann.search(query, count=count)
                 keys = [int(match.key) for match in matches]
-                if len(keys) == min(limit, len(self.vectors.ids)) and len(set(keys)) == len(keys) and all(
+                if len(keys) == count and len(set(keys)) == len(keys) and all(
                     0 <= key < len(self.vectors.ids) for key in keys
                 ):
+                    if self.ann_rerank_factor > 1:
+                        # USearch finds a broader shortlist; the source vectors decide its final order.
+                        # This costs only a small candidate matrix, never a second full-index scan.
+                        rows = np.asarray(self.vectors.matrix[keys], dtype=np.float32)
+                        norms = np.linalg.norm(rows, axis=1)
+                        scores = np.divide(rows @ query, norms,
+                                           out=np.full(count, -1.0, dtype=np.float32), where=norms > 0)
+                        keys = [keys[i] for i in np.argsort(-scores, kind="stable")[:limit]]
                     return [self.vectors.ids[key] for key in keys]
                 raise ValueError("invalid ANN search result")
             except (OSError, ValueError, RuntimeError) as exc:
@@ -363,9 +378,9 @@ class HybridRetriever:
 
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
-        bm25_hits = self.sqlite_retriever.search(question, k)
+        bm25_hits = self.sqlite_retriever.search(question, k * self.bm25_pool_factor)
         if self._disabled or k <= 0:
-            return bm25_hits
+            return bm25_hits[:k]
         try:
             vector_ids = self._vector_ids(question, max(k * 4, 20))
             weights: dict[str, float] = {}
@@ -403,7 +418,7 @@ class HybridRetriever:
         except Exception as exc:  # vector search is optional; keep the BM25 path available
             self._disabled = True
             self._warn_once(f"query embedding/search failed ({type(exc).__name__})")
-            return bm25_hits
+            return bm25_hits[:k]
 
 
 def _index_fingerprint(folder: Path, vectors: VectorIndex) -> str:
