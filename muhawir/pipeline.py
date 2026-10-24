@@ -33,7 +33,7 @@ MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decid
 MAX_QUESTION_CHARS = 500
 NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
 MAX_NEIGHBOURS = 4
-MAX_UNDERSTOOD_QUERIES = 14  # search phrases kept after the understanding step has run twice
+MAX_UNDERSTOOD_QUERIES = 14  # bound any phrases combined from a fallback second pass
 MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
 MAX_QUOTED_HADITHS = 2  # hadiths fetched from their own book because a fatwa offered to the model quotes them
@@ -875,16 +875,25 @@ class Muhawir:
 
     @staticmethod
     def _understood(understand, question: str, turns: list[dict]) -> dict | None:
-        """The understanding step, run twice at once. The model's recall of verses and hadith differs from one
-        call to the next, so the second run only adds its search phrases to the first run's; everything else
-        (the neutral question, its kind, the language) is the first run's, or the second's if the first failed."""
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            first, second = pool.map(lambda _: understand(question, turns), range(2))
-        u = first or second
+        """Understand once on the ordinary path. Retry only when the model fails or
+        supplies no search phrases for a real question. An explicit second pass
+        preserves the older, higher-query-recall behaviour when requested.
+
+        The first pass always decides the question, personal/crisis flags and
+        language; a second pass only contributes search phrases.
+        """
+        first = understand(question, turns)
+        second_pass = os.environ.get("MUHAWIR_UNDERSTAND_SECOND_PASS") == "1"
+        missing_search = (first and first.get("question") and not first.get("queries")
+                          and not first.get("translate") and not first.get("feeling")
+                          and first.get("lang") != "other" and not first.get("personal"))
+        if not second_pass and first and not missing_search:
+            return first
+        second = understand(question, turns)
         if first and second:
             phrases = list(dict.fromkeys((first.get("queries") or []) + (second.get("queries") or [])))
-            u = {**first, "queries": phrases[:MAX_UNDERSTOOD_QUERIES]}
-        return u
+            return {**first, "queries": phrases[:MAX_UNDERSTOOD_QUERIES]}
+        return first or second
 
     def _gather(self, question: str, original: str, queries: list[str] | None) -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them."""

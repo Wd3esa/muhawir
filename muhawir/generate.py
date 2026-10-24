@@ -676,6 +676,15 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
     busy_waits, other_retries = list(BUSY_WAITS), 1
     while True:
         try:
+            # Attempt counts include retries and failed providers. Only aggregate
+            # numbers are exposed by /api/health; never log the question text.
+            step = ("understand" if system == UNDERSTAND_PROMPT else
+                    "support" if system == CHECK_PROMPT else
+                    "draft" if system == SYSTEM_PROMPT else
+                    "relevance" if system == RELEVANCE_PROMPT else
+                    "search_retry" if system == RETRY_PROMPT else "other")
+            with _usage_lock:
+                USAGE["attempt_" + step] += 1
             return call(system, user, schema)
         except Exception as exc:
             status = getattr(getattr(exc, "response", None), "status_code", None)
@@ -1036,7 +1045,9 @@ def _reasoning_body(reasoning: str) -> dict:
 
 
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-USAGE = {"model_calls": 0, "tokens_in": 0, "tokens_out": 0}
+USAGE = {"model_calls": 0, "tokens_in": 0, "tokens_out": 0,
+         "attempt_understand": 0, "attempt_support": 0, "attempt_draft": 0,
+         "attempt_relevance": 0, "attempt_search_retry": 0, "attempt_other": 0}
 _usage_lock = threading.Lock()
 
 
