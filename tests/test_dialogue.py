@@ -708,7 +708,7 @@ def test_the_answer_shown_has_no_inference_tail_even_when_the_checks_accepted_th
     assert [c["text"] for c in res.claims] == ["تحتاج النخلة إلى ماء كثير في الصيف."]
 
 
-# --- the understanding step runs twice and adds up its search phrases ---------------------------------
+# --- one understanding call normally; an optional second pass extends retrieval phrases --------------
 
 def _understanding(replies):
     replies = iter(replies)
@@ -727,23 +727,45 @@ def _understanding(replies):
     return Muhawir(CORPUS, ModelGenerator([("m", call)]))
 
 
-def test_two_runs_of_the_understanding_step_add_their_search_phrases_and_keep_the_first_ones_reading():
+def test_one_understanding_call_when_first_has_search_phrases():
+    from muhawir.generate import USAGE
+    before = USAGE["attempt_understand"]
+    m = _understanding([("what", ["أ", "ب"])])
+    u = Muhawir._understood(m.generator.understand, QUESTION, [])
+    assert u["queries"] == ["أ", "ب"] and u["kind"] == "what"
+    assert USAGE["attempt_understand"] - before == 1
+
+
+def test_second_pass_keeps_previous_query_recall_when_enabled(monkeypatch):
+    from muhawir.generate import USAGE
+    before = USAGE["attempt_understand"]
+    monkeypatch.setenv("MUHAWIR_UNDERSTAND_SECOND_PASS", "1")
     m = _understanding([("what", ["أ", "ب"]), ("why", ["ب", "ج"])])
     u = Muhawir._understood(m.generator.understand, QUESTION, [])
     assert u["queries"] == ["أ", "ب", "ج"] and u["kind"] == "what"
+    assert USAGE["attempt_understand"] - before == 2
 
 
-def test_if_one_run_of_the_understanding_step_fails_the_other_is_used():
+def test_failed_understanding_gets_one_retry(monkeypatch):
     ok = ("what", ["أ"])
-    for replies in ([RuntimeError("down"), ok], [ok, RuntimeError("down")]):
-        m = _understanding(replies)
-        assert Muhawir._understood(m.generator.understand, QUESTION, [])["queries"] == ["أ"]
+    m = _understanding([RuntimeError("down"), ok])
+    assert Muhawir._understood(m.generator.understand, QUESTION, [])["queries"] == ["أ"]
     m = _understanding([RuntimeError("down"), RuntimeError("down")])
     assert Muhawir._understood(m.generator.understand, QUESTION, []) is None
+    monkeypatch.setenv("MUHAWIR_UNDERSTAND_SECOND_PASS", "1")
+    m = _understanding([ok, RuntimeError("down")])
+    assert Muhawir._understood(m.generator.understand, QUESTION, [])["queries"] == ["أ"]
 
 
-def test_the_merged_search_phrases_are_capped():
+def test_missing_search_phrases_get_one_retry():
+    m = _understanding([("what", []), ("why", ["ب"])])
+    u = Muhawir._understood(m.generator.understand, QUESTION, [])
+    assert u["queries"] == ["ب"] and u["kind"] == "what"
+
+
+def test_the_merged_search_phrases_are_capped(monkeypatch):
     from muhawir import pipeline as pl
+    monkeypatch.setenv("MUHAWIR_UNDERSTAND_SECOND_PASS", "1")
     many = [str(i) for i in range(10)]
     m = _understanding([("what", many), ("what", [str(i) for i in range(10, 20)])])
     assert len(Muhawir._understood(m.generator.understand, QUESTION, [])["queries"]) == pl.MAX_UNDERSTOOD_QUERIES
