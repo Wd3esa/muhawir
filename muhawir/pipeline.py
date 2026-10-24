@@ -905,7 +905,7 @@ class Muhawir:
         topics = [q for q in (queries or []) if len(q.split()) <= MAX_TOPIC_WORDS]
         for pid in self.sections.match([original or question] + topics):
             p = self.corpus.passage(pid)
-            if p is not None:
+            if p is not None and bayyinat.is_answer_part(p):
                 best[pid] = Hit(p, 0.0, 1.0)
         expand = getattr(self.generator, "expand", None)
         extra = queries if queries is not None else (expand(question) if expand else [])
@@ -913,7 +913,8 @@ class Muhawir:
         said = set(tokenize(f"{original} {question}"))
         extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
-        lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if h.coverage >= MODEL_MIN_COVERAGE
+        lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
+                  and h.coverage >= MODEL_MIN_COVERAGE
                   and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
                  for query in queries]
         # take turns between the phrases, so one long phrase with high scores cannot fill every place
@@ -930,7 +931,8 @@ class Muhawir:
         # and a hadith a fatwa quotes comes from its own book, before the fatwa
         offered = self._with_quoted_hadiths(offered)
         # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
-        return [p for p in offered if not _confused(p, f"{original} {question}")], queries
+        return [p for p in offered if bayyinat.is_answer_part(p)
+                and not _confused(p, f"{original} {question}")], queries
 
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
@@ -1394,7 +1396,8 @@ class Muhawir:
                                 synthetic=synthetic)
         if self.generator.strict_retrieval:
             hits = self.retriever.search(question)
-            passages = [h.passage for h in hits if is_sufficient([h]) and not _confused(h.passage, f"{original} {question}")]
+            passages = [h.passage for h in hits if bayyinat.is_answer_part(h.passage)
+                        and is_sufficient([h]) and not _confused(h.passage, f"{original} {question}")]
         else:
             passages, queries = self._gather(question, original, queries)
         if contemporary:
