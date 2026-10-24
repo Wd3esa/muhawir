@@ -77,15 +77,22 @@
 
 ## تحديث Oracle دون استهلاك رصيد النموذج
 
-إذا أوقف `git pull` ملف محلي غير متتبّع مثل `docs/RESULTS.md`، انقله أولًا إلى نسخة احتياطية خارج المشروع. لا تستعمل `git clean` أو `reset --hard` لحل هذه الحالة؛ قد تحذف ملفات الإعداد أو البيانات.
+افحص `git status --short` قبل التحديث. إن وُجدت تعديلات في الشيفرة، احفظ نسخة مصدرية خارج المشروع ثم أخفِ الشيفرة مؤقتًا ضمن stash محدد المسارات. اترك `data/` كما هي؛ قاعدة المصادر وفهرس المتجهات ليسا جزءًا من Git. لا تستعمل `git clean` أو `reset --hard`، ولا تُعد تطبيق stash كله بعد السحب لأنه قد يعيد الشيفرة الأقدم فوق الإصلاحات الجديدة. إذا اعترض ملف غير متتبّع خارج المسارات المحددة (مثل `docs/RESULTS.md`)، انقله أولًا إلى نسخة احتياطية خارج المشروع.
 
 ```bash
 set -e
 cd ~/muhawir
+tar -czf "$HOME/muhawir-source-before-update-$(date +%Y%m%d-%H%M%S).tar.gz" \
+  --exclude='.git' --exclude='.venv' --exclude='data' --exclude='*.env' --exclude='*.db' \
+  muhawir tests scripts .gitignore requirements.txt LICENSES.md
+git stash push -u -m oracle-before-update -- muhawir tests scripts .gitignore requirements.txt LICENSES.md
+git diff --quiet
+git diff --cached --quiet
 if [ -f docs/RESULTS.md ] && ! git ls-files --error-unmatch docs/RESULTS.md >/dev/null 2>&1; then
   mv docs/RESULTS.md "$HOME/muhawir-RESULTS-$(date +%Y%m%d-%H%M%S).md"
 fi
 git pull --ff-only origin main
+.venv/bin/python -m pytest -q
 sudo systemctl restart muhawir
 sudo systemctl is-active muhawir
 curl --fail --silent http://127.0.0.1:8000/api/health
