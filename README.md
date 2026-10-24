@@ -40,6 +40,8 @@ uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:800
 
 **الاختبارات:** `pip install -r requirements-dev.txt && python -m pytest -q` (على بيانات مصطنعة فقط).
 
+**إضافة كتاب مُراجع:** [دليل إضافة المصادر](docs/ADDING_SOURCES.md). النصوص وملفات الإذن خارج المستودع، مع اختبار قاعدة مرشحة قبل النشر.
+
 **التقييم:** `python scripts/evaluate.py --url <الرابط>` يشغّل قائمة الاختبار في [EVALUATION.md](EVALUATION.md)، و`python scripts/try_questions.py --url <الرابط>` يجرّب أسئلة الحوار بالأساليب كلها ويكتب تقريرًا.
 
 ## بنية الشيفرة
