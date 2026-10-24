@@ -51,3 +51,19 @@ def test_no_cross_request_context_state():
     second = select_context([{"role": "user", "text": "topic B"}])
     assert first != second
     assert all("private topic A" not in turn["text"] for turn in second)
+
+
+def test_recover_early_topic_when_question_names_it():
+    history = [{"role": "user", "text": "أريد أن نتحدث عن التوكل على الله"}]
+    history += [{"role": "assistant" if i % 2 else "user", "text": f"message {i}"}
+                for i in range(1, 100)]
+    selected = select_context(history, question="هل نعود إلى التوكل؟")
+    assert any("التوكل" in turn["text"] for turn in selected)
+
+
+def test_early_topic_does_not_leak_into_unrelated_question():
+    history = [{"role": "user", "text": "private project alpha"}]
+    history += [{"role": "assistant" if i % 2 else "user", "text": f"message {i}"}
+                for i in range(1, 100)]
+    selected = select_context(history, question="What about something unrelated?")
+    assert all("private project alpha" not in turn["text"] for turn in selected)
