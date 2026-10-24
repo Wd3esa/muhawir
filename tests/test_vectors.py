@@ -222,6 +222,8 @@ def test_server_wraps_sqlite_retriever_only_when_vector_flag_is_enabled(tmp_path
     monkeypatch.setenv("MUHAWIR_VECTORS", "1")
     monkeypatch.setenv("LLM_PROVIDER", "extractive")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    # Keep this case independent of a real vector index installed on the host.
+    monkeypatch.setattr("muhawir.vectors.load_vectors", lambda: None)
 
     engine = server.build()
 
