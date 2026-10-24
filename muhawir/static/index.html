@@ -1715,7 +1715,7 @@ const emptyTemplate = $("empty").cloneNode(true);
 const welcomeMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let welcomeTypingTimer = null;
 let nextConversationId = 2;
-const MAX_HISTORY = 6;
+const MAX_HISTORY = 100;
 let lastAskStatus = 0;
 
 // Conversation history is kept in this browser (localStorage), so a visitor can come back to it. A question and
