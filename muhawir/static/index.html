@@ -1703,7 +1703,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @media(max-width:350px) { .style-wrap > span { display:none; } }
 @media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
-<link rel="stylesheet" href="/book-answer.css">
+<link rel="stylesheet" href="/book-answer.css?v=compact-2">
 </head>
 <body>
 <div class="app-shell sidebar-collapsed" id="appShell">
@@ -1722,6 +1722,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
+  <label class="answer-layout-wrap"><span data-t="answerLayout"></span><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select></label>
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
   <main class="workspace">
@@ -1777,7 +1778,7 @@ const UI = {
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
-        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح", answerPalette: "لون صفحة الإجابة", paletteSage: "أخضر", paletteBlue: "أزرق", paletteSepia: "ورقي", palettePlum: "بنفسجي",
+        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح", answerLayout: "شكل الإجابة", layoutBook: "صفحة كتاب", layoutPlain: "إجابة بسيطة", answerPalette: "لون صفحة الإجابة", paletteSage: "أخضر", paletteBlue: "أزرق", paletteSepia: "ورقي", palettePlum: "بنفسجي",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
         exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
@@ -1793,7 +1794,7 @@ const UI = {
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
+        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
@@ -1816,6 +1817,14 @@ try {
 } catch { /* private storage can be unavailable */ }
 document.documentElement.dataset.answerPalette = answerPalette;
 $("answerPalette").value = answerPalette;
+let answerLayout = "book";
+try { if (localStorage.getItem("muhawir-answer-layout") === "plain") answerLayout = "plain"; } catch {}
+$("answerLayout").value = answerLayout;
+function applyAnswerLayout(message) {
+  if (!message?.dataset.sourcedAnswer) return;
+  message.classList.toggle("book-answer", answerLayout === "book");
+  message.classList.toggle("plain-answer", answerLayout === "plain");
+}
 const conversations = [];
 let activeConversation = { id: 1, title: UI.ar.newChat, messages: [], turns: [], updatedAt: Date.now() };
 conversations.push(activeConversation);
@@ -2124,6 +2133,7 @@ function applyLang() {
   $("mic").title = recognizing ? t.micStop : t.mic;
   $("lang").setAttribute("aria-label", t.lang);
   $("answerPalette").setAttribute("aria-label", t.answerPalette);
+  $("answerLayout").setAttribute("aria-label", t.answerLayout);
   $("historySearch").placeholder = t.historySearch;
   $("historySearch").setAttribute("aria-label", t.historySearch);
   $("closeHistory").setAttribute("aria-label", t.closeHistory);
@@ -2578,7 +2588,8 @@ function renderAnswer(res, style, context) {
   const t = UI[lang];
   const msg = el("div", "msg");
   if (res.status === "answered") {
-    msg.classList.add("book-answer");
+    msg.dataset.sourcedAnswer = "true";
+    applyAnswerLayout(msg);
     const folio = el("div", "book-folio", "❧  ◇  ❧");
     folio.setAttribute("aria-hidden", "true");
     msg.append(folio);
@@ -3119,7 +3130,9 @@ function finishAnswerRequest(request) {
   request.conversation.updatedAt = Date.now();
   renderHistory();
   if (activeConversation === request.conversation) {
-    scrollDown();
+    const last = request.conversation.messages.at(-1);
+    if (!request.cancelled && last?.dataset.sourcedAnswer) scrollToAnswerStart(last);
+    else scrollDown();
     if (request.kind === "question" && window.matchMedia("(min-width: 861px)").matches) $("q").focus();
   }
 }
@@ -3219,7 +3232,7 @@ function fitQuestionBox() {
   const screenHeight = viewport && Math.abs(viewport.scale - 1) <= .01 ? viewport.height : window.innerHeight;
   const maximum = Math.max(minimum, Math.min(180, screenHeight * .3));
   field.style.maxHeight = `${maximum}px`;
-  field.style.height = "auto";
+  field.style.height = "0px";
   const required = Math.max(minimum, field.scrollHeight + borders);
   field.style.height = `${Math.min(required, maximum)}px`;
   field.style.overflowY = required > maximum ? "auto" : "hidden";
@@ -3233,6 +3246,16 @@ document.fonts?.ready.then(fitQuestionBox);
 
 // A mobile keyboard can resize only the visual viewport, leaving 100dvh unchanged.
 // Scroll instantly after layout as well, so the pending row is not below the keyboard.
+function scrollToAnswerStart(message) {
+  const thread = $("thread");
+  const align = () => {
+    if (!message?.isConnected) return;
+    const top = message.getBoundingClientRect().top - thread.getBoundingClientRect().top + thread.scrollTop;
+    thread.scrollTo({ top: Math.max(0, top - 8), behavior: "instant" });
+  };
+  align();
+  requestAnimationFrame(align);
+}
 function scrollDown() {
   const thread = $("thread");
   const pinToBottom = () => { thread.scrollTo({ top: thread.scrollHeight, behavior: "instant" }); };
@@ -3271,6 +3294,11 @@ $("lang").addEventListener("change", (e) => {
   applyLang();
 });
 $("themeToggle").addEventListener("click", toggleTheme);
+$("answerLayout").addEventListener("change", (event) => {
+  answerLayout = event.target.value === "plain" ? "plain" : "book";
+  for (const conversation of conversations) conversation.messages.forEach(applyAnswerLayout);
+  try { localStorage.setItem("muhawir-answer-layout", answerLayout); } catch {}
+});
 $("answerPalette").addEventListener("change", (e) => {
   const value = e.target.value;
   if (!PALETTES.includes(value)) return;

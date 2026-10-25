@@ -19,12 +19,12 @@ body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
 .brand-name { font-family:Tahoma,"Segoe UI",sans-serif; }
 
 :root {
-  --book-paper:#fcf5e6;
-  --book-ink:#2d2924;
-  --book-bar:#47715f;
+  --book-paper:#fff9ed;
+  --book-ink:#29251f;
+  --book-bar:#365e4b;
   --book-quote:#396853;
   --book-tint:#e4e8d6;
-  --book-line:#b0c7ad;
+  --book-line:#c2c4ad;
   --book-muted:#62695e;
   --book-white:#fff9e9;
 }
@@ -292,4 +292,46 @@ body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
   .book-answer .book-folio { margin-inline:-14px; }
   .book-answer .answer-list li { padding-inline-start:39px; }
   .book-answer .answer-list li::before { width:30px; height:30px; font-size:17px; }
+}
+
+/* Compact page proportions: content comes before ornamental front matter. */
+.msg.book-answer:not(.pending) {
+  padding:0 clamp(14px,3vw,30px) 16px;
+  font-size:clamp(18px,1.6vw,22px);
+  line-height:1.85;
+  box-shadow:none;
+}
+.book-answer .book-folio { margin:0 calc(-1 * clamp(14px,3vw,30px)) 8px; min-height:24px; font-size:17px; }
+.book-answer .search-outcome { display:none; }
+.book-answer .answer-heading { margin:0 0 8px; padding:0; }
+.book-answer .answer-heading::after { font-size:16px; line-height:1; margin-top:6px; }
+.book-answer .answer-brand,.book-answer .book-origin { font-size:1em; }
+.book-answer .status { margin-top:0; font-size:.72em; }
+.book-answer .understood { margin:6px 0; line-height:1.65; }
+.book-answer .answer-section { margin:12px 0 8px; padding:2px 10px; font-size:1.05em; }
+.book-answer .answer { margin:6px 0 12px; line-height:1.85; }
+.book-answer .answer-list { margin-bottom:14px; }
+.book-answer .answer-list li { margin-bottom:8px; line-height:1.85; }
+/* Plain answers retain exactly the same text, citations and actions. */
+.msg.plain-answer:not(.pending) {
+  padding:14px 16px; border:1px solid var(--line); border-radius:14px;
+  background:var(--panel); color:var(--ink); font:inherit; line-height:1.8;
+}
+.plain-answer .book-folio,.plain-answer .book-origin,.plain-answer .search-outcome { display:none; }
+.plain-answer .answer-heading { margin-bottom:8px; }
+.plain-answer .answer-section { background:none; color:var(--ink); border:0; padding:0; margin:14px 0 6px; text-align:start; font-size:1.05em; }
+.plain-answer .answer { line-height:1.8; font-size:1em; }
+.answer-layout-wrap { display:grid; gap:6px; margin:12px 8px; font-size:14px; }
+.answer-layout-wrap select { width:100%; min-height:44px; border:1px solid var(--line); border-radius:8px; padding:5px 8px; background:var(--panel); color:var(--ink); }
+/* Avoid flex stretching the empty textarea as Android recomputes its scrollHeight. */
+#q { height:42px; min-height:42px; flex:none; }
+#ask { flex:0 0 auto; }
+#thread > .msg,#thread > .turn-user { flex-shrink:0; }
+@media(max-width:620px) {
+  .msg.book-answer:not(.pending) { font-size:18px; }
+  .book-answer .answer-list li { padding-inline-start:34px; }
+  .book-answer .answer-list li::before { width:26px; height:26px; font-size:16px; }
+  #ask { padding:5px 8px; }
+  #q { min-height:36px; height:36px; }
+  .disclaimer { margin-block:3px 5px; }
 }
