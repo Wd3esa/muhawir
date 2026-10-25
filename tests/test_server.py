@@ -20,6 +20,16 @@ def test_index_page_served():
     assert r.status_code == 200 and "مُحاور" in r.text
 
 
+def test_book_answer_assets_are_served():
+    page = client.get("/")
+    styles = client.get("/book-answer.css")
+    font = client.get("/fonts/Amiri-Regular.ttf")
+    assert 'href="/book-answer.css"' in page.text
+    assert styles.status_code == 200 and "text/css" in styles.headers["content-type"]
+    assert ".msg.book-answer" in styles.text
+    assert font.status_code == 200 and font.content[:4] == b"\x00\x01\x00\x00"
+
+
 def test_health_shows_the_credit_left_on_an_openrouter_key(monkeypatch):
     import httpx
     from muhawir import server
