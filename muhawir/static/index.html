@@ -1703,6 +1703,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @media(max-width:350px) { .style-wrap > span { display:none; } }
 @media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
+<link rel="stylesheet" href="/book-answer.css">
 </head>
 <body>
 <div class="app-shell sidebar-collapsed" id="appShell">
@@ -2576,7 +2577,12 @@ function renderAnswer(res, style, context) {
   const open = style === "extended";
   const t = UI[lang];
   const msg = el("div", "msg");
-  if (res.status === "answered") msg.classList.add("book-answer");
+  if (res.status === "answered") {
+    msg.classList.add("book-answer");
+    const folio = el("div", "book-folio", "❧  ◇  ❧");
+    folio.setAttribute("aria-hidden", "true");
+    msg.append(folio);
+  }
   const heading = el("div", "answer-heading");
   const identity = el("div", "answer-brand");
   const mark = el("span", "brand-mark");
@@ -2584,6 +2590,13 @@ function renderAnswer(res, style, context) {
   mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9.7 20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.3L12 3.5Z"/></svg>';
   identity.append(mark, el("span", "", t.assistant));
   heading.append(identity);
+  if (res.status === "answered") {
+    const names = [...new Set((res.sources || []).map((s) => s.source_name).filter(Boolean))];
+    const origin = names.length === 1
+      ? (lang === "ar" ? `من ${names[0]}` : `From ${names[0]}`)
+      : (lang === "ar" ? "من الكتب" : "From the books");
+    heading.append(el("span", "book-origin", origin));
+  }
   const outcome = sourceSearchOutcome(res);
   if (outcome !== "settled") {
     const searchOutcome = el("p", "search-outcome", t[outcome]);
@@ -2614,6 +2627,9 @@ function renderAnswer(res, style, context) {
     understoodLine.append(label, el("strong", "", res.understood));
     understoodLine.label = label;
     msg.append(understoodLine);
+  }
+  if (res.status === "answered" && !(res.claims || []).some((c) => c.section)) {
+    msg.append(el("h4", "answer-section", lang === "ar" ? "الجواب" : "Answer"));
   }
   // A referral answers first: the referral line and who to ask; what the sources say in general follows, folded,
   // under a question the user opens (already in the reply: no new request).

@@ -1,0 +1,295 @@
+@font-face {
+  font-family:"Muhawir Book";
+  src:url("/fonts/Amiri-Regular.ttf") format("truetype");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+}
+@font-face {
+  font-family:"Muhawir Book";
+  src:url("/fonts/Amiri-Bold.ttf") format("truetype");
+  font-style:normal;
+  font-weight:700;
+  font-display:swap;
+}
+
+/* The wordmark is SVG; the small sidebar name retains its original face. */
+body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
+:root[lang="en"] body { font-family:system-ui,sans-serif; }
+.brand-name { font-family:Tahoma,"Segoe UI",sans-serif; }
+
+:root {
+  --book-paper:#fcf5e6;
+  --book-ink:#2d2924;
+  --book-bar:#47715f;
+  --book-quote:#396853;
+  --book-tint:#e4e8d6;
+  --book-line:#b0c7ad;
+  --book-muted:#62695e;
+  --book-white:#fff9e9;
+}
+:root[data-answer-palette="blue"] {
+  --book-paper:#f7f9f5; --book-ink:#252e35; --book-bar:#426b80;
+  --book-quote:#355d70; --book-tint:#e2e9e8; --book-line:#b0c7d0;
+  --book-muted:#596d76; --book-white:#fff;
+}
+:root[data-answer-palette="sepia"] {
+  --book-paper:#fcf3df; --book-ink:#382d21; --book-bar:#785b37;
+  --book-quote:#765932; --book-tint:#e9dfc8; --book-line:#c7b38e;
+  --book-muted:#706453; --book-white:#fff8ea;
+}
+:root[data-answer-palette="plum"] {
+  --book-paper:#fcf7f5; --book-ink:#332934; --book-bar:#70546a;
+  --book-quote:#6b4e65; --book-tint:#eae1e7; --book-line:#c8b6c4;
+  --book-muted:#756575; --book-white:#fff;
+}
+:root[data-theme="dark"] {
+  --book-paper:#202a25; --book-ink:#f6efe3; --book-bar:#365a47;
+  --book-quote:#b8ddc4; --book-tint:#303b34; --book-line:#65806d;
+  --book-muted:#c5d3c7; --book-white:#fff9e9;
+}
+:root[data-theme="dark"][data-answer-palette="blue"] {
+  --book-paper:#222e35; --book-ink:#f2f5f6; --book-bar:#345669;
+  --book-quote:#bbd9e8; --book-tint:#2d3d45; --book-line:#678a9d;
+  --book-muted:#bfd0d7; --book-white:#fff;
+}
+:root[data-theme="dark"][data-answer-palette="sepia"] {
+  --book-paper:#302a23; --book-ink:#f4eade; --book-bar:#675137;
+  --book-quote:#e0c49c; --book-tint:#40372c; --book-line:#a18664;
+  --book-muted:#d4c7b3; --book-white:#fff8ea;
+}
+:root[data-theme="dark"][data-answer-palette="plum"] {
+  --book-paper:#302832; --book-ink:#f4eff5; --book-bar:#63475e;
+  --book-quote:#dfc3d9; --book-tint:#3c303e; --book-line:#9a7997;
+  --book-muted:#d3c0d0; --book-white:#fff;
+}
+
+/* One sourced answer reads as one page, irrespective of surrounding chat layout. */
+.msg.book-answer:not(.pending) {
+  min-width:0;
+  max-width:100%;
+  padding:0 clamp(16px,4vw,48px) 26px;
+  border:1px solid var(--book-line);
+  border-radius:1px;
+  background:var(--book-paper);
+  color:var(--book-ink);
+  box-shadow:0 16px 36px rgba(30,36,27,.12);
+  font-family:"Muhawir Book","Muhawir Arabic",serif;
+  font-size:clamp(20px,2.1vw,26px);
+  line-height:2.02;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.book-answer .book-folio {
+  margin-inline:calc(-1 * clamp(16px,4vw,48px));
+  margin-block:0 22px;
+  min-height:37px;
+  display:grid;
+  place-items:center;
+  background:var(--book-bar);
+  color:var(--book-white);
+  font-size:22px;
+  line-height:1.3;
+}
+.book-answer .answer-heading {
+  display:block;
+  margin:0 0 25px;
+  padding:0 0 21px;
+  border:0;
+  text-align:center;
+}
+.book-answer .answer-heading::after {
+  content:"❧  ✥  ❧";
+  display:block;
+  margin-top:1px;
+  color:var(--book-line);
+  font-size:23px;
+  line-height:1.4;
+  background:linear-gradient(var(--book-line),var(--book-line)) center/100% 1px no-repeat;
+  text-shadow:8px 0 var(--book-paper),-8px 0 var(--book-paper);
+}
+.book-answer .answer-brand {
+  justify-content:center;
+  display:inline-flex;
+  color:var(--book-ink);
+  font-size:1.14em;
+  font-weight:700;
+  line-height:1.6;
+}
+.book-answer .answer-brand .brand-mark {
+  display:none;
+}
+.book-answer .book-origin {
+  display:inline;
+  font-size:1.14em;
+  color:var(--book-ink);
+  font-weight:700;
+  line-height:1.6;
+}
+.book-answer .book-origin::before { content:" · "; white-space:pre; }
+.book-answer .status {
+  display:flex;
+  justify-content:center;
+  margin-top:8px;
+  color:var(--book-quote);
+  font-size:.65em;
+}
+.book-answer .understood,
+.book-answer .search-outcome {
+  color:var(--book-muted);
+  font-size:.77em;
+}
+.book-answer .understood strong { color:var(--book-ink); }
+.book-answer .answer { margin:8px 0 22px; font-size:1em; line-height:2.05; }
+.book-answer .source-quote { color:var(--book-quote); font-weight:700; }
+.book-answer .answer-section {
+  margin:27px 0 16px;
+  padding:4px 12px 7px;
+  border:0;
+  border-radius:0;
+  background:var(--book-bar);
+  color:var(--book-white);
+  text-align:center;
+  font-size:1.18em;
+  line-height:1.6;
+}
+.book-answer .answer-list {
+  list-style:none;
+  counter-reset:book-point;
+  margin:0 0 26px;
+  padding:0;
+}
+.book-answer .answer-list li {
+  position:relative;
+  counter-increment:book-point;
+  margin:0 0 13px;
+  padding:0;
+  padding-inline-start:42px;
+  line-height:2.1;
+  text-align:justify;
+  text-justify:inter-word;
+}
+.book-answer .answer-list li::before {
+  content:counter(book-point);
+  position:absolute;
+  inset-inline-start:0;
+  inset-block-start:.48em;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  background:var(--book-bar);
+  color:var(--book-white);
+  font:700 18px/1 "Muhawir Book",serif;
+}
+.book-answer .cite { font-size:.61em; white-space:nowrap; }
+.book-answer .cite a { color:var(--book-quote); text-decoration:none; }
+.book-answer .views {
+  margin:30px 0 20px;
+  padding:9px 15px;
+  border:1px solid var(--book-line);
+  border-radius:0;
+  background:color-mix(in srgb,var(--book-tint) 45%,var(--book-paper));
+  font-size:.83em;
+}
+.book-answer .views summary {
+  min-height:44px;
+  color:var(--book-ink);
+  font-size:1em;
+}
+.book-answer .view { margin:10px 0; }
+.book-answer .note,.book-answer .card .about,.book-answer .card .meta {
+  color:var(--book-muted);
+  font-size:.7em;
+  line-height:1.7;
+}
+.book-answer .sources-title {
+  margin:29px 0 9px;
+  padding-top:12px;
+  border-top:1px solid var(--book-line);
+  color:var(--book-quote);
+  font-size:.84em;
+  font-weight:700;
+}
+.book-answer .source-shelf {
+  display:block;
+  margin:0;
+  padding:0;
+  border:0;
+}
+.book-answer .source-shelf .card,
+.book-answer .source-shelf .card[open] {
+  display:block;
+  margin:0;
+  padding:4px 0;
+  border:0;
+  border-bottom:1px solid var(--book-line);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.book-answer .card summary,
+.book-answer .card[open] summary,
+.book-answer .card summary:hover {
+  display:flex;
+  min-height:44px;
+  justify-content:flex-start;
+  gap:5px;
+  margin:0;
+  padding:6px 0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--book-quote);
+  text-shadow:none;
+  transform:none;
+  font-size:.76em;
+  text-align:start;
+  line-height:1.5;
+}
+.book-answer .card summary::before,.book-answer .card summary::after { content:none; }
+.book-answer .card summary .num { color:var(--book-quote); font-size:1em; }
+.book-answer .card summary .book-title { max-width:none; font-size:1em; }
+.book-answer .card blockquote:not(.translation) {
+  margin:10px 0;
+  padding-inline-start:12px;
+  border-inline-start:3px solid var(--book-line);
+  color:var(--book-quote);
+  font-weight:700;
+  line-height:1.95;
+}
+.book-answer .card blockquote.translation { color:var(--book-ink); }
+.book-answer .tools {
+  margin-top:22px;
+  padding-top:12px;
+  border-top:1px solid var(--book-line);
+}
+.book-answer .follow-up,
+.book-answer .action-btn,
+.book-answer .more-item,
+.book-answer .voice-choice select { min-height:44px; }
+.book-answer .follow-up {
+  border-color:var(--book-line);
+  border-radius:5px;
+  background:var(--book-tint);
+  color:var(--book-ink);
+}
+.book-answer .action-btn { color:var(--book-muted); }
+.book-answer .action-btn:hover { color:var(--book-ink); background:var(--book-tint); }
+.book-answer .more-menu { background:var(--book-paper); border-color:var(--book-line); }
+.book-answer a:focus-visible,.book-answer button:focus-visible,
+.book-answer summary:focus-visible { outline:3px solid var(--book-quote); outline-offset:3px; }
+
+@media(max-width:620px) {
+  .msg.book-answer:not(.pending) { font-size:22px; line-height:1.95; }
+  .book-answer .answer { font-size:1em; }
+  .book-answer .answer-list li { text-align:start; }
+  .book-answer .action-btn { min-width:44px; width:44px; }
+}
+@media(max-width:390px) {
+  .msg.book-answer:not(.pending) { padding-inline:14px; font-size:20px; }
+  .book-answer .book-folio { margin-inline:-14px; }
+  .book-answer .answer-list li { padding-inline-start:39px; }
+  .book-answer .answer-list li::before { width:30px; height:30px; font-size:17px; }
+}

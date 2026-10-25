@@ -17,6 +17,7 @@
 | pytest (للتطوير) | 9.1.1 | الاختبارات | MIT | https://github.com/pytest-dev/pytest |
 | Rakkas (Zeynep Akay) | 2016 | حروف شعار «مُحاور» مرسومة كمسارات SVG، دون تضمين ملف الخط | SIL OFL 1.1 | https://github.com/google/fonts/tree/main/ofl/rakkas |
 | Noto Sans Arabic (The Noto Project Authors) | 2.010 | نصوص الواجهة العربية، ملفا Regular وBold محليان؛ نص الرخصة في `muhawir/static/fonts/OFL.txt` | SIL OFL 1.1 | https://github.com/notofonts/arabic |
+| Amiri (The Amiri Project Authors) | الخط المضمّن | نصوص التطبيق وصفحة الإجابة، ملفا Regular وBold محليان؛ نص الرخصة في `muhawir/static/fonts/Amiri-OFL.txt` | SIL OFL 1.1 | https://github.com/aliftype/amiri |
 
 التراخيص مأخوذة من بيانات الحزم المثبتة (PyPI metadata).
 
