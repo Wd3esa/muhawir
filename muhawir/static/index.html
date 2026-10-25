@@ -1703,7 +1703,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @media(max-width:350px) { .style-wrap > span { display:none; } }
 @media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
-<link rel="stylesheet" href="/book-answer.css?v=compact-2">
+<link rel="stylesheet" href="/book-answer.css?v=simple-composer-3">
 </head>
 <body>
 <div class="app-shell sidebar-collapsed" id="appShell">
@@ -1722,7 +1722,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
-  <label class="answer-layout-wrap"><span data-t="answerLayout"></span><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select></label>
+
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
   <main class="workspace">
@@ -1733,10 +1733,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
         <h1 id="conversationTitle" data-t="newChat"></h1>
       </div>
       <div class="topbar-tools">
-        <span class="trust-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="trustLabel"></span></span>
-        <label class="palette-wrap"><span class="sr-only" data-t="answerPalette"></span><select id="answerPalette" aria-label=""><option value="sage" data-t="paletteSage"></option><option value="blue" data-t="paletteBlue"></option><option value="sepia" data-t="paletteSepia"></option><option value="plum" data-t="palettePlum"></option></select></label>
-        <label class="lang-wrap"><span class="sr-only" data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option></select></label>
-        <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
+        <button class="icon-button" id="openSettings" type="button" aria-haspopup="dialog" aria-controls="chatSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--sidebar)"/><circle cx="15" cy="17" r="3" fill="var(--sidebar)"/></svg></button>
       </div>
     </header>
     <div class="synthetic" id="synthetic" hidden></div>
@@ -1759,7 +1756,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
-          <label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label>
+
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
@@ -1771,12 +1768,16 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     </div>
   </main>
 </div>
+<dialog id="chatSettings" aria-labelledby="settingsTitle">
+  <div class="settings-heading"><h2 id="settingsTitle" data-t="chatSettings"></h2><button class="icon-button" id="closeSettings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+  <div class="settings-fields"><label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label><label class="answer-layout-wrap"><span data-t="answerLayout"></span><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select></label><label class="palette-wrap"><span data-t="answerPalette"></span><select id="answerPalette" aria-label=""><option value="sage" data-t="paletteSage"></option><option value="blue" data-t="paletteBlue"></option><option value="sepia" data-t="paletteSepia"></option><option value="plum" data-t="palettePlum"></option></select></label><label class="lang-wrap"><span data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option></select></label>        <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><span id="settingsThemeLabel"></span></button></div>
+</dialog>
 <script>
 const UI = {
   ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
+        welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", chatSettings: "الإعدادات", closeSettings: "إغلاق الإعدادات", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح", answerLayout: "شكل الإجابة", layoutBook: "صفحة كتاب", layoutPlain: "إجابة بسيطة", answerPalette: "لون صفحة الإجابة", paletteSage: "أخضر", paletteBlue: "أزرق", paletteSepia: "ورقي", palettePlum: "بنفسجي",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
@@ -1794,7 +1795,7 @@ const UI = {
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
+        chatSettings: "Settings", closeSettings: "Close settings", style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
@@ -2127,6 +2128,9 @@ function applyLang() {
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
   $("q").placeholder = t.placeholder;
+  $("openSettings").setAttribute("aria-label", t.chatSettings);
+  $("openSettings").title = t.chatSettings;
+  $("closeSettings").setAttribute("aria-label", t.closeSettings);
   $("q").setAttribute("aria-label", t.qlabel);
   $("mic").lastElementChild.textContent = recognizing ? t.micStop : t.mic;
   $("mic").setAttribute("aria-label", recognizing ? t.micStop : t.mic);
@@ -2166,6 +2170,7 @@ function updateThemeToggle() {
   $("themeToggle").setAttribute("aria-pressed", String(dark));
   $("themeToggle").setAttribute("aria-label", label);
   $("themeToggle").title = label;
+  $("settingsThemeLabel").textContent = label;
 }
 
 function toggleTheme() {
@@ -3292,6 +3297,20 @@ $("lang").addEventListener("change", (e) => {
   lang = e.target.value;
   try { localStorage.setItem("muhawir-lang", lang); } catch { /* private storage can be unavailable */ }
   applyLang();
+});
+$("openSettings").addEventListener("click", () => $("chatSettings").showModal());
+$("closeSettings").addEventListener("click", () => $("chatSettings").close());
+$("chatSettings").addEventListener("click", (event) => {
+  if (event.target !== $("chatSettings")) return;
+  const bounds = event.target.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.target.close();
+});
+try {
+  const savedStyle = localStorage.getItem("muhawir-explanation-style");
+  if (["kids", "youth", "extended", "newcomer"].includes(savedStyle)) $("style").value = savedStyle;
+} catch {}
+$("style").addEventListener("change", () => {
+  try { localStorage.setItem("muhawir-explanation-style", $("style").value); } catch {}
 });
 $("themeToggle").addEventListener("click", toggleTheme);
 $("answerLayout").addEventListener("change", (event) => {

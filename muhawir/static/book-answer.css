@@ -335,3 +335,46 @@ body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
   #q { min-height:36px; height:36px; }
   .disclaimer { margin-block:3px 5px; }
 }
+
+/* One quiet composer; preferences live in the settings dialog. */
+#ask {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end;
+  gap:4px; padding:7px; border-radius:26px; box-shadow:none;
+}
+#ask .composer-field { display:block; width:auto; min-width:0; align-self:center; padding:0; border:0; }
+#ask .composer-row { display:flex; width:auto; min-height:44px; gap:2px; padding:0; align-items:center; }
+#q { height:42px; min-height:42px; padding:7px 10px; font-size:16px; line-height:1.7; border-radius:0; }
+#ask .mic,#ask .stop-request,#ask .send { width:44px; height:44px; min-height:44px; margin:0; padding:0; border-radius:50%; flex:none; }
+#ask .mic { background:transparent; border:0; }
+#ask .mic:hover { background:var(--accent-soft); }
+#ask .mic[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+#ask .voice-note { grid-column:1/-1; margin:0; padding:4px 10px; }
+.topbar { background:var(--bg); border-bottom:0; }
+.topbar .topbar-tools { gap:0; }
+.topbar .icon-button { min-width:44px; min-height:44px; border:0; background:transparent; border-radius:50%; }
+.disclaimer { margin:5px 0 8px; font-size:11px; line-height:1.5; }
+#chatSettings {
+  width:min(420px,calc(100vw - 32px)); max-height:calc(100dvh - 40px);
+  padding:20px; border:1px solid var(--line); border-radius:20px;
+  background:var(--panel); color:var(--ink); box-shadow:0 16px 60px #0003;
+  overflow-y:auto; font:inherit;
+}
+#chatSettings::backdrop { background:#0005; }
+.settings-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+.settings-heading h2 { margin:0; font-size:20px; }
+.settings-heading .icon-button { width:44px; height:44px; }
+.settings-fields { display:grid; gap:16px; }
+#chatSettings label { display:grid; gap:5px; margin:0; font-size:15px; font-weight:400; color:var(--ink); }
+#chatSettings label > span { display:block; }
+#chatSettings select { width:100%; max-width:100%; min-height:44px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+#chatSettings .theme-toggle { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; height:auto; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); text-align:start; }
+#chatSettings .theme-toggle svg { flex:none; }
+@media(max-width:620px) {
+  .topbar { height:52px; padding-inline:10px; }
+  .topbar h1 { max-width:65vw; }
+  .conversation-frame { padding-inline:12px; }
+  #thread { padding-top:12px; }
+  #ask { padding:5px; }
+  #q { min-height:42px; height:42px; }
+  .welcome-wordmark { width:min(190px,52%); }
+}
