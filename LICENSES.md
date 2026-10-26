@@ -69,3 +69,7 @@
 ## بيانات ونصوص طرف ثالث
 
 نصوص المصادر المعتمدة: تُسجَّل شروط استخدامها في [SOURCES.md](SOURCES.md). لا تُنشر نصوص لا نملك حق نشرها.
+
+## خط واجهة القراءة
+
+Amiri Regular وBold، بترخيص SIL Open Font License 1.1؛ نسخة الترخيص في `muhawir/static/fonts/Amiri-OFL.txt`.
