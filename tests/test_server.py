@@ -49,7 +49,7 @@ def test_one_visitor_asking_too_fast_is_told_to_wait(monkeypatch):
 
 def test_book_answer_assets_are_served():
     page = client.get("/")
-    css = client.get("/book-answer.css?v=composer-sidebar-4")
+    css = client.get("/book-answer.css?v=answer-icons-5")
     assert page.status_code == 200 and 'id="explanationPicker"' in page.text
     assert css.status_code == 200 and css.headers["content-type"].startswith("text/css")
     assert ".msg.plain-answer" in css.text

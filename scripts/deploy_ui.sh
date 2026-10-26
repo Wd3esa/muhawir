@@ -12,7 +12,7 @@ if [ "$current_index_sha" = "$target_index_sha" ]; then
   echo "The reviewed UI is already installed."
   exit 0
 fi
-if [ "$current_index_sha" != "064699008a1620d4c97bd137441f11a0c46fabebc2310d6f14bba420e17cbad2" ] && [ "$current_index_sha" != "9386e3ec5fadc3cdfcc8e537bc56d6fe6d47b15754f3e451fc6453d75c6d9d8f" ]; then
+if [ "$current_index_sha" != "064699008a1620d4c97bd137441f11a0c46fabebc2310d6f14bba420e17cbad2" ] && [ "$current_index_sha" != "9386e3ec5fadc3cdfcc8e537bc56d6fe6d47b15754f3e451fc6453d75c6d9d8f" ] && [ "$current_index_sha" != "af119a98bead0a1908806a67186c7e0117d69c4ea632d1e514837d5ad4acdbba" ]; then
   echo "Stopped: the server UI differs from the reviewed live version. Preserve and reconcile it before updating." >&2
   exit 1
 fi

@@ -386,3 +386,32 @@ body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
   .explanation-picker { font-size:12px; }
   .explanation-picker > summary { padding-inline:4px; gap:4px; }
 }
+
+/* Empty: one compact pill. A typed question reveals the explanation row. */
+#ask:not(.has-question) { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px; border-radius:28px; padding:5px 7px; }
+#ask:not(.has-question) .composer-row { width:auto; }
+#ask:not(.has-question) #q { min-height:44px; height:44px; padding-block:7px; }
+#ask:not(.has-question) .voice-note { grid-column:1/-1; }
+.explanation-picker[hidden] { display:none; }
+/* One consistent, unboxed icon strip. Smaller screens can swipe it without wrapping. */
+.msg .tools { display:flex; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:0; width:100%; overflow-x:auto; overflow-y:hidden; padding:6px 0 2px; margin-top:14px; border-top:1px solid var(--line); scrollbar-width:thin; }
+.msg .tools .action-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 36px; width:36px; min-width:36px; height:44px; min-height:44px; padding:0; margin:0; border:0; border-radius:9px; background:transparent; color:var(--muted); box-shadow:none; font:inherit; cursor:pointer; }
+.msg .tools .action-btn:hover,.msg .tools .action-btn[aria-pressed="true"] { background:var(--accent-soft); color:var(--ink); }
+.msg .tools .action-btn:disabled { opacity:.45; }
+.msg .tools .action-icon,.msg .tools .action-icon svg { width:21px; height:21px; flex:none; }
+.msg .tools .action-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.msg .tools .sources-chip { gap:3px; flex-basis:44px; width:44px; min-width:44px; }
+.msg .tools .sources-chip .action-label { position:static; width:auto; height:auto; overflow:visible; clip:auto; font:12px/1 system-ui,sans-serif; }
+.msg .tools .listen-group,.msg .tools .listen-controls { display:inline-flex; flex:none; width:36px; margin:0; padding:0; }
+.msg .tools .more-actions { flex:none; position:static; }
+.msg .tools .more-menu { position:fixed; z-index:100; width:224px; max-width:calc(100vw - 16px); min-width:0; max-height:60dvh; overflow-y:auto; inset-inline-end:auto; inset-block-start:auto; padding:6px; border:1px solid var(--line); background:var(--panel); border-radius:12px; box-shadow:0 8px 24px #0002; }
+.msg .tools .more-menu .voice-choice { display:flex; flex-direction:column; align-items:stretch; padding:8px; white-space:normal; }
+.msg .tools .more-menu .voice-choice select { width:100%; max-width:100%; min-height:44px; }
+.msg .tools .more-menu .listen-note { display:block; padding:4px 8px; }
+body:not(.natural-voice) .msg .tools .more-menu .voice-choice,body:not(.natural-voice) .msg .tools .more-menu .listen-note { display:none; }
+.msg .action-status { display:block; min-height:0; font-size:12px; padding-top:4px; line-height:1.6; }
+.msg .action-status:empty { display:none; }
+.msg .sources-title { display:flex; align-items:center; min-height:36px; }
+.msg .sources-title .action-icon,.msg .sources-title svg { width:24px; height:24px; }
+
+.msg .tools .more-actions { height:44px; min-height:44px; margin:0; padding:0; border:0; line-height:1; align-self:center; }
