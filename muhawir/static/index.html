@@ -1712,7 +1712,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @media(max-width:350px) { .style-wrap > span { display:none; } }
 @media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
-<link rel="stylesheet" href="/book-answer.css?v=composer-sidebar-4">
+<link rel="stylesheet" href="/book-answer.css?v=answer-icons-5">
 </head>
 <body>
 <div class="app-shell sidebar-collapsed" id="appShell">
@@ -1767,12 +1767,13 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
-          <details class="explanation-picker" id="explanationPicker">
+          <details class="explanation-picker" id="explanationPicker" hidden>
             <summary id="explanationSummary"><span data-t="style"></span><span class="explanation-current" id="selectedExplanation"></span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></summary>
             <fieldset class="explanation-options"><legend class="sr-only" data-t="style"></legend><label class="explanation-option"><input type="radio" name="explanation-choice" value="kids"><span data-t="kids"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="youth"><span data-t="youth"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="extended"><span data-t="extended"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="newcomer"><span data-t="newcomer"></span></label></fieldset><select id="style" hidden><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></details>
 
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
+          <button type="button" class="send composer-voice" id="composerVoice" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 10v4m4-8v12m3-15v18m3-15v12m4-8v4"/></svg></button>
           <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
         </div>
         <div class="voice-note" id="voiceNote" hidden data-t="voiceNote"></div>
@@ -2226,6 +2227,8 @@ function applyLang() {
   document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
   $("q").placeholder = t.placeholder;
+  $("composerVoice").setAttribute("aria-label", t.voiceMode);
+  $("composerVoice").title = t.voiceMode;
   syncExplanationPicker();
   $("q").setAttribute("aria-label", t.qlabel);
   $("mic").lastElementChild.textContent = recognizing ? t.micStop : t.mic;
@@ -2345,14 +2348,15 @@ function stopReadAloud() { if (activeReadAloud) activeReadAloud.stop(); }
 
 const ACTION_ICONS = {
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
-  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.5-4.5M8.2 13.2l7.5 4.5"/></svg>',
-  listen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M17 9a5 5 0 0 1 0 6m2.5-9a9 9 0 0 1 0 12"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M5 14v6h14v-6"/></svg>',
+  listen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m8 4 12 8-12 8V4Z"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
-  regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M4.7 9A7.5 7.5 0 0 1 18 6l2 6M4 17v-5h5m10.3 3A7.5 7.5 0 0 1 6 18l-2-6"/></svg>',
+  regenerate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4v6h-6M20 10a8 8 0 1 0-1 8"/></svg>',
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9h3Zm0 0 4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/></svg>',
-  unclear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>',
+  unclear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13V4H4v9h3Zm0 0 4 7a2 2 0 0 0 3-2l-1-4h5a2 2 0 0 0 2-2.3l-1.2-6A2 2 0 0 0 16.8 4H7"/></svg>',
   more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
-  sources: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.3 5.2 8 4.7 4.5 4.7v13c3.5 0 5.8.5 7.5 1.8 1.7-1.3 4-1.8 7.5-1.8v-13c-3.5 0-5.8.5-7.5 1.8ZM12 6.5v13"/></svg>'
+  tashkeel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 10v3c0 3 3 4 8 4s8-1 8-4v-3M9 5l6-2"/><circle cx="12" cy="21" r="1" fill="currentColor" stroke="none"/></svg>',
+  sources: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 4 9 4 9-4v5l-9 4-9-4V4Zm9 4v5M4 5l8 4 8-4M3 20l18-10M21 20 3 10M5 20l7-4 7 4"/></svg>'
 };
 
 // The small buttons under an answer (copy, share, listen, vowel, rate and so on).
@@ -2399,7 +2403,7 @@ function applyActionTranslations(message) {
       : t[key];
     if (!label) return;
     const text = control.querySelector(".action-label");
-    if (text) text.textContent = key === "sources" ? sourceCountLabel(Number(control.dataset.count)) : label;
+    if (text) text.textContent = key === "sources" ? control.dataset.count : label;
     control.setAttribute("aria-label", label);
     control.title = label;
   });
@@ -3002,7 +3006,11 @@ function renderAnswer(res, style, context) {
   if (general) msg.append(general);
   const sourcesHome = general || msg;  // a folded answer keeps its sources with it
   const shelf = el("div", "source-shelf");
-  if ((res.sources || []).length) sourcesHome.append(el("div", "sources-title", t.sources), shelf);
+  if ((res.sources || []).length) {
+    const sourcesTitle = el("div", "sources-title");
+    sourcesTitle.append(actionIcon("sources"), el("span", "sr-only", t.sources));
+    sourcesHome.append(sourcesTitle, shelf);
+  }
   for (const s of res.sources || []) {
     const card = el("details", "card");
     // a reply with no sentences of its own (the closest hadith found) is its source: shown open
@@ -3066,7 +3074,13 @@ function renderAnswer(res, style, context) {
   if (tashkeelLang === "ar" && vowelTargets.some(n => /[ء-ي]/.test(n.textContent))) {
     const original = vowelTargets.map(n => n.textContent);
     let vowelled = null, showing = false;
-    const vowelButton = el("button", "vowel-btn", "شكّل الجواب");
+    const vowelButton = makeActionButton("شكّل الجواب", "tashkeel", "vowel-btn", "tashkeel");
+    const setVowelLabel = (text) => {
+      vowelButton.querySelector(".action-label").textContent = text;
+      vowelButton.setAttribute("aria-label", text);
+      vowelButton.title = text + " — تشكيل آلي مساعد قد يخطئ؛ النص الأصلي محفوظ";
+    };
+    setVowelLabel("شكّل الجواب");
     vowelButton.type = "button";
     vowelButton.setAttribute("aria-pressed", "false");
     vowelButton.title = "تشكيل آلي مساعد قد يخطئ؛ النص الأصلي محفوظ";
@@ -3075,7 +3089,7 @@ function renderAnswer(res, style, context) {
       if (showing) {
         vowelTargets.forEach((n, i) => { n.textContent = original[i]; });
         showing = false;
-        vowelButton.textContent = "شكّل الجواب";
+        setVowelLabel("شكّل الجواب");
         vowelButton.setAttribute("aria-pressed", "false");
         status.textContent = "";
         return;
@@ -3103,7 +3117,7 @@ function renderAnswer(res, style, context) {
         }
         vowelTargets.forEach((n, i) => { n.textContent = vowelled.texts[i]; });
         showing = true;
-        vowelButton.textContent = "النص الأصلي";
+        setVowelLabel("النص الأصلي");
         vowelButton.setAttribute("aria-pressed", "true");
         status.textContent = vowelled.rejected ? "تشكيل آلي؛ أُبقيت أجزاء على أصلها لحماية النص." : "تشكيل آلي مساعد قد يخطئ. النسخ والمشاركة يحتفظان بالأصل.";
       } catch {
@@ -3182,8 +3196,22 @@ function renderAnswer(res, style, context) {
     $("ask").requestSubmit();
   });
   menu.append(copySources, simplify);
+  if (listen) {
+    const voiceChoice = listen.querySelector(".voice-choice");
+    const voiceNote = listen.querySelector(".listen-note");
+    if (voiceChoice) menu.append(voiceChoice);
+    if (voiceNote) menu.append(voiceNote);
+  }
   more.append(menu);
-  more.addEventListener("toggle", () => moreSummary.setAttribute("aria-expanded", String(more.open)));
+  more.addEventListener("toggle", () => {
+    moreSummary.setAttribute("aria-expanded", String(more.open));
+    if (more.open) {
+      const rect = moreSummary.getBoundingClientRect();
+      menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 240)) + "px";
+      menu.style.top = Math.max(8, rect.top - menu.offsetHeight - 8) + "px";
+    }
+  });
+  more.addEventListener("keydown", (event) => { if (event.key === "Escape") { more.open = false; moreSummary.focus(); } });
   actions.append(more);
 
   if (sourceCards.length) {
@@ -3194,8 +3222,8 @@ function renderAnswer(res, style, context) {
     const setSourceLabel = (expanded) => {
       const current = UI[lang];
       const text = expanded ? current.hideSources : current.showSources;
-      label.textContent = sourceCountLabel(sourceCards.length);  // the chip says how many; the tooltip says what it does
-      sourcesButton.setAttribute("aria-label", text);
+      label.textContent = String(sourceCards.length);
+      sourcesButton.setAttribute("aria-label", text + " — " + sourceCountLabel(sourceCards.length));
       sourcesButton.title = text;
       sourcesButton.setAttribute("aria-expanded", String(expanded));
     };
@@ -3209,8 +3237,12 @@ function renderAnswer(res, style, context) {
     actions.append(sourcesButton);
   }
 
-  actions.append(status);
-  msg.append(actions);
+  // Keep the primary icons in the same order as the supplied toolbar reference.
+  const ordered = [copy, share, listen, actions.querySelector('[data-label-key="clear"]'),
+    actions.querySelector('[data-label-key="unclear"]'), regenerate,
+    actions.querySelector(".vowel-btn"), actions.querySelector(".sources-chip"), more];
+  ordered.filter(Boolean).forEach((control) => actions.append(control));
+  msg.append(actions, status);
   msg.actionStatus = status;
   msg.regenerateButton = regenerate;
   msg.responseActions = actions;
@@ -3286,6 +3318,7 @@ function syncRegenerateButtons(conversation) {
 function beginAnswerRequest(details) {
   const request = { ...details, controller: new AbortController(), cancelled: false };
   activeRequest = request;
+  $("composerVoice").hidden = true;
   $("send").disabled = true;
   $("send").hidden = true;
   $("stopRequest").hidden = false;
@@ -3304,7 +3337,7 @@ function finishAnswerRequest(request) {
   if (activeRequest !== request) return;
   activeRequest = null;
   $("send").disabled = false;
-  $("send").hidden = false;
+  fitQuestionBox();
   $("stopRequest").hidden = true;
   syncRegenerateButtons();
   request.conversation.updatedAt = Date.now();
@@ -3406,6 +3439,12 @@ function remember(conversation, role, text) {
 
 function fitQuestionBox() {
   const field = $("q");
+  const hasQuestion = Boolean(field.value.trim());
+  $("ask").classList.toggle("has-question", hasQuestion);
+  $("explanationPicker").hidden = !hasQuestion;
+  if (!hasQuestion) $("explanationPicker").open = false;
+  $("composerVoice").hidden = hasQuestion || Boolean(activeRequest);
+  $("send").hidden = !hasQuestion || Boolean(activeRequest);
   const style = getComputedStyle(field);
   const minimum = parseFloat(style.minHeight) || 44;
   const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
@@ -3422,6 +3461,12 @@ function setQuestionText(text) {
   $("q").value = text;
   fitQuestionBox();
 }
+document.addEventListener("click", (event) => {
+  document.querySelectorAll(".more-actions[open]").forEach((panel) => { if (!panel.contains(event.target)) panel.open = false; });
+});
+function closeAnswerMenus() { document.querySelectorAll(".more-actions[open]").forEach((panel) => { panel.open = false; }); }
+$("thread").addEventListener("scroll", closeAnswerMenus, { passive:true });
+window.addEventListener("resize", closeAnswerMenus, { passive:true });
 $("q").addEventListener("input", fitQuestionBox);
 document.fonts?.ready.then(fitQuestionBox);
 
@@ -3500,6 +3545,7 @@ $("explanationPicker").addEventListener("keydown", (event) => {
     $("explanationSummary").focus();
   }
 });
+$("composerVoice").addEventListener("click", () => $("voiceMode").click());
 $("voiceMode")?.addEventListener("click", () => { if (isMobileLayout()) closeHistory(); });
 try {
   const savedStyle = localStorage.getItem("muhawir-explanation-style");
