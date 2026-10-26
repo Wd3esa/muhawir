@@ -45,3 +45,14 @@ def test_one_visitor_asking_too_fast_is_told_to_wait(monkeypatch):
     client = TestClient(server.app)
     codes = [client.post("/api/ask", json={"question": "ماذا تحتاج النخلة في الصيف؟"}).status_code for _ in range(4)]
     assert codes == [200, 200, 200, 429]
+
+
+def test_book_answer_assets_are_served():
+    page = client.get("/")
+    css = client.get("/book-answer.css?v=simple-composer-3")
+    assert page.status_code == 200 and 'id="chatSettings"' in page.text
+    assert css.status_code == 200 and css.headers["content-type"].startswith("text/css")
+    assert ".msg.plain-answer" in css.text
+    for name in ("Amiri-Regular.ttf", "Amiri-Bold.ttf"):
+        font = client.get("/fonts/" + name)
+        assert font.status_code == 200 and font.content[:4] == b"\x00\x01\x00\x00"

@@ -666,6 +666,10 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   white-space:pre-line;
   animation:arrive .35s ease both
 }
+.context { margin:6px 0 2px; }
+.context-toggle { min-height:44px; padding:6px 12px; border:1px solid var(--line, #ccc); border-radius:10px; background:transparent; color:inherit; font:inherit; font-size:14px; cursor:pointer; }
+.context-quote { opacity:.78; font-size:.95em; }
+.context-part { margin-top:8px; }
 .msg.pending {
   width:max-content;
   min-width:98px;
@@ -740,6 +744,104 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .answer-list li {
   margin:4px 0;
   padding-inline-start:3px
+}
+/* A readable source page: the colour belongs to the reader, not to the source text. */
+:root {
+  --reading-paper:#fbf8ef;
+  --reading-ink:#25312b;
+  --reading-accent:#426e5d;
+  --reading-wash:#e9f1e7;
+  --reading-border:#a6bda9
+}
+:root[data-answer-palette="blue"] {
+  --reading-paper:#f7faff; --reading-ink:#23364b; --reading-accent:#315d85;
+  --reading-wash:#e3eff9; --reading-border:#a0bdd4
+}
+:root[data-answer-palette="sepia"] {
+  --reading-paper:#fcf6e9; --reading-ink:#453729; --reading-accent:#855c37;
+  --reading-wash:#f2e6ce; --reading-border:#cbb18b
+}
+:root[data-answer-palette="plum"] {
+  --reading-paper:#faf7fc; --reading-ink:#362d42; --reading-accent:#684d7d;
+  --reading-wash:#eee6f2; --reading-border:#baa7cb
+}
+:root[data-theme="dark"] {
+  --reading-paper:#202b27; --reading-ink:#f3f1e8; --reading-accent:#a8d8be;
+  --reading-wash:#304337; --reading-border:#587464
+}
+:root[data-theme="dark"][data-answer-palette="blue"] {
+  --reading-paper:#202b39; --reading-ink:#f0f4fa; --reading-accent:#aad3f3;
+  --reading-wash:#2e4053; --reading-border:#5c7f9e
+}
+:root[data-theme="dark"][data-answer-palette="sepia"] {
+  --reading-paper:#302a23; --reading-ink:#f5eddd; --reading-accent:#e2c193;
+  --reading-wash:#443829; --reading-border:#927650
+}
+:root[data-theme="dark"][data-answer-palette="plum"] {
+  --reading-paper:#2d2634; --reading-ink:#f3eff7; --reading-accent:#d7bce6;
+  --reading-wash:#42334e; --reading-border:#806392
+}
+.topbar .palette-wrap select { min-height:36px; max-width:125px; border-color:var(--line) }
+.msg.book-answer:not(.pending) {
+  background:var(--reading-paper);
+  color:var(--reading-ink);
+  border-color:var(--reading-border);
+  border-radius:9px;
+  padding:clamp(17px,3vw,32px);
+  line-height:2;
+  box-shadow:0 10px 28px color-mix(in srgb,var(--reading-ink) 9%,transparent)
+}
+.book-answer .answer-heading {
+  border-bottom:1px solid var(--reading-border);
+  padding-bottom:14px;
+  margin-bottom:18px
+}
+.book-answer .answer-brand,.book-answer .status,.book-answer .cite a,
+.book-answer .source-quote { color:var(--reading-accent) }
+.book-answer .answer-brand .brand-mark {
+  background:var(--reading-wash);
+  color:var(--reading-accent);
+  border-color:var(--reading-border)
+}
+.book-answer .answer { line-height:2.1; margin-block:8px; font-size:1.04em }
+.book-answer .source-quote { font-weight:700 }
+.book-answer .answer-section {
+  background:var(--reading-accent);
+  color:var(--reading-paper);
+  margin:20px 0 12px;
+  padding:5px 14px;
+  text-align:center;
+  border-radius:3px;
+  font-size:1.08em
+}
+.book-answer .answer-list { list-style:none; padding-inline-start:0; counter-reset:answer-item }
+.book-answer .answer-list li { position:relative; padding-inline-start:34px; margin-block:13px; line-height:2 }
+.book-answer .answer-list li::before {
+  counter-increment:answer-item;
+  content:counter(answer-item);
+  position:absolute;
+  inset-inline-start:0;
+  top:.3em;
+  display:grid;
+  place-items:center;
+  width:25px;
+  height:25px;
+  background:var(--reading-accent);
+  color:var(--reading-paper);
+  font-size:12px;
+  line-height:1;
+  border-radius:2px
+}
+.book-answer .source-shelf { border-bottom-color:var(--reading-border) }
+.book-answer .card blockquote:not(.translation) {
+  color:var(--reading-accent);
+  border-inline-start:3px solid var(--reading-border);
+  padding-inline-start:12px;
+  line-height:2
+}
+@media(max-width:620px) {
+  .topbar .palette-wrap select { width:82px; max-width:82px; font-size:12px }
+  .book-answer .answer { font-size:1em }
 }
 .cite {
   font-size:12px;
@@ -917,6 +1019,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   background:color-mix(in srgb,var(--accent) 9%,transparent)
 }
 .action-btn:disabled { opacity:.5; cursor:wait }
+.sources-chip { margin-inline-start:auto; padding-inline:10px; border:1px solid color-mix(in srgb,var(--muted) 30%,transparent) }
 .action-icon,.action-icon svg {
   width:17px;
   height:17px;
@@ -981,6 +1084,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   .action-label { display:none }
   .listen-group .action-btn { width:auto; min-width:42px; padding:0 7px }
   .listen-group .action-label { display:inline }
+  .action-btn.sources-chip { width:auto; min-width:36px; padding:0 10px }
+  .action-btn.sources-chip .action-label { display:inline }
 }
 
   #ask {
@@ -1108,6 +1213,8 @@ textarea::placeholder {
   font-size:13px;
   line-height:1.5
 }
+.voice-mode[aria-pressed="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+.voice-status { flex:1 1 100%; margin:4px 2px 0; font-size:14px; color:var(--ink); }
 .mic {
   display:inline-flex;
   align-items:center;
@@ -1605,6 +1712,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @media(max-width:350px) { .style-wrap > span { display:none; } }
 @media(prefers-reduced-motion:reduce) { .welcome-book .book-left,.welcome-book .book-right,.welcome-book .book-page { animation:none; } .card summary { transition:none; } }
 </style>
+<link rel="stylesheet" href="/book-answer.css?v=simple-composer-3">
 </head>
 <body>
 <div class="app-shell sidebar-collapsed" id="appShell">
@@ -1623,6 +1731,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
+
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
   <main class="workspace">
@@ -1633,9 +1742,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
         <h1 id="conversationTitle" data-t="newChat"></h1>
       </div>
       <div class="topbar-tools">
-        <span class="trust-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="trustLabel"></span></span>
-        <label class="lang-wrap"><span class="sr-only" data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option></select></label>
-        <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
+        <button class="icon-button" id="openSettings" type="button" aria-haspopup="dialog" aria-controls="chatSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--sidebar)"/><circle cx="15" cy="17" r="3" fill="var(--sidebar)"/></svg></button>
       </div>
     </header>
     <div class="synthetic" id="synthetic" hidden></div>
@@ -1658,28 +1765,49 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
-          <label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label>
+
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="submit" class="send" id="send" aria-label=""><span data-t="send"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
         </div>
         <div class="voice-note" id="voiceNote" hidden data-t="voiceNote"></div>
+        <p class="voice-status" id="voiceStatus" role="status" aria-live="assertive" hidden></p>
       </form>
       <p class="request-notice" id="requestNotice" role="status" hidden></p>
       <p class="disclaimer" data-t="disclaimer"></p>
     </div>
   </main>
 </div>
+<dialog id="chatSettings" aria-labelledby="settingsTitle">
+  <div class="settings-heading"><h2 id="settingsTitle" data-t="chatSettings"></h2><button class="icon-button" id="closeSettings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+  <div class="settings-fields">
+<button type="button" class="mic voice-mode" id="voiceMode" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg><span data-t="voiceMode"></span></button>
+<label class="style-wrap" for="style"><span data-t="style"></span><select id="style"><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></label><label class="answer-layout-wrap"><span data-t="answerLayout"></span><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select></label><label class="palette-wrap"><span data-t="answerPalette"></span><select id="answerPalette" aria-label=""><option value="sage" data-t="paletteSage"></option><option value="blue" data-t="paletteBlue"></option><option value="sepia" data-t="paletteSepia"></option><option value="plum" data-t="palettePlum"></option></select></label><label class="lang-wrap"><span data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option><option value="ur">اردو</option></select></label>        <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><span id="settingsThemeLabel"></span></button></div>
+</dialog>
 <script>
+// The page's script, in this order:
+//   1. text: every string the page shows (UI), in Arabic, English and Urdu
+//   2. state and saved conversations (kept in this browser)
+//   3. small helpers, the source-context button, the waiting status
+//   4. the history sidebar and the welcome screen
+//   5. language and theme
+//   6. read aloud, the action buttons under an answer, the recitation of a verse
+//   7. copying and sharing, and rendering an answer (renderAnswer)
+//   8. requests: stopping, asking again, forgetting a rejected answer
+//   9. the question box, the chat viewport, the page's event wiring
+//  10. sending a question (the submit handler), the usage warning
+//  11. voice input and the voice mode (for a listener who cannot see the page)
+
+// 1. Text: one entry per language; the page picks UI[lang] and fills every data-t element from it.
 const UI = {
-  ar: { lang: "اللغة", tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
+  ar: { lang: "اللغة", usageWarn: "استخدمت {pct}% من حد الأسئلة ({used} من {limit}). يتجدد بعد {wait}.", minutes: "{n} دقيقة",  voiceMode: "الوضع الصوتي", voiceModeStop: "إيقاف الوضع الصوتي", vmOn: "الوضع الصوتي يعمل: تكلّم بعد النغمة، وسأقرأ لك الجواب ومصادره ثم أستمع لسؤالك التالي. للإيقاف اضغط الزر نفسه أو Escape.", vmListening: "أستمع إليك… تكلّم الآن.", vmReading: "أقرأ الجواب.", vmNotHeard: "لم أسمعك. تكلّم بعد النغمة.", vmOff: "توقف الوضع الصوتي.", vmNoMic: "هذا المتصفح لا يتيح التحدث إليه. جرّب Chrome أو Edge أو Safari.", vmTranslation: "ترجمة معاني الآية:", vmRecitation: "تلاوة الآية:",  tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
         qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
-        welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", welcomeKicker: "اسأل وتحقق من المصادر",
+        welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", chatSettings: "الإعدادات", closeSettings: "إغلاق الإعدادات", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
-        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح",
+        style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح", answerLayout: "شكل الإجابة", layoutBook: "صفحة كتاب", layoutPlain: "إجابة بسيطة", answerPalette: "لون صفحة الإجابة", paletteSage: "أخضر", paletteBlue: "أزرق", paletteSepia: "ورقي", palettePlum: "بنفسجي",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["جارٍ البحث في المصادر…"], found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
+        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["أقرأ سؤالك…", "أبحث في المصادر…", "أكتب الجواب من النصوص التي وجدتها…", "أطابق كل جملة مع مصدرها…"], readContext: "اقرأ ما قبله وما بعده في الكتاب", hideContext: "إخفاء ما قبله وما بعده", contextBefore: "قبله في الكتاب", contextAfter: "بعده في الكتاب", contextNone: "لا نص قبله ولا بعده في هذا الكتاب", contextFailed: "تعذّر جلب النص", found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
         generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
@@ -1687,27 +1815,59 @@ const UI = {
         synthetic: "تنبيه: النسخة الحالية تعمل على بيانات تجريبية مصطنعة لاختبار البرنامج، وليست نصوصًا دينية.",
         topics: "موضوعات الآية بحسب المصدر", chapter: "الباب", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
-  en: { lang: "Language", tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
+  en: { lang: "Language", usageWarn: "You have used {pct}% of your question limit ({used} of {limit}). It resets in {wait}.", minutes: "{n} min",  voiceMode: "Voice mode", voiceModeStop: "Stop voice mode", vmOn: "Voice mode is on: speak after the tone; I will read the answer and its sources, then listen for your next question. To stop, press the same button or Escape.", vmListening: "Listening… speak now.", vmReading: "Reading the answer.", vmNotHeard: "I did not hear you. Speak after the tone.", vmOff: "Voice mode stopped.", vmNoMic: "This browser cannot listen to speech. Try Chrome, Edge or Safari.", vmTranslation: "Translation of the meaning of the verse:", vmRecitation: "Recitation of the verse:",  tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
         qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
-        style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode",
+        chatSettings: "Settings", closeSettings: "Close settings", style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Searching the sources…"], found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
+        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Reading your question…", "Searching the sources…", "Writing the answer from the passages found…", "Checking each sentence against its source…"], readContext: "Read what comes before and after", hideContext: "Hide what comes before and after", contextBefore: "Before it in the book", contextAfter: "After it in the book", contextNone: "Nothing before or after it in this book", contextFailed: "Could not load the text", found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
         generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
         disclaimer: "Muhawir is an introductory tool grounded in approved sources. It is not a source of fatwas.",
         synthetic: "Notice: this version runs on synthetic test data, not religious texts.",
         topics: "Topics listed by the source", chapter: "Chapter", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
-        status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } }
+        status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } },
+  ur: { chatSettings:"ترتیبات", closeSettings:"ترتیبات بند کریں", answerLayout:"جواب کی شکل", layoutBook:"کتاب کا صفحہ", layoutPlain:"سادہ جواب", lang: "زبان", usageWarn: "آپ سوالوں کی حد کا {pct}% استعمال کر چکے ہیں ({limit} میں سے {used})۔ یہ {wait} بعد دوبارہ شروع ہوگی۔", minutes: "{n} منٹ",  voiceMode: "آواز موڈ", voiceModeStop: "آواز موڈ بند کریں", vmOn: "آواز موڈ چل رہا ہے: ٹون کے بعد بولیں؛ میں جواب اور اس کے مصادر پڑھ کر سناؤں گا، پھر آپ کا اگلا سوال سنوں گا۔ بند کرنے کے لیے یہی بٹن یا Escape دبائیں۔", vmListening: "سن رہا ہوں… اب بولیں۔", vmReading: "جواب پڑھ رہا ہوں۔", vmNotHeard: "میں آپ کو سن نہیں سکا۔ ٹون کے بعد بولیں۔", vmOff: "آواز موڈ بند ہو گیا۔", vmNoMic: "یہ براؤزر آواز نہیں سن سکتا۔ Chrome، Edge یا Safari آزمائیں۔", vmTranslation: "آیت کے معانی کا ترجمہ:", vmRecitation: "آیت کی تلاوت:",  tagline: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے، اور ضرورت ہو تو کسی ماہر کی طرف رہنمائی کرتا ہے۔",
+        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
+        newChat: "نئی گفتگو", historyHeading: "آپ کی گفتگوئیں", historySearch: "اپنی گفتگوؤں میں تلاش کریں", historyEmpty: "جو گفتگو آپ شروع کریں گے وہ یہاں نظر آئے گی۔", noMatches: "اس نام کی کوئی گفتگو نہیں۔", privacyNote: "تاریخچہ اسی براؤزر میں محفوظ رہتا ہے۔ سوال پوچھنے پر سوال اور اس کا قریبی سیاق جواب کی تیاری کے لیے محاور کی سروس اور ماڈل فراہم کنندہ کو بھیجا جاتا ہے۔ آپ تاریخچہ حذف کر سکتے ہیں۔", favorite: "پسندیدہ میں شامل کریں", unfavorite: "پسندیدہ سے نکالیں", deleteChat: "گفتگو حذف کریں", deleteAll: "تمام گفتگوئیں حذف کریں", deleteAllConfirm: "کیا آپ اس براؤزر میں محفوظ تمام گفتگوئیں حذف کرنا چاہتے ہیں؟", openHistory: "گفتگو کا تاریخچہ کھولیں", closeHistory: "گفتگو کا تاریخچہ بند کریں", showHistory: "گفتگو کا تاریخچہ دکھائیں", hideHistory: "گفتگو کا تاریخچہ چھپائیں", historyLabel: "گفتگو کا تاریخچہ", recent: "حالیہ گفتگوئیں", trustLabel: "معتبر مصادر",
+        welcomeDescription: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے۔", settings: "آپ وضاحت کس انداز میں چاہتے ہیں؟", welcomeKicker: "پوچھیے اور مصادر سے تصدیق کیجیے",
+        topicQuran: "قرآن", topicFiqh: "فقہ", topicAqidah: "عقیدہ", promptQuran: "میں قرآن میں تدبر کیسے کروں؟", promptFiqh: "فرض اور سنت میں کیا فرق ہے؟", promptAqidah: "توحید کا کیا مطلب ہے؟", assistant: "محاور",
+        style: "وضاحت کا انداز", kids: "بچوں کے لیے", youth: "نوجوانوں کے لیے", extended: "تفصیلی", newcomer: "اسلام میں نئے", send: "پوچھیں", stopRequest: "انتظار روکیں", requestStopped: "انتظار روک دیا گیا۔ آپ سوال میں ترمیم کر کے دوبارہ بھیج سکتے ہیں۔", darkTheme: "رات کا انداز", lightTheme: "دن کا انداز", answerPalette: "جواب کے صفحے کا رنگ", paletteSage: "سبز", paletteBlue: "نیلا", paletteSepia: "کاغذی", palettePlum: "بنفشی",
+        mic: "🎤 بولیں", micStop: "⏹ روکیں", voiceNote: "مائیکروفون استعمال کرنے پر براؤزر آپ کی آواز کو متن میں بدلنے کے لیے کسی بیرونی سروس کو بھیج سکتا ہے۔",
+        exampleTag: "محاور کی طرف سے وضاحتی مثال", recite: "تلاوت سنیں", reciter: "قاری مشاری العفاسی کی آواز میں (everyayah.com)", reciteFailed: "تلاوت نہیں چل سکی", listen: "سنیں", stop: "روکیں", responseActions: "جواب کے اختیارات", copyAnswer: "جواب کاپی کریں", copied: "جواب کاپی ہو گیا", copyFailed: "جواب کاپی نہیں ہو سکا", shareAnswer: "جواب شیئر کریں", shareFailed: "شیئر نہیں ہو سکا", shareFallback: "شیئر کی سہولت دستیاب نہیں؛ اس کے بجائے جواب کاپی کر دیا گیا", regenerate: "دوبارہ جواب", clear: "واضح ہے", unclear: "مزید وضاحت چاہیے", thanks: "رائے دینے کا شکریہ", thanksUnclear: "شکریہ۔ آپ «مزید اختیارات» سے آسان وضاحت مانگ سکتے ہیں۔", regenerating: "نیا جواب تیار ہو رہا ہے…", showSources: "مصادر دکھائیں", hideSources: "مصادر چھپائیں", more: "مزید اختیارات", copyWithSources: "جواب مصادر کے متن کے ساتھ کاپی کریں", simplifyAnswer: "جواب آسان انداز میں سمجھائیں", moreDetail: "مزید وضاحت کریں", simplifyPrompt: "اپنا پچھلا جواب آسان انداز میں سمجھائیں", pending: "لکھ رہا ہے…", thinking: ["آپ کا سوال پڑھ رہا ہوں…", "مصادر میں تلاش کر رہا ہوں…", "ملنے والے متون سے جواب لکھ رہا ہوں…", "ہر جملے کو اس کے مصدر سے ملا رہا ہوں…"], readContext: "کتاب میں اس سے پہلے اور بعد کا متن پڑھیں", hideContext: "پہلے اور بعد کا متن چھپائیں", contextBefore: "کتاب میں اس سے پہلے", contextAfter: "کتاب میں اس کے بعد", contextNone: "اس کتاب میں اس سے پہلے یا بعد کوئی متن نہیں", contextFailed: "متن نہیں لایا جا سکا", found: "جواب مل گیا", notFound: "مصادر میں کچھ نہیں ملا", settled: "جائزہ مکمل",
+        noVoice: "اس براؤزر میں اردو آواز موجود نہیں۔ Edge آزمائیں، یا اپنے آلے کی اسپیچ ترتیبات سے اردو شامل کریں۔",
+        maleVoice: "مرد", femaleVoice: "خاتون", voiceChoice: "آواز", azureNotice: "آواز بنانے کے لیے صرف جواب کا متن Microsoft کو بھیجا جاتا ہے۔", voiceLoading: "آواز تیار ہو رہی ہے…", voiceTap: "آواز چلانے کے لیے دوبارہ «سنیں» دبائیں۔",
+        generalInfo: "کیا آپ ایسے معاملات کے عمومی احکام جاننا چاہتے ہیں؟", understoodAs: "اگر آپ کی مراد یہ ہے:", didYouMean: "کیا آپ کی مراد ہے:", yes: "ہاں", no: "نہیں", whatDidYouMean: "آپ کی کیا مراد ہے؟ اپنا سوال کسی اور طرح لکھیں۔", views: "علما کے اقوال جیسے مصادر میں آئے ہیں",
+        disclaimer: "محاور ایک علمی ذریعہ ہے، فتوے کا ماخذ نہیں۔",
+        synthetic: "تنبیہ: موجودہ نسخہ جانچ کے لیے مصنوعی ڈیٹا پر چل رہا ہے، دینی متون پر نہیں۔",
+        topics: "مصدر کے مطابق آیت کے موضوعات", chapter: "باب", location: "مقام", grade: "محدث کا حکم", hadith: "حدیث", sources: "مصادر", source: "مصدر", verify: "الدرر السنیہ پر تصدیق کریں", open: "مصدر کھولیں", error: "رابطہ نہیں ہو سکا۔ دوبارہ کوشش کریں۔", tooMany: "کم وقت میں بہت سے سوال آ گئے۔ ایک منٹ انتظار کر کے دوبارہ پوچھیں۔",
+        status: { answered: "مصادر سے جواب", abstained: "مصادر میں جواب نہیں ملا", referred: "ماہر کی طرف رجوع", declined: "دائرے سے باہر", invalid: "", chat: "", unavailable: "" } }
 };
 const $ = (id) => document.getElementById(id);
+// 2. State: the language, and the conversations (the history is only in this browser; the server keeps none).
 let lang = "ar";
 try { if (["ar", "en"].includes(localStorage.getItem("muhawir-lang"))) lang = localStorage.getItem("muhawir-lang"); } catch { /* private storage can be unavailable */ }
 $("lang").value = lang;
+const PALETTES = ["sage", "blue", "sepia", "plum"];
+let answerPalette = "sage";
+try {
+  const savedPalette = localStorage.getItem("muhawir-answer-palette");
+  if (PALETTES.includes(savedPalette)) answerPalette = savedPalette;
+} catch { /* private storage can be unavailable */ }
+document.documentElement.dataset.answerPalette = answerPalette;
+$("answerPalette").value = answerPalette;
+let answerLayout = "book";
+try { if (localStorage.getItem("muhawir-answer-layout") === "plain") answerLayout = "plain"; } catch {}
+$("answerLayout").value = answerLayout;
+function applyAnswerLayout(message) {
+  if (!message?.dataset.sourcedAnswer) return;
+  message.classList.toggle("book-answer", answerLayout === "book");
+  message.classList.toggle("plain-answer", answerLayout === "plain");
+}
 const conversations = [];
 let activeConversation = { id: 1, title: UI.ar.newChat, messages: [], turns: [], updatedAt: Date.now() };
 conversations.push(activeConversation);
@@ -1718,6 +1878,7 @@ let nextConversationId = 2;
 const MAX_HISTORY = 6;
 let lastAskStatus = 0;
 
+// Saving, loading and deleting the conversations kept in this browser.
 // Conversation history is kept in this browser (localStorage), so a visitor can come back to it. A question and
 // recent turns are sent to /api/ask when asked; there is no account. Each answer is kept as
 // the reply the server gave, and shown again from it: reopening a conversation asks the model nothing.
@@ -1796,6 +1957,7 @@ let recognizer = null, recognizing = false;
 let spokenTurn = false;  // the current question was dictated: submit it when speech ends and read the reply aloud
 let activeRequest = null;
 
+// 3. Small helpers: a safe link, an element builder, the outcome of a search.
 // a link from a reply (or from a conversation kept in this browser) opens only as a web address, never as script
 function safeLink(url) {
   try { const u = new URL(String(url || ""), location.href); return /^https?:$/.test(u.protocol) ? u.href : "#"; }
@@ -1817,18 +1979,66 @@ function sourceSearchOutcome(response) {
   // Referrals, greetings, validation failures and outages are not failed source searches.
   return "settled";
 }
+// The source-context button: the passages around a cited one.
+// «اقرأ ما قبله وما بعده»: the passages around the one cited, from the same book, read from the server's database
+// (no model). Shown under the quote, above and below a line, and hidden again with the same button.
+function contextButton(passageId) {
+  const t = UI[lang] || UI.en;
+  const box = el("div", "context");
+  const button = el("button", "context-toggle", t.readContext);
+  button.type = "button";
+  button.setAttribute("aria-expanded", "false");
+  const shown = el("div", "context-text");
+  shown.hidden = true;
+  button.addEventListener("click", async () => {
+    const opening = shown.hidden;
+    button.setAttribute("aria-expanded", String(opening));
+    button.textContent = opening ? t.hideContext : t.readContext;
+    shown.hidden = !opening;
+    if (!opening || shown.childElementCount) return;
+    try {
+      const r = await fetch(`/api/context/${encodeURIComponent(passageId)}`);
+      if (!r.ok) throw new Error(String(r.status));
+      const data = await r.json();
+      for (const [key, part] of [["contextBefore", data.before], ["contextAfter", data.after]]) {
+        if (!part) continue;
+        const block = el("div", "context-part");
+        block.append(el("div", "meta", `${t[key]} · ${part.location}`), el("blockquote", "context-quote", part.text));
+        shown.append(block);
+      }
+      if (!shown.childElementCount) shown.append(el("div", "meta", t.contextNone));
+    } catch {
+      shown.append(el("div", "meta", t.contextFailed));
+    }
+  });
+  box.append(button, shown);
+  return box;
+}
+
+// The waiting status shown while a question is answered, and how it ends.
 function createRiderStatus(locale) {
   const phrase = (UI[locale] || UI.en).thinking[0];
   const pending = el("div", "msg pending rider-status is-searching");
   pending.setAttribute("role", "status");
   pending.setAttribute("aria-live", "polite");
-  pending.dir = locale === "ar" ? "rtl" : "ltr";
+  pending.dir = locale === "en" ? "ltr" : "rtl";
   pending.dataset.searchPhase = "searching";
   const scholar = el("span", "scholar-visual");
   scholar.setAttribute("aria-hidden", "true");
   pending.append(scholar, el("span", "rider-status-copy", phrase));
+  // the steps Muhawir takes, in their order, at about the time each usually starts: understanding, search, writing,
+  // checking. The last step stays until the answer arrives (22 October 2026)
+  pending.dataset.stage = "0";
+  const advance = (stage) => {
+    if (!pending.classList.contains("is-searching") || stage >= STAGE_AFTER_MS.length + 1) return;
+    pending.dataset.stage = String(stage);
+    translateSearchStatus(pending, lang);
+    if (stage < STAGE_AFTER_MS.length) setTimeout(() => advance(stage + 1), STAGE_AFTER_MS[stage]);
+  };
+  setTimeout(() => advance(1), STAGE_AFTER_MS[0]);
   return pending;
 }
+const STAGE_AFTER_MS = [3500, 2500, 8000];
 async function completeRiderStatus(pending, response, locale) {
   const outcome = sourceSearchOutcome(response);
   pending.classList.remove("is-searching");
@@ -1842,10 +2052,12 @@ async function completeRiderStatus(pending, response, locale) {
 function translateSearchStatus(pending, locale) {
   const t = UI[locale] || UI.en;
   const phase = pending.dataset.searchPhase || "searching";
-  pending.dir = locale === "ar" ? "rtl" : "ltr";
-  pending.querySelector(".rider-status-copy").textContent = phase === "searching" ? t.thinking[0] : t[phase];
+  pending.dir = locale === "en" ? "ltr" : "rtl";
+  const stage = Math.min(+(pending.dataset.stage || 0), t.thinking.length - 1);
+  pending.querySelector(".rider-status-copy").textContent = phase === "searching" ? t.thinking[stage] : t[phase];
 }
 
+// 4. The history sidebar, the welcome screen and switching between conversations.
 function renderHistory() {
   const list = $("historyList");
   list.replaceChildren();
@@ -1942,7 +2154,11 @@ function selectConversation(conversation) {
   activeConversation = conversation;
   setQuestionText("");
   renderConversation(conversation);
-  document.querySelectorAll(".voice-choice select").forEach((choice) => { choice.value = selectedSpeechVoice; });
+  document.querySelectorAll(".voice-choice select").forEach((choice) => {
+    const stored = storedVoice(choice.dataset.speakLang);
+    if ([...choice.options].some((o) => o.value === stored)) choice.value = stored;
+    else if ([...choice.options].some((o) => o.value === selectedSpeechVoice)) choice.value = selectedSpeechVoice;
+  });
   closeHistory();
 }
 
@@ -2004,17 +2220,24 @@ function toggleHistory() {
   updateHistoryToggle();
 }
 
+// 5. Language and theme: apply the chosen language to the whole page, switch the light and dark theme.
 function applyLang() {
   const t = UI[lang];
   document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
   $("q").placeholder = t.placeholder;
+  $("openSettings").setAttribute("aria-label", t.chatSettings);
+  $("openSettings").title = t.chatSettings;
+  $("closeSettings").setAttribute("aria-label", t.closeSettings);
   $("q").setAttribute("aria-label", t.qlabel);
   $("mic").lastElementChild.textContent = recognizing ? t.micStop : t.mic;
   $("mic").setAttribute("aria-label", recognizing ? t.micStop : t.mic);
   $("mic").title = recognizing ? t.micStop : t.mic;
+  if ($("voiceMode")) setVoiceModeLabel(voiceMode ? t.voiceModeStop : t.voiceMode);
   $("lang").setAttribute("aria-label", t.lang);
+  $("answerPalette").setAttribute("aria-label", t.answerPalette);
+  $("answerLayout").setAttribute("aria-label", t.answerLayout);
   $("historySearch").placeholder = t.historySearch;
   $("historySearch").setAttribute("aria-label", t.historySearch);
   $("closeHistory").setAttribute("aria-label", t.closeHistory);
@@ -2047,6 +2270,7 @@ function updateThemeToggle() {
   $("themeToggle").setAttribute("aria-pressed", String(dark));
   $("themeToggle").setAttribute("aria-label", label);
   $("themeToggle").title = label;
+  $("settingsThemeLabel").textContent = label;
 }
 
 function toggleTheme() {
@@ -2056,6 +2280,7 @@ function toggleTheme() {
   updateThemeToggle();
 }
 
+// 6. Read aloud with the browser's voices or the server's natural voices.
 // Muhawir's own words only: quoted ayahs, tafsir and hadith are never read by a computer voice.
 function spokenText(res) {
   const parts = [];
@@ -2094,10 +2319,15 @@ function voicesReady() {
   });
 }
 
-function pickVoice(voices, speakLang) {
-  const tag = speakLang === "ar" ? "ar-sa" : "en-us";
+// a browser voice whose name says it is a woman's or a man's, when the listener chose one (browsers do not say)
+const FEMALE_NAME = /female|woman|zira|hoda|salma|zariyah|laila|layla|mariam|maryam|uzma|gul|samantha|ava|emma|aria|jenny|susan|hazel|naayf?a|amina|sana|noura/i;
+const MALE_NAME = /\bmale|\bman\b|david|mark|naayf|hamed|shakir|asad|salman|andrew|brian|guy|george|tarik|maged|majed/i;
+function pickVoice(voices, speakLang, gender = "") {
+  const tag = { ar: "ar-sa", ur: "ur-pk", en: "en-us" }[speakLang] || "en-us";
   const ofLang = voices.filter((v) => v.lang.toLowerCase().replace("_", "-").startsWith(speakLang));
-  return ofLang.find((v) => v.lang.toLowerCase().replace("_", "-") === tag) || ofLang[0] || null;
+  const wanted = gender === "female" ? FEMALE_NAME : gender === "male" ? MALE_NAME : null;
+  const best = (list) => list.find((v) => v.lang.toLowerCase().replace("_", "-") === tag) || list[0] || null;
+  return (wanted && best(ofLang.filter((v) => wanted.test(v.name)))) || best(ofLang);
 }
 
 // Short pieces, one after another: Chrome stops long utterances after about 15 seconds.
@@ -2108,6 +2338,11 @@ function pieces(text) {
 let selectedSpeechVoice = "female";
 try { if (localStorage.getItem("muhawir-speech-voice") === "male") selectedSpeechVoice = "male"; }
 catch { /* storage may be disabled */ }
+// the natural voices the server offers per language, with their names (22 October 2026): /api/voices
+let VOICE_LIST = {};
+function storedVoice(speakLang) {
+  try { return localStorage.getItem(`muhawir-voice-${speakLang}`) || ""; } catch { return ""; }
+}
 let activeReadAloud = null;
 function stopReadAloud() { if (activeReadAloud) activeReadAloud.stop(); }
 
@@ -2120,9 +2355,10 @@ const ACTION_ICONS = {
   clear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9h3Zm0 0 4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/></svg>',
   unclear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>',
   more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
-  sources: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h14v15H5zM8 8h8M8 12h8M8 16h5"/></svg>'
+  sources: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.3 5.2 8 4.7 4.5 4.7v13c3.5 0 5.8.5 7.5 1.8 1.7-1.3 4-1.8 7.5-1.8v-13c-3.5 0-5.8.5-7.5 1.8ZM12 6.5v13"/></svg>'
 };
 
+// The small buttons under an answer (copy, share, listen, vowel, rate and so on).
 function actionIcon(name) {
   const icon = el("span", "action-icon");
   icon.setAttribute("aria-hidden", "true");
@@ -2138,6 +2374,15 @@ function makeActionButton(label, iconName, className = "", labelKey = iconName) 
   button.title = label;
   button.append(actionIcon(iconName), el("span", "action-label", label));
   return button;
+}
+
+// «3 مصادر» / «1 source»: the label of the sources button, the number of sources the answer rests on.
+function sourceCountLabel(n) {
+  if (lang === "en") return `${n} ${n === 1 ? "source" : "sources"}`;
+  if (lang === "ur") return `${n} مصدر`;
+  if (n === 1) return "مصدر واحد";
+  if (n === 2) return "مصدران";
+  return `${n} ${n <= 10 ? "مصادر" : "مصدرًا"}`;
 }
 
 function setActionStatus(status, key) {
@@ -2157,7 +2402,7 @@ function applyActionTranslations(message) {
       : t[key];
     if (!label) return;
     const text = control.querySelector(".action-label");
-    if (text) text.textContent = label;
+    if (text) text.textContent = key === "sources" ? sourceCountLabel(Number(control.dataset.count)) : label;
     control.setAttribute("aria-label", label);
     control.title = label;
   });
@@ -2172,9 +2417,10 @@ function listenButton(res, status) {
   const rawText = spokenText(res);
   if (!rawText) return null;
   const withoutVerses = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, "");
-  const speakLang = /[\u0600-\u06FF]/.test(withoutVerses) ? "ar" :
-    (withoutVerses.trim() ? "en" : lang);
-  const text = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, speakLang === "ar" ? "(آية)" : "(verse)");
+  // Urdu is written in the Arabic script: its own letters (ٹ ڈ ڑ ں ھ ہ ے) tell it apart
+  const speakLang = /[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]/.test(withoutVerses) ? "ur"
+    : /[\u0600-\u06FF]/.test(withoutVerses) ? "ar" : (withoutVerses.trim() ? "en" : lang);
+  const text = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, { ar: "(آية)", ur: "(آیت)" }[speakLang] || "(verse)");
   const group = el("span", "listen-group");
   const row = el("span", "listen-controls");
   const btn = makeActionButton(UI[lang].listen, "listen");
@@ -2184,19 +2430,40 @@ function listenButton(res, status) {
   const choiceLabel = el("span", "", UI[lang].voiceChoice);
   choiceLabel.dataset.itemKey = "voiceChoice";
   const select = el("select");
-  for (const [value, key] of [["female", "femaleVoice"], ["male", "maleVoice"]]) {
-    const option = el("option", "", UI[lang][key]);
-    option.value = value;
-    option.dataset.itemKey = key;
-    select.append(option);
+  select.dataset.speakLang = speakLang;
+  const named = VOICE_LIST[speakLang] || [];
+  if (named.length) {  // real recorded voices by name, women first: «زارية (السعودية) — امرأة»
+    for (const v of named) {
+      const option = el("option", "", `${v.names[lang] || v.names.en} — ${UI[lang][v.gender === "female" ? "femaleVoice" : "maleVoice"]}`);
+      option.value = v.id;
+      option.dataset.gender = v.gender;
+      select.append(option);
+    }
+    const stored = storedVoice(speakLang);
+    select.value = named.some((v) => v.id === stored) ? stored
+      : (named.find((v) => v.gender === selectedSpeechVoice) || named[0]).id;
+  } else {
+    for (const [value, key] of [["female", "femaleVoice"], ["male", "maleVoice"]]) {
+      const option = el("option", "", UI[lang][key]);
+      option.value = value;
+      option.dataset.itemKey = key;
+      option.dataset.gender = value;
+      select.append(option);
+    }
+    select.value = selectedSpeechVoice;
   }
-  select.value = selectedSpeechVoice;
   choice.append(choiceLabel, select);
   select.addEventListener("change", () => {
-    selectedSpeechVoice = select.value;
-    try { localStorage.setItem("muhawir-speech-voice", selectedSpeechVoice); }
-    catch { /* preference remains available for this page */ }
-    document.querySelectorAll(".voice-choice select").forEach((other) => { other.value = selectedSpeechVoice; });
+    selectedSpeechVoice = select.selectedOptions[0]?.dataset.gender || selectedSpeechVoice;
+    try {
+      localStorage.setItem("muhawir-speech-voice", selectedSpeechVoice);
+      if (named.length) localStorage.setItem(`muhawir-voice-${speakLang}`, select.value);
+    } catch { /* preference remains available for this page */ }
+    document.querySelectorAll(".voice-choice select").forEach((other) => {
+      if (other === select) return;
+      if (other.dataset.speakLang === speakLang && named.length) other.value = select.value;
+      else if ([...other.options].some((o) => o.value === selectedSpeechVoice)) other.value = selectedSpeechVoice;
+    });
     stopReadAloud();
   });
   const note = el("small", "listen-note", UI[lang].azureNotice);
@@ -2228,7 +2495,7 @@ function listenButton(res, status) {
       delete status.dataset.statusKey;
       return;
     }
-    const voice = pickVoice(await voicesReady(), speakLang);
+    const voice = pickVoice(await voicesReady(), speakLang, select.selectedOptions[0]?.dataset.gender || selectedSpeechVoice);
     if (activeReadAloud !== playback) return;
     if (!voice) {
       playback.stop();
@@ -2274,7 +2541,7 @@ function listenButton(res, status) {
       if (!document.body.classList.contains("natural-voice")) throw new Error("no natural voice on this server");
       const response = await fetch("/tts", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: selectedSpeechVoice, lang: speakLang }),
+        body: JSON.stringify({ text, voice: select.value, lang: speakLang }),
         signal: controller.signal
       });
       if (!response.ok) throw new Error("Azure speech unavailable");
@@ -2323,6 +2590,7 @@ function listenButton(res, status) {
   return group;
 }
 
+// The recitation of a verse.
 // a verse is heard only in a reciter's real voice: Mishary Alafasy's recording of that ayah from everyayah.com,
 // played from their server (nothing is copied here); never a synthetic voice
 let activeRecitation = null;
@@ -2351,6 +2619,7 @@ function recitationButton(surah, ayah) {
   return wrap;
 }
 
+// 7. The answer as plain text for copying and sharing.
 function answerText(res, includeSourcePassages = false) {
   const lines = [];
   if (res.message) lines.push(res.message);
@@ -2398,6 +2667,8 @@ function rememberable(res) {
   return !["invalid", "declined", "abstained", "unavailable"].includes(res.status);
 }
 
+// Rendering an answer: helpers first, then renderAnswer, which builds the whole answer (text, sections, views,
+// source cards, buttons) from the server's reply.
 // The children's style shows a small picture beside each sentence, chosen from its words. Pictures of things only
 // (water, a mosque, the Quran, the crescent): never a person, a prophet or anything of the unseen. They add nothing
 // to what the sentence says; the information stays in the sourced text. The first match wins: wudu before prayer.
@@ -2454,12 +2725,36 @@ function plainLetters(text) {
   return (text || "").replace(/[\u064B-\u065F\u0670\u0640]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه")
     .replace(/ى/g, "ي").replace(/ؤ/g, "و").replace(/ئ/g, "ي").toLowerCase();
 }
+// The number of single-letter edits between two words (a typo is one or two of them).
+function editDistance(a, b) {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) {
+      next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    row = next;
+  }
+  return row[b.length];
+}
+
+// How the understood question differs from the typed one:
+//   "same"    no difference in the words;
+//   "added"   the typed words are all there (a follow-up made whole), or the question was only put in other words
+//             («جواهر سورة الكهف: اذكر الكلمات النادرة» → «ما الكلمات النادرة في سورة الكهف؟»): said, never asked about;
+//   "changed" a typed word was mistyped and corrected («ضيام» → «صيام»): the only case that asks «هل تقصد؟».
 function rewordKind(typed, understood) {
   if (!understood) return "same";
   const words = (t) => plainLetters(t).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  const joined = words(understood).join("");
-  if (words(typed).join("") === joined) return "same";
-  return words(typed).every((w) => joined.includes(w)) ? "added" : "changed";
+  const typedWords = words(typed);
+  const understoodWords = words(understood);
+  const joined = understoodWords.join("");
+  if (typedWords.join("") === joined) return "same";
+  const missing = typedWords.filter((w) => !joined.includes(w));
+  if (!missing.length) return "added";
+  const mistyped = missing.some((w) => w.length >= 3
+    && understoodWords.some((u) => u.length >= 3 && !typedWords.includes(u) && editDistance(w, u) <= Math.max(1, Math.floor(w.length / 4))));
+  return mistyped ? "changed" : "added";
 }
 
 function renderAnswer(res, style, context) {
@@ -2468,6 +2763,13 @@ function renderAnswer(res, style, context) {
   const open = style === "extended";
   const t = UI[lang];
   const msg = el("div", "msg");
+  if (res.status === "answered") {
+    msg.dataset.sourcedAnswer = "true";
+    applyAnswerLayout(msg);
+    const folio = el("div", "book-folio", "❧  ◇  ❧");
+    folio.setAttribute("aria-hidden", "true");
+    msg.append(folio);
+  }
   const heading = el("div", "answer-heading");
   const identity = el("div", "answer-brand");
   const mark = el("span", "brand-mark");
@@ -2475,6 +2777,11 @@ function renderAnswer(res, style, context) {
   mark.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9.7 20.5 12l-6.2 2.3L12 20.5l-2.3-6.2L3.5 12l6.2-2.3L12 3.5Z"/></svg>';
   identity.append(mark, el("span", "", t.assistant));
   heading.append(identity);
+  if (res.status === "answered") {
+    const names = [...new Set((res.sources || []).map((s) => s.source_name).filter(Boolean))];
+    const words = { ar: ["من ", "من الكتب"], en: ["From ", "From the books"], ur: ["از ", "کتابوں سے"] }[lang] || ["From ", "From the books"];
+    heading.append(el("span", "book-origin", names.length === 1 ? words[0] + names[0] : words[1]));
+  }
   const outcome = sourceSearchOutcome(res);
   if (outcome !== "settled") {
     const searchOutcome = el("p", "search-outcome", t[outcome]);
@@ -2498,13 +2805,18 @@ function renderAnswer(res, style, context) {
   const change = rewordKind(context?.question || "", res.understood || "");
   const confirmFirst = change === "changed" && !(context?.history || []).length && !context?.restored
     && ["answered", "referred", "abstained"].includes(res.status);
-  if (res.understood && change !== "same") {
+  // a first question put in other words is not repeated back: the line is for a corrected typo and for follow-ups
+  const firstReworded = change === "added" && !(context?.history || []).length;
+  if (res.understood && change !== "same" && !firstReworded) {
     understoodLine = el("p", "understood");
     understoodLine.dir = "auto";
     const label = el("span", "understood-label", (confirmFirst ? t.didYouMean : t.understoodAs) + " ");
     understoodLine.append(label, el("strong", "", res.understood));
     understoodLine.label = label;
     msg.append(understoodLine);
+  }
+  if (res.status === "answered" && !(res.claims || []).some((c) => c.section)) {
+    msg.append(el("h4", "answer-section", { ar: "الجواب", en: "Answer", ur: "جواب" }[lang] || "Answer"));
   }
   // A referral answers first: the referral line and who to ask; what the sources say in general follows, folded,
   // under a question the user opens (already in the reply: no new request).
@@ -2551,12 +2863,16 @@ function renderAnswer(res, style, context) {
   });
   // one sentence: an optional bold label («المقدار:»), the text, then its source numbers
   const fill = (node, c) => {
-    if (c.label) node.append(el("strong", "", c.label + ": "));
+    if (c.label) { const labelText = el("strong", "", c.label + ": "); node.append(labelText); vowelTargets.push(labelText); }
     // an everyday example is Muhawir's own illustration, not the source's words: it says so
     if (c.example) node.append(el("span", "example-tag", t.exampleTag), " ");
-    const claimText = el("span", "", c.text);
-    node.append(claimText);
-    vowelTargets.push(claimText);
+    // a quotation («…», ﴿…﴾) is set apart from the rest so the page can colour it; each piece is its own target for
+    // the optional vowelling, so colouring survives it (the server leaves quoted words as they are)
+    for (const piece of c.text.split(/(«[^»]+»|﴿[^﴾]+﴾)/g).filter(Boolean)) {
+      const part = el("span", /^[«﴿]/.test(piece) ? "source-quote" : "", piece);
+      node.append(part);
+      vowelTargets.push(part);
+    }
     const sup = cite(c);
     if (sup.childNodes.length) node.append(sup);
   };
@@ -2576,7 +2892,7 @@ function renderAnswer(res, style, context) {
       if (c.section !== current) {
         if (intro.childNodes.length && !intro.parentNode) msg.append(intro);
         current = c.section;
-        const h = el("h4", "answer-section", current); h.dir = "auto";
+        const h = el("h4", "answer-section", current); h.dir = "auto"; vowelTargets.push(h);
         block = list();
         msg.append(h, block);
       }
@@ -2620,7 +2936,10 @@ function renderAnswer(res, style, context) {
     for (const v of [...res.views].sort((a, b) => rank(a.school) - rank(b.school))) {
       const row = el("p", "view");
       row.dir = "auto";
-      row.append(el("strong", "", v.school + ": "), document.createTextNode(v.text));
+      const schoolName = el("strong", "", v.school + ": ");
+      const viewText = el("span", "", v.text);
+      row.append(schoolName, viewText);
+      vowelTargets.push(schoolName, viewText);
       const sup = cite(v);
       if (sup.childNodes.length) row.append(sup);
       panel.append(row);
@@ -2701,11 +3020,13 @@ function renderAnswer(res, style, context) {
     card.append(summary);
     card.append(el("div", "about", s.source_about));
     card.append(el("blockquote", "", s.quote));
+    if (s.passage_id) card.append(contextButton(s.passage_id));
     const ayah = s.kind === "quran" && /^q:(\d{1,3}):(\d{1,3})$/.exec(s.passage_id || "");
     if (ayah) card.append(recitationButton(+ayah[1], +ayah[2]));
     if (s.translation) {  // the approved English translation of the verse's meaning (King Fahd Complex)
       const tr = el("blockquote", "translation", s.translation);
-      tr.dir = "ltr"; tr.lang = "en";
+      const urdu = /[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]/.test(s.translation);
+      tr.dir = urdu ? "rtl" : "ltr"; tr.lang = urdu ? "ur" : "en";
       card.append(tr);
       if (s.translation_name) card.append(el("div", "meta", s.translation_name));
     }
@@ -2748,7 +3069,7 @@ function renderAnswer(res, style, context) {
   if (tashkeelLang === "ar" && vowelTargets.some(n => /[ء-ي]/.test(n.textContent))) {
     const original = vowelTargets.map(n => n.textContent);
     let vowelled = null, showing = false;
-    const vowelButton = el("button", "", "شكّل الجواب");
+    const vowelButton = el("button", "vowel-btn", "شكّل الجواب");
     vowelButton.type = "button";
     vowelButton.setAttribute("aria-pressed", "false");
     vowelButton.title = "تشكيل آلي مساعد قد يخطئ؛ النص الأصلي محفوظ";
@@ -2871,10 +3192,12 @@ function renderAnswer(res, style, context) {
   if (sourceCards.length) {
     const sourcesButton = makeActionButton(sourceCards.every((card) => card.open) ? t.hideSources : t.showSources, "sources", "", "sources");
     const label = sourcesButton.querySelector(".action-label");
+    sourcesButton.dataset.count = String(sourceCards.length);
+    sourcesButton.classList.add("sources-chip");
     const setSourceLabel = (expanded) => {
       const current = UI[lang];
       const text = expanded ? current.hideSources : current.showSources;
-      label.textContent = text;
+      label.textContent = sourceCountLabel(sourceCards.length);  // the chip says how many; the tooltip says what it does
       sourcesButton.setAttribute("aria-label", text);
       sourcesButton.title = text;
       sourcesButton.setAttribute("aria-expanded", String(expanded));
@@ -2931,6 +3254,7 @@ function renderAnswer(res, style, context) {
   return msg;
 }
 
+// 8. Requests in flight: stopping one, asking again, forgetting an answer the reader rejected.
 function forgetRejectedAnswer(context, res) {
   const conversation = context?.conversation;
   if (!conversation) return;
@@ -2989,7 +3313,9 @@ function finishAnswerRequest(request) {
   request.conversation.updatedAt = Date.now();
   renderHistory();
   if (activeConversation === request.conversation) {
-    scrollDown();
+    const last = request.conversation.messages.at(-1);
+    if (!request.cancelled && last?.dataset.sourcedAnswer) scrollToAnswerStart(last);
+    else scrollDown();
     if (request.kind === "question" && window.matchMedia("(min-width: 861px)").matches) $("q").focus();
   }
 }
@@ -3074,6 +3400,7 @@ function searchPhrase(text) {
   return (quoted ? words.slice(0, 7) : words.slice(-7)).join(" ");
 }
 
+// 9. The question box and the chat viewport (keeping the last line visible when a phone keyboard opens).
 function remember(conversation, role, text) {
   if (!text) return;
   conversation.turns.push({ role, text: text.slice(0, 600) });
@@ -3089,7 +3416,7 @@ function fitQuestionBox() {
   const screenHeight = viewport && Math.abs(viewport.scale - 1) <= .01 ? viewport.height : window.innerHeight;
   const maximum = Math.max(minimum, Math.min(180, screenHeight * .3));
   field.style.maxHeight = `${maximum}px`;
-  field.style.height = "auto";
+  field.style.height = "0px";
   const required = Math.max(minimum, field.scrollHeight + borders);
   field.style.height = `${Math.min(required, maximum)}px`;
   field.style.overflowY = required > maximum ? "auto" : "hidden";
@@ -3103,6 +3430,16 @@ document.fonts?.ready.then(fitQuestionBox);
 
 // A mobile keyboard can resize only the visual viewport, leaving 100dvh unchanged.
 // Scroll instantly after layout as well, so the pending row is not below the keyboard.
+function scrollToAnswerStart(message) {
+  const thread = $("thread");
+  const align = () => {
+    if (!message?.isConnected) return;
+    const top = message.getBoundingClientRect().top - thread.getBoundingClientRect().top + thread.scrollTop;
+    thread.scrollTo({ top: Math.max(0, top - 8), behavior: "instant" });
+  };
+  align();
+  requestAnimationFrame(align);
+}
 function scrollDown() {
   const thread = $("thread");
   const pinToBottom = () => { thread.scrollTo({ top: thread.scrollHeight, behavior: "instant" }); };
@@ -3135,12 +3472,39 @@ window.visualViewport?.addEventListener("resize", syncChatViewport, { passive: t
 window.addEventListener("resize", syncChatViewport, { passive: true });
 syncChatViewport();
 
+// Event wiring of the fixed controls of the page.
 $("lang").addEventListener("change", (e) => {
   lang = e.target.value;
   try { localStorage.setItem("muhawir-lang", lang); } catch { /* private storage can be unavailable */ }
   applyLang();
 });
+$("openSettings").addEventListener("click", () => $("chatSettings").showModal());
+$("closeSettings").addEventListener("click", () => $("chatSettings").close());
+$("voiceMode")?.addEventListener("click", () => $("chatSettings").close());
+$("chatSettings").addEventListener("click", (event) => {
+  if (event.target !== $("chatSettings")) return;
+  const bounds = event.target.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.target.close();
+});
+try {
+  const savedStyle = localStorage.getItem("muhawir-explanation-style");
+  if (["kids", "youth", "extended", "newcomer"].includes(savedStyle)) $("style").value = savedStyle;
+} catch {}
+$("style").addEventListener("change", () => {
+  try { localStorage.setItem("muhawir-explanation-style", $("style").value); } catch {}
+});
 $("themeToggle").addEventListener("click", toggleTheme);
+$("answerLayout").addEventListener("change", (event) => {
+  answerLayout = event.target.value === "plain" ? "plain" : "book";
+  for (const conversation of conversations) conversation.messages.forEach(applyAnswerLayout);
+  try { localStorage.setItem("muhawir-answer-layout", answerLayout); } catch {}
+});
+$("answerPalette").addEventListener("change", (e) => {
+  const value = e.target.value;
+  if (!PALETTES.includes(value)) return;
+  document.documentElement.dataset.answerPalette = value;
+  try { localStorage.setItem("muhawir-answer-palette", value); } catch { /* private storage can be unavailable */ }
+});
 $("stopRequest").addEventListener("click", stopAnswerRequest);
 $("newChat").addEventListener("click", startNewConversation);
 $("openHistory").addEventListener("click", toggleHistory);
@@ -3162,6 +3526,20 @@ $("thread").addEventListener("click", (e) => {
 });
 
 let nextAsk = null;  // set by «وضّح أكثر» for the one question it sends
+// 10. The usage warning.
+// «استخدمت 80% من حد الأسئلة… يتجدد بعد 12 دقيقة»: said by the server once four fifths of a limit are used
+function showUsage(u) {
+  const box = $("requestNotice");
+  if (!u) { if (box.dataset.usage) { box.hidden = true; delete box.dataset.usage; } return; }
+  const t = UI[lang] || UI.ar;
+  const wait = t.minutes.replace("{n}", Math.max(1, Math.ceil(u.resets_in / 60)));
+  box.textContent = t.usageWarn.replace("{pct}", Math.round(100 * u.used / u.limit)).replace("{used}", u.used)
+    .replace("{limit}", u.limit).replace("{wait}", wait);
+  box.dataset.usage = "1";
+  box.hidden = false;
+}
+
+// Sending a question: show it, wait for the answer, render it, keep it, and say what went wrong when it fails.
 $("ask").addEventListener("submit", async (e) => {
   e.preventDefault();
   const question = $("q").value.trim();
@@ -3205,6 +3583,7 @@ $("ask").addEventListener("submit", async (e) => {
     lastAskStatus = r.status;
     if (!r.ok) throw new Error(r.status);
     const res = await r.json();
+    showUsage(res.usage);
     if (request.cancelled) return;
     await completeRiderStatus(pending, res, requestLang);
     if (request.cancelled) return;
@@ -3212,7 +3591,8 @@ $("ask").addEventListener("submit", async (e) => {
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
     pending.replaceWith(msg);
-    if (askedBySpeech && msg.listen && !msg.querySelector(".confirm-body[hidden]")) msg.listen.play();  // spoken question: spoken reply
+    if (askedBySpeech && voiceMode) voiceRead(res);  // voice mode: the answer, its sources, then listen again
+    else if (askedBySpeech && msg.listen && !msg.querySelector(".confirm-body[hidden]")) msg.listen.play();  // spoken question: spoken reply
     // answers and Muhawir's offers (e.g. "shall I explain it more simply?") are remembered, so a follow-up
     // or a "yes" is understood; refusals, errors and "not found" are not answers to explain again
     if (rememberable(res)) {
@@ -3229,6 +3609,7 @@ $("ask").addEventListener("submit", async (e) => {
     pending.replaceWith(errorMessage);
     syncRegenerateButtons();
     if (activeConversation === conversation && !$("q").value.trim()) setQuestionText(question);
+    if (askedBySpeech && voiceMode) voiceSay(lastAskStatus === 429 ? UI[lang].tooMany : UI[lang].error).then(voiceListen);
   } finally {
     finishAnswerRequest(request);
   }
@@ -3238,7 +3619,7 @@ $("q").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("ask").requestSubmit(); }
 });
 
-// Voice input: the browser's own speech recognition (Chrome, Edge, Safari). Hidden where unavailable.
+// 11. Voice input: the browser's own speech recognition (Chrome, Edge, Safari). Hidden where unavailable.
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 function stopListening() { if (recognizer && recognizing) recognizer.stop(); }
 if (Recognition) {
@@ -3247,7 +3628,7 @@ if (Recognition) {
     if (recognizing) { stopListening(); return; }
     $("voiceNote").hidden = false;
     recognizer = new Recognition();
-    recognizer.lang = lang === "ar" ? "ar-SA" : "en-US";
+    recognizer.lang = { ar: "ar-SA", en: "en-US", ur: "ur-PK" }[lang] || "ar-SA";
     recognizer.interimResults = true;
     recognizer.continuous = false;
     stopReadAloud();  // stop reading the last reply while the user speaks
@@ -3266,6 +3647,7 @@ if (Recognition) {
       $("mic").lastElementChild.textContent = UI[lang].mic;
       // the user talked: send what was heard and answer by voice, like a conversation
       if (heard && !failed && $("q").value.trim()) { spokenTurn = true; $("ask").requestSubmit(); }
+      else if (voiceMode) voiceMissed();
     };
     recognizing = true;
     $("mic").setAttribute("aria-pressed", "true");
@@ -3274,10 +3656,155 @@ if (Recognition) {
   });
 }
 
+// The voice mode (22 October 2026), for a listener who cannot see the page: one button, then a spoken conversation.
+// It listens after a short tone, sends what was heard, reads the answer, then each source (a verse in the reciter's
+// own voice, Mishary Alafasy, with its approved translation in English or Urdu; any other text read aloud as it is),
+// and listens again. Every step is also said in a live region, so a screen reader announces it. Escape stops it.
+let voiceMode = false, voiceMisses = 0, voiceRun = 0;
+function setVoiceModeLabel(text) {  // the button's name is read by screen readers even where its label is hidden
+  const b = $("voiceMode");
+  b.lastElementChild.textContent = text;
+  b.setAttribute("aria-label", text);
+  b.title = text;
+}
+const VOICE_SOURCES = 3;  // the first sources only: the rest stay on the page
+function voiceStatus(text) {
+  const box = $("voiceStatus");
+  box.hidden = !text;
+  box.textContent = text || "";
+}
+function voiceTone(high = true) {  // a short tone: «speak now» (high) or «stopped» (low)
+  try {
+    const ctx = voiceTone.ctx || (voiceTone.ctx = new (window.AudioContext || window.webkitAudioContext)());
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.frequency.value = high ? 880 : 440;
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.26);
+  } catch { /* no sound: the live region still says it */ }
+  return new Promise((resolve) => setTimeout(resolve, 300));
+}
+function textLang(text) {
+  if (/[ٹڈڑںھہےۓ]/.test(text)) return "ur";
+  return /[؀-ۿ]/.test(text) ? "ar" : "en";
+}
+let voiceAudio = null;
+function voiceStopSound() {
+  if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+function playUrl(url) {
+  return new Promise((resolve) => {
+    const audio = new Audio(url);
+    voiceAudio = audio;
+    const done = () => { if (voiceAudio === audio) voiceAudio = null; resolve(); };
+    audio.addEventListener("ended", done, { once: true });
+    audio.addEventListener("error", done, { once: true });
+    audio.play().catch(done);
+  });
+}
+// one piece of text aloud: the natural voice the listener chose when the server has it, else the browser's own
+async function voiceSay(text, speakLang = textLang(text)) {
+  const run = voiceRun;
+  // a verse quoted inside a passage (between ﴿﴾ or {}) is never read by a synthetic voice, in any language
+  const mark = { ar: "(آية)", ur: "(آیت)" }[speakLang] || "(verse)";
+  text = (text || "").replace(/﴿[^﴾]*(?:﴾|$)/g, mark).replace(/\{[^}]*(?:\}|$)/g, mark).trim();
+  if (!text) return;
+  if (text.length > 1500) text = text.slice(0, 1490).replace(/\s+\S*$/, "") + "…";
+  if (document.body.classList.contains("natural-voice")) {
+    const named = VOICE_LIST[speakLang] || [];
+    const stored = storedVoice(speakLang);
+    const voice = named.some((v) => v.id === stored) ? stored : selectedSpeechVoice;
+    try {
+      const r = await fetch("/tts", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice, lang: speakLang }) });
+      if (r.ok) {
+        const url = URL.createObjectURL(await r.blob());
+        if (run === voiceRun) await playUrl(url);
+        URL.revokeObjectURL(url);
+        return;
+      }
+    } catch { /* the browser's voice below */ }
+  }
+  if (!("speechSynthesis" in window) || run !== voiceRun) return;
+  const voice = pickVoice(await voicesReady(), speakLang, selectedSpeechVoice);
+  for (const part of pieces(text)) {
+    if (run !== voiceRun) return;
+    await new Promise((resolve) => {
+      const u = new SpeechSynthesisUtterance(part);
+      if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = { ar: "ar-SA", ur: "ur-PK" }[speakLang] || "en-US";
+      u.onend = resolve; u.onerror = resolve;
+      setTimeout(resolve, 4000 + part.length * 120);  // a browser that never says it finished does not stop the turn
+      speechSynthesis.speak(u);
+    });
+  }
+}
+async function voiceListen() {
+  if (!voiceMode) return;
+  if (recognizing) return;
+  voiceStatus(UI[lang].vmListening);
+  await voiceTone(true);
+  if (voiceMode && !recognizing) $("mic").click();
+}
+async function voiceMissed() {  // silence or nothing understood: say so and listen again, twice at most
+  voiceMisses += 1;
+  if (voiceMisses > 2) { stopVoiceMode(); return; }
+  voiceStatus(UI[lang].vmNotHeard);
+  await voiceSay(UI[lang].vmNotHeard, lang);
+  voiceListen();
+}
+async function voiceRead(res) {
+  const run = voiceRun, t = UI[lang] || UI.ar;
+  voiceMisses = 0;
+  voiceStatus(t.vmReading);
+  const said = spokenText(res);
+  if (said) await voiceSay(said);
+  for (const s of (res.sources || []).slice(0, VOICE_SOURCES)) {
+    if (run !== voiceRun || !voiceMode) return;
+    const where = (s.location || "").includes(s.source_name) ? s.location : `${s.source_name}، ${s.location}`;
+    await voiceSay(`${t.source}: ${where}`, lang);
+    const ayah = s.kind === "quran" && /^q:(\d{1,3}):(\d{1,3})$/.exec(s.passage_id || "");
+    if (ayah) {  // a verse is heard only in a reciter's real voice, never a synthetic one
+      await playUrl(`https://everyayah.com/data/Alafasy_128kbps/${ayah[1].padStart(3, "0")}${ayah[2].padStart(3, "0")}.mp3`);
+      if (s.translation) await voiceSay(`${t.vmTranslation} ${s.translation}`);
+    } else if (s.kind !== "quran") {
+      await voiceSay(s.quote);  // a verse quoted inside it (between ﴿﴾ or {}) is left out by the server
+    }
+  }
+  if (run === voiceRun && voiceMode) voiceListen();
+}
+function startVoiceMode() {
+  if (!Recognition) { voiceStatus(UI[lang].vmNoMic); return; }
+  voiceMode = true; voiceMisses = 0; voiceRun += 1;
+  stopReadAloud();
+  const b = $("voiceMode");
+  b.setAttribute("aria-pressed", "true");
+  setVoiceModeLabel(UI[lang].voiceModeStop);
+  voiceStatus(UI[lang].vmOn);
+  voiceSay(UI[lang].vmOn, lang).then(voiceListen);
+}
+function stopVoiceMode() {
+  if (!voiceMode) return;
+  voiceMode = false; voiceRun += 1;
+  stopListening();
+  voiceStopSound();
+  const b = $("voiceMode");
+  b.setAttribute("aria-pressed", "false");
+  setVoiceModeLabel(UI[lang].voiceMode);
+  voiceStatus(UI[lang].vmOff);
+  voiceTone(false);
+  setTimeout(() => { if (!voiceMode) voiceStatus(""); }, 4000);
+}
+$("voiceMode").hidden = false;
+$("voiceMode").addEventListener("click", () => (voiceMode ? stopVoiceMode() : startVoiceMode()));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && voiceMode) stopVoiceMode(); });
+
 fetch("/api/health").then((r) => r.json()).then((h) => {
   $("synthetic").hidden = !h.synthetic;
   // the natural voice (and its notice that the text goes to Microsoft) only when the server has it configured
   document.body.classList.toggle("natural-voice", Boolean(h.tts));
+  if (h.tts) fetch("/api/voices").then((r) => r.json()).then((v) => { VOICE_LIST = v || {}; }).catch(() => {});
 }).catch(() => {});
 loadConversations();  // the conversations kept in this browser: listed in the history, nothing is asked again
 renderHistory();

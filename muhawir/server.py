@@ -88,6 +88,13 @@ def build() -> Muhawir:
 
 app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
+
+
+@app.get("/book-answer.css")
+def book_answer_styles() -> FileResponse:
+    return FileResponse(ROOT / "static" / "book-answer.css", media_type="text/css")
+
+
 engine = build()
 
 

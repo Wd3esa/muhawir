@@ -1,0 +1,385 @@
+@font-face {
+  font-family:"Muhawir Book";
+  src:url("/fonts/Amiri-Regular.ttf") format("truetype");
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+}
+@font-face {
+  font-family:"Muhawir Book";
+  src:url("/fonts/Amiri-Bold.ttf") format("truetype");
+  font-style:normal;
+  font-weight:700;
+  font-display:swap;
+}
+
+/* The wordmark is SVG; the small sidebar name retains its original face. */
+body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
+:root[lang="en"] body { font-family:system-ui,sans-serif; }
+.brand-name { font-family:Tahoma,"Segoe UI",sans-serif; }
+
+:root {
+  --book-paper:#fff9ed;
+  --book-ink:#29251f;
+  --book-bar:#365e4b;
+  --book-quote:#396853;
+  --book-tint:#e4e8d6;
+  --book-line:#c2c4ad;
+  --book-muted:#62695e;
+  --book-white:#fff9e9;
+}
+:root[data-answer-palette="blue"] {
+  --book-paper:#f7f9f5; --book-ink:#252e35; --book-bar:#426b80;
+  --book-quote:#355d70; --book-tint:#e2e9e8; --book-line:#b0c7d0;
+  --book-muted:#596d76; --book-white:#fff;
+}
+:root[data-answer-palette="sepia"] {
+  --book-paper:#fcf3df; --book-ink:#382d21; --book-bar:#785b37;
+  --book-quote:#765932; --book-tint:#e9dfc8; --book-line:#c7b38e;
+  --book-muted:#706453; --book-white:#fff8ea;
+}
+:root[data-answer-palette="plum"] {
+  --book-paper:#fcf7f5; --book-ink:#332934; --book-bar:#70546a;
+  --book-quote:#6b4e65; --book-tint:#eae1e7; --book-line:#c8b6c4;
+  --book-muted:#756575; --book-white:#fff;
+}
+:root[data-theme="dark"] {
+  --book-paper:#202a25; --book-ink:#f6efe3; --book-bar:#365a47;
+  --book-quote:#b8ddc4; --book-tint:#303b34; --book-line:#65806d;
+  --book-muted:#c5d3c7; --book-white:#fff9e9;
+}
+:root[data-theme="dark"][data-answer-palette="blue"] {
+  --book-paper:#222e35; --book-ink:#f2f5f6; --book-bar:#345669;
+  --book-quote:#bbd9e8; --book-tint:#2d3d45; --book-line:#678a9d;
+  --book-muted:#bfd0d7; --book-white:#fff;
+}
+:root[data-theme="dark"][data-answer-palette="sepia"] {
+  --book-paper:#302a23; --book-ink:#f4eade; --book-bar:#675137;
+  --book-quote:#e0c49c; --book-tint:#40372c; --book-line:#a18664;
+  --book-muted:#d4c7b3; --book-white:#fff8ea;
+}
+:root[data-theme="dark"][data-answer-palette="plum"] {
+  --book-paper:#302832; --book-ink:#f4eff5; --book-bar:#63475e;
+  --book-quote:#dfc3d9; --book-tint:#3c303e; --book-line:#9a7997;
+  --book-muted:#d3c0d0; --book-white:#fff;
+}
+
+/* One sourced answer reads as one page, irrespective of surrounding chat layout. */
+.msg.book-answer:not(.pending) {
+  min-width:0;
+  max-width:100%;
+  padding:0 clamp(16px,4vw,48px) 26px;
+  border:1px solid var(--book-line);
+  border-radius:1px;
+  background:var(--book-paper);
+  color:var(--book-ink);
+  box-shadow:0 16px 36px rgba(30,36,27,.12);
+  font-family:"Muhawir Book","Muhawir Arabic",serif;
+  font-size:clamp(20px,2.1vw,26px);
+  line-height:2.02;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.book-answer .book-folio {
+  margin-inline:calc(-1 * clamp(16px,4vw,48px));
+  margin-block:0 22px;
+  min-height:37px;
+  display:grid;
+  place-items:center;
+  background:var(--book-bar);
+  color:var(--book-white);
+  font-size:22px;
+  line-height:1.3;
+}
+.book-answer .answer-heading {
+  display:block;
+  margin:0 0 25px;
+  padding:0 0 21px;
+  border:0;
+  text-align:center;
+}
+.book-answer .answer-heading::after {
+  content:"❧  ✥  ❧";
+  display:block;
+  margin-top:1px;
+  color:var(--book-line);
+  font-size:23px;
+  line-height:1.4;
+  background:linear-gradient(var(--book-line),var(--book-line)) center/100% 1px no-repeat;
+  text-shadow:8px 0 var(--book-paper),-8px 0 var(--book-paper);
+}
+.book-answer .answer-brand {
+  justify-content:center;
+  display:inline-flex;
+  color:var(--book-ink);
+  font-size:1.14em;
+  font-weight:700;
+  line-height:1.6;
+}
+.book-answer .answer-brand .brand-mark {
+  display:none;
+}
+.book-answer .book-origin {
+  display:inline;
+  font-size:1.14em;
+  color:var(--book-ink);
+  font-weight:700;
+  line-height:1.6;
+}
+.book-answer .book-origin::before { content:" · "; white-space:pre; }
+.book-answer .status {
+  display:flex;
+  justify-content:center;
+  margin-top:8px;
+  color:var(--book-quote);
+  font-size:.65em;
+}
+.book-answer .understood,
+.book-answer .search-outcome {
+  color:var(--book-muted);
+  font-size:.77em;
+}
+.book-answer .understood strong { color:var(--book-ink); }
+.book-answer .answer { margin:8px 0 22px; font-size:1em; line-height:2.05; }
+.book-answer .source-quote { color:var(--book-quote); font-weight:700; }
+.book-answer .answer-section {
+  margin:27px 0 16px;
+  padding:4px 12px 7px;
+  border:0;
+  border-radius:0;
+  background:var(--book-bar);
+  color:var(--book-white);
+  text-align:center;
+  font-size:1.18em;
+  line-height:1.6;
+}
+.book-answer .answer-list {
+  list-style:none;
+  counter-reset:book-point;
+  margin:0 0 26px;
+  padding:0;
+}
+.book-answer .answer-list li {
+  position:relative;
+  counter-increment:book-point;
+  margin:0 0 13px;
+  padding:0;
+  padding-inline-start:42px;
+  line-height:2.1;
+  text-align:justify;
+  text-justify:inter-word;
+}
+.book-answer .answer-list li::before {
+  content:counter(book-point);
+  position:absolute;
+  inset-inline-start:0;
+  inset-block-start:.48em;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  background:var(--book-bar);
+  color:var(--book-white);
+  font:700 18px/1 "Muhawir Book",serif;
+}
+.book-answer .cite { font-size:.61em; white-space:nowrap; }
+.book-answer .cite a { color:var(--book-quote); text-decoration:none; }
+.book-answer .views {
+  margin:30px 0 20px;
+  padding:9px 15px;
+  border:1px solid var(--book-line);
+  border-radius:0;
+  background:color-mix(in srgb,var(--book-tint) 45%,var(--book-paper));
+  font-size:.83em;
+}
+.book-answer .views summary {
+  min-height:44px;
+  color:var(--book-ink);
+  font-size:1em;
+}
+.book-answer .view { margin:10px 0; }
+.book-answer .note,.book-answer .card .about,.book-answer .card .meta {
+  color:var(--book-muted);
+  font-size:.7em;
+  line-height:1.7;
+}
+.book-answer .sources-title {
+  margin:29px 0 9px;
+  padding-top:12px;
+  border-top:1px solid var(--book-line);
+  color:var(--book-quote);
+  font-size:.84em;
+  font-weight:700;
+}
+.book-answer .source-shelf {
+  display:block;
+  margin:0;
+  padding:0;
+  border:0;
+}
+.book-answer .source-shelf .card,
+.book-answer .source-shelf .card[open] {
+  display:block;
+  margin:0;
+  padding:4px 0;
+  border:0;
+  border-bottom:1px solid var(--book-line);
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.book-answer .card summary,
+.book-answer .card[open] summary,
+.book-answer .card summary:hover {
+  display:flex;
+  min-height:44px;
+  justify-content:flex-start;
+  gap:5px;
+  margin:0;
+  padding:6px 0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  color:var(--book-quote);
+  text-shadow:none;
+  transform:none;
+  font-size:.76em;
+  text-align:start;
+  line-height:1.5;
+}
+.book-answer .card summary::before,.book-answer .card summary::after { content:none; }
+.book-answer .card summary .num { color:var(--book-quote); font-size:1em; }
+.book-answer .card summary .book-title { max-width:none; font-size:1em; }
+.book-answer .card blockquote:not(.translation) {
+  margin:10px 0;
+  padding-inline-start:12px;
+  border-inline-start:3px solid var(--book-line);
+  color:var(--book-quote);
+  font-weight:700;
+  line-height:1.95;
+}
+.book-answer .card blockquote.translation { color:var(--book-ink); }
+.book-answer .tools {
+  margin-top:22px;
+  padding-top:12px;
+  border-top:1px solid var(--book-line);
+}
+.book-answer .follow-up,
+.book-answer .action-btn,
+.book-answer .more-item,
+.book-answer .voice-choice select { min-height:44px; }
+.book-answer .follow-up {
+  border-color:var(--book-line);
+  border-radius:5px;
+  background:var(--book-tint);
+  color:var(--book-ink);
+}
+.book-answer .action-btn { color:var(--book-muted); }
+.book-answer .action-btn:hover { color:var(--book-ink); background:var(--book-tint); }
+.book-answer .more-menu { background:var(--book-paper); border-color:var(--book-line); }
+.book-answer a:focus-visible,.book-answer button:focus-visible,
+.book-answer summary:focus-visible { outline:3px solid var(--book-quote); outline-offset:3px; }
+
+@media(max-width:620px) {
+  .msg.book-answer:not(.pending) { font-size:22px; line-height:1.95; }
+  .book-answer .answer { font-size:1em; }
+  .book-answer .answer-list li { text-align:start; }
+  .book-answer .action-btn { min-width:44px; width:44px; }
+}
+@media(max-width:390px) {
+  .msg.book-answer:not(.pending) { padding-inline:14px; font-size:20px; }
+  .book-answer .book-folio { margin-inline:-14px; }
+  .book-answer .answer-list li { padding-inline-start:39px; }
+  .book-answer .answer-list li::before { width:30px; height:30px; font-size:17px; }
+}
+
+/* Compact page proportions: content comes before ornamental front matter. */
+.msg.book-answer:not(.pending) {
+  padding:0 clamp(14px,3vw,30px) 16px;
+  font-size:clamp(18px,1.6vw,22px);
+  line-height:1.85;
+  box-shadow:none;
+}
+.book-answer .book-folio { margin:0 calc(-1 * clamp(14px,3vw,30px)) 8px; min-height:24px; font-size:17px; }
+.book-answer .search-outcome { display:none; }
+.book-answer .answer-heading { margin:0 0 8px; padding:0; }
+.book-answer .answer-heading::after { font-size:16px; line-height:1; margin-top:6px; }
+.book-answer .answer-brand,.book-answer .book-origin { font-size:1em; }
+.book-answer .status { margin-top:0; font-size:.72em; }
+.book-answer .understood { margin:6px 0; line-height:1.65; }
+.book-answer .answer-section { margin:12px 0 8px; padding:2px 10px; font-size:1.05em; }
+.book-answer .answer { margin:6px 0 12px; line-height:1.85; }
+.book-answer .answer-list { margin-bottom:14px; }
+.book-answer .answer-list li { margin-bottom:8px; line-height:1.85; }
+/* Plain answers retain exactly the same text, citations and actions. */
+.msg.plain-answer:not(.pending) {
+  padding:14px 16px; border:1px solid var(--line); border-radius:14px;
+  background:var(--panel); color:var(--ink); font:inherit; line-height:1.8;
+}
+.plain-answer .book-folio,.plain-answer .book-origin,.plain-answer .search-outcome { display:none; }
+.plain-answer .answer-heading { margin-bottom:8px; }
+.plain-answer .answer-section { background:none; color:var(--ink); border:0; padding:0; margin:14px 0 6px; text-align:start; font-size:1.05em; }
+.plain-answer .answer { line-height:1.8; font-size:1em; }
+.answer-layout-wrap { display:grid; gap:6px; margin:12px 8px; font-size:14px; }
+.answer-layout-wrap select { width:100%; min-height:44px; border:1px solid var(--line); border-radius:8px; padding:5px 8px; background:var(--panel); color:var(--ink); }
+/* Avoid flex stretching the empty textarea as Android recomputes its scrollHeight. */
+#q { height:42px; min-height:42px; flex:none; }
+#ask { flex:0 0 auto; }
+#thread > .msg,#thread > .turn-user { flex-shrink:0; }
+@media(max-width:620px) {
+  .msg.book-answer:not(.pending) { font-size:18px; }
+  .book-answer .answer-list li { padding-inline-start:34px; }
+  .book-answer .answer-list li::before { width:26px; height:26px; font-size:16px; }
+  #ask { padding:5px 8px; }
+  #q { min-height:36px; height:36px; }
+  .disclaimer { margin-block:3px 5px; }
+}
+
+/* One quiet composer; preferences live in the settings dialog. */
+#ask {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end;
+  gap:4px; padding:7px; border-radius:26px; box-shadow:none;
+}
+#ask .composer-field { display:block; width:auto; min-width:0; align-self:center; padding:0; border:0; }
+#ask .composer-row { display:flex; width:auto; min-height:44px; gap:2px; padding:0; align-items:center; }
+#q { height:42px; min-height:42px; padding:7px 10px; font-size:16px; line-height:1.7; border-radius:0; }
+#ask .mic,#ask .stop-request,#ask .send { width:44px; height:44px; min-height:44px; margin:0; padding:0; border-radius:50%; flex:none; }
+#ask .mic { background:transparent; border:0; }
+#ask .mic:hover { background:var(--accent-soft); }
+#ask .mic[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+#ask .voice-note { grid-column:1/-1; margin:0; padding:4px 10px; }
+.topbar { background:var(--bg); border-bottom:0; }
+.topbar .topbar-tools { gap:0; }
+.topbar .icon-button { min-width:44px; min-height:44px; border:0; background:transparent; border-radius:50%; }
+.disclaimer { margin:5px 0 8px; font-size:11px; line-height:1.5; }
+#chatSettings {
+  width:min(420px,calc(100vw - 32px)); max-height:calc(100dvh - 40px);
+  padding:20px; border:1px solid var(--line); border-radius:20px;
+  background:var(--panel); color:var(--ink); box-shadow:0 16px 60px #0003;
+  overflow-y:auto; font:inherit;
+}
+#chatSettings::backdrop { background:#0005; }
+.settings-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+.settings-heading h2 { margin:0; font-size:20px; }
+.settings-heading .icon-button { width:44px; height:44px; }
+.settings-fields { display:grid; gap:16px; }
+#chatSettings label { display:grid; gap:5px; margin:0; font-size:15px; font-weight:400; color:var(--ink); }
+#chatSettings label > span { display:block; }
+#chatSettings select { width:100%; max-width:100%; min-height:44px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+#chatSettings .theme-toggle { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; height:auto; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); text-align:start; }
+#chatSettings .theme-toggle svg { flex:none; }
+@media(max-width:620px) {
+  .topbar { height:52px; padding-inline:10px; }
+  .topbar h1 { max-width:65vw; }
+  .conversation-frame { padding-inline:12px; }
+  #thread { padding-top:12px; }
+  #ask { padding:5px; }
+  #q { min-height:42px; height:42px; }
+  .welcome-wordmark { width:min(190px,52%); }
+}
+
+#chatSettings .voice-mode { display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); text-align:start; }
+#chatSettings .voice-mode[hidden] { display:none; }
+#chatSettings .voice-mode svg { width:20px; height:20px; flex:none; }
+#chatSettings .voice-mode span { position:static; width:auto; height:auto; overflow:visible; clip:auto; }
