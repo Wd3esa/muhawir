@@ -415,3 +415,10 @@ body:not(.natural-voice) .msg .tools .more-menu .voice-choice,body:not(.natural-
 .msg .sources-title .action-icon,.msg .sources-title svg { width:24px; height:24px; }
 
 .msg .tools .more-actions { height:44px; min-height:44px; margin:0; padding:0; border:0; line-height:1; align-self:center; }
+
+/* The only ornament marks the start of each question and its answer. */
+.question-divider { display:flex; flex:none; align-items:center; gap:12px; width:100%; min-height:28px; margin:10px 0 2px; color:var(--book-line); }
+.question-divider::before,.question-divider::after { content:""; flex:1; height:1px; background:currentColor; opacity:.8; }
+.question-divider > span { flex:none; padding-inline:2px; font:22px/1.3 "Muhawir Book",serif; white-space:nowrap; }
+.msg.book-answer:not(.pending) { padding-top:14px; }
+.book-answer .answer-section { background:none; color:var(--book-ink); padding:0; text-align:start; font-size:1.06em; font-weight:700; }
