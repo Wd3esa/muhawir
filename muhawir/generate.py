@@ -286,7 +286,8 @@ UNDERSTAND_PROMPT = """أمامك رسالة من مستخدم يحاور مسا
    وعندها اكتب في question حاجته إلى المواساة سؤالًا (مثل: «ما الذي يواسي المسلم ويعينه على الصبر عند فقد قريب؟»)،
    واجعل queries من ألفاظ الصبر والمصيبة (مثل: «إنا لله وإنا إليه راجعون»، «اللهم أجرني في مصيبتي»، «الصبر عند الصدمة الأولى»).
    kind: نوع السؤال: "what" (ما هو أو ما معنى)، "why" (لماذا)، "how" (كيف، أو المطلوب قائمة: أنواع أو أقسام أو شروط أو أركان أو واجبات أو خطوات، ولو بدأ السؤال بـ«ما هي»)،
-   "ruling" (ما حكم، أو هل يجوز، أو هل ينقض)، "objection" (اعتراض أو شبهة: سؤال يتحدى عقيدة أو حكمًا أو يتهمه بالتناقض أو الظلم أو عدم المعقولية، ولو كان بصيغة سؤال قصير)، أو "" لغير ذلك.
+   "ruling" (ما حكم، أو هل يجوز، أو هل ينقض)، "objection" (اعتراض أو شبهة: سؤال يتحدى عقيدة أو حكمًا أو يتهمه بالتناقض أو الظلم أو عدم المعقولية، ولو كان بصيغة سؤال قصير)، "about" (سؤال عن مُحاور نفسه أو عن طريقة رده أو شكل جوابه السابق، لا عن موضوع ديني:
+   «لماذا ترد بهذه الطريقة؟»، «من أنت؟»، «كيف تعمل؟»، «من أين تأتي بأجوبتك؟»، «ليش ما جاوبتني؟»)، أو "" لغير ذلك.
    reexplain: true إن قال المستخدم إنه لم يفهم الجواب السابق، أو طلب شرحه بطريقة أبسط أو أوضح أو بطريقة أخرى (مثل: «ما فهمت»، «وضّح أكثر»، «بطريقة أسهل»)،
    أو وافق («نعم»، «أجل»، «yes») على عرض المساعد أن يشرح جوابه السابق بطريقة أبسط،
    وعندها اكتب في question السؤال السابق نفسه كاملًا. وإلا false.
@@ -833,7 +834,7 @@ class ModelGenerator:
             translate = translate.strip()[:500] if isinstance(translate, str) else ""
             reexplain = data.get("reexplain") in (True, "true")
             kind = data.get("kind")
-            kind = kind if isinstance(kind, str) and kind in KIND_GUIDE and kind != "contemporary" else ""
+            kind = kind if isinstance(kind, str) and (kind in KIND_GUIDE or kind == "about") and kind != "contemporary" else ""
             feeling = data.get("feeling") if data.get("feeling") in ("crisis", "sad") else ""
             personal = data.get("personal") in (True, "true")
             return {"question": question, "queries": queries, "lang": answer_lang, "translate": translate,

@@ -30,16 +30,17 @@ _WORD = re.compile(r"\S+")
 
 # Quote-in-box: a message typed or pasted in the question box is looked up as a quotation, with no model, only when it
 # is long enough to point to one passage and asks nothing. Most people write without punctuation, so the test is on
-# words: a first word that asks or requests («ما، هل، اذكر، اشرح…»), or a last word that asks about the text
-# («صحيح، معناه، تفسيره…»), makes it a question. The lookup itself decides the rest: only a text found in the
-# sources word for word (or nearly) is shown as a quotation.
+# words: a first word that asks, requests or names what is asked about («ما، هل، اذكر، صحة، حديث…»), or a last word
+# that asks about the text («صحيح، معناه، تفسيره…»), makes it a question. The lookup decides the rest: only a bare text
+# found in the sources word for word is shown as a quotation; a nearly matching one is answered as a question.
 QUOTE_IN_BOX_WORDS = 6
-QUOTE_IN_BOX_CLOSE = 0.8   # a nearly verbatim text («هل تقصد هذه الآية؟») must hold this share of its words in order
 _ASK_FIRST = {normalize(w) for w in (
     "ما", "ماذا", "من", "متى", "اين", "أين", "كيف", "كم", "لماذا", "لم", "هل", "أي", "اي", "ماهو", "ماهي", "حكم",
     "معنى", "تفسير", "شرح", "شنو", "ايش", "إيش", "وش", "ليش", "ليه", "إيه", "شو", "منو", "وين", "ليه",
     "اذكر", "أذكر", "اشرح", "عدد", "عدّد", "بين", "بيّن", "وضح", "وضّح", "فسر", "فسّر", "أعطني", "اعطني", "عطني",
     "أريد", "اريد", "ابغى", "أبغى", "ابي", "أبي", "ودي", "ممكن", "لو", "أخبرني", "اخبرني", "قل", "علمني", "علّمني",
+    "صحة", "صحه", "مدى", "درجة", "درجه", "تخريج", "مصدر", "حديث", "الحديث", "آية", "اية", "الآية", "قول", "مقولة",
+    "عبارة", "دليل", "سبب", "فضل", "عن",
     "what", "who", "when", "where", "how", "why", "is", "are", "does", "do", "can", "explain", "tell", "list", "give")}
 _ASK_LAST = {normalize(w) for w in (
     "صحيح", "صحيحه", "صحيحة", "صحته", "ضعيف", "معناه", "معناها", "تفسيره", "تفسيرها", "شرحه", "شرحها", "حكمه", "حكمها",
