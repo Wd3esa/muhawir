@@ -465,6 +465,63 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   width:15px;
   height:15px
 }
+.pop-wrap { position:relative; display:inline-block; }
+.lang-pop { margin-inline-start:auto; }
+.pop-list, .pop-panel { position:absolute; z-index:40; top:calc(100% + 6px); margin:0; padding:4px; list-style:none; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:150px; }
+.lang-pop .pop-list { inset-inline-end:0; }
+.pop-list[hidden], .pop-panel[hidden], .appearance-pop .pop-panel[hidden] { display:none !important; }
+.pop-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 11px; border-radius:8px; font-size:14px; color:var(--ink); cursor:pointer; }
+.pop-item:hover, .pop-item:focus-visible { background:var(--accent-soft); outline:none; }
+.pop-item[aria-selected="true"] { color:var(--accent); font-weight:650; }
+.pop-item[aria-selected="true"]::after { content:"\2713"; font-size:12px; }
+.pop-item[lang="ur"] { font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Alvi Nastaleeq",inherit; line-height:1.9; }
+.verify-dialog { width:min(560px,92vw); max-height:86vh; overflow:auto; padding:16px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:14px; }
+.verify-dialog::backdrop { background:rgba(0,0,0,.45); }
+.verify-head { display:flex; align-items:center; justify-content:space-between; margin:0 0 6px; }
+.verify-head h2 { margin:0; font-size:17px; }
+.verify-hint { margin:0 0 10px; font-size:13px; color:var(--muted,var(--ink)); opacity:.8; }
+.verify-dialog textarea { width:100%; min-height:44px; max-height:40vh; overflow-y:auto; box-sizing:border-box; padding:10px; font:inherit; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:10px; resize:none; }
+.verify-go { margin-top:10px; padding:9px 18px; font:inherit; color:#fff; background:var(--accent); border:0; border-radius:10px; cursor:pointer; }
+.verify-up { margin:10px 8px 0; padding:9px 14px; font:inherit; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+.verify-limit { margin-top:8px; font-size:12px; }
+.verify-up:disabled { opacity:.6; cursor:default; }
+.verify-pieces { display:grid; gap:6px; margin-top:10px; }
+.verify-piece { text-align:start; padding:8px 10px; font:inherit; font-size:14px; line-height:1.7; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+.verify-piece:hover { border-color:var(--accent); }
+.mic.attach span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+@media (min-width:720px) { .mic.attach span { position:static; width:auto; height:auto; clip:auto; } }
+.verify-go:disabled { opacity:.6; cursor:default; }
+.verify-result { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+.verify-verdict { font-weight:700; }
+.verify-verdict[data-tone="exact"] { color:var(--status-found,#16a34a); }
+.verify-verdict[data-tone="close"] { color:var(--accent); }
+.verify-verdict[data-tone="none"] { color:var(--status-missing,#6b7280); }
+.verify-card { padding:10px 12px; border:1px solid var(--line); border-radius:10px; }
+.verify-card .where { font-size:13px; opacity:.85; margin-top:6px; }
+.verify-answer { display:flex; gap:10px; margin-top:10px; }
+.verify-no { padding:9px 18px; font:inherit; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+.verify-passage { margin:8px 0 0; line-height:2; }
+.verify-passage strong { font-weight:800; background:color-mix(in srgb,var(--accent) 16%,transparent); border-radius:4px; padding:0 2px; }
+.verify-side { margin-top:8px; font-size:13px; line-height:1.9; opacity:.7; }
+.verify-side p { margin:2px 0 0; }
+.verify-side-label { font-size:12px; font-weight:700; }
+.verify-card q { display:block; margin-top:6px; line-height:1.9; quotes:none; }
+.sidebar-preferences { display:flex; flex-direction:column; gap:6px; }
+.sidebar-preferences .side-tool, .sidebar-preferences .voice-mode { display:flex; align-items:center; gap:10px; width:100%; min-height:40px; padding:8px 12px; font:inherit; font-size:14px; color:var(--ink); background:transparent; border:1px solid transparent; border-radius:10px; cursor:pointer; }
+.sidebar-preferences .side-tool:hover, .sidebar-preferences .voice-mode:hover { background:color-mix(in srgb,var(--accent) 8%,transparent); }
+.sidebar-preferences .voice-mode span { position:static; width:auto; height:auto; overflow:visible; clip:auto; }
+.sidebar-preferences .voice-mode[aria-pressed="true"] { background:var(--accent-soft); color:var(--accent); }
+.sidebar-preferences svg { width:19px; height:19px; flex:none; color:var(--accent); }
+.appearance-pop { width:100%; }
+.appearance-pop .pop-panel[hidden] { display:none; }
+.appearance-pop .pop-panel { inset-inline:0; bottom:calc(100% + 6px); top:auto; display:grid; gap:10px; padding:10px; }
+.seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:3px; background:color-mix(in srgb,var(--accent) 7%,transparent); border-radius:10px; }
+.seg button { padding:7px 4px; font:inherit; font-size:13px; color:var(--ink); background:transparent; border:0; border-radius:8px; cursor:pointer; }
+.seg button[aria-pressed="true"] { background:var(--panel); color:var(--accent); font-weight:650; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.dots { display:flex; justify-content:center; gap:12px; }
+.dots button { width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+.dots button[aria-pressed="true"] { border-color:var(--panel); box-shadow:0 0 0 2px var(--accent); }
+.appearance-pop .theme-toggle { width:100%; height:auto; display:flex; align-items:center; justify-content:flex-start; gap:10px; padding:8px 10px; font:inherit; font-size:13px; border-radius:10px; }
 .lang-wrap {
   display:flex;
   align-items:center
@@ -744,6 +801,35 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .answer-list li {
   margin:4px 0;
   padding-inline-start:3px
+}
+/* The bullet is drawn on the first line itself: the browser's own marker sits on a different font's baseline and falls below the words. */
+.msg .answer-list { list-style:none; padding-inline-start:16px }
+.msg .answer-list li { position:relative }
+.msg.book-answer .answer-list { padding-inline-start:0 }
+.msg.book-answer .answer-list li { padding-inline-start:14px }
+.msg .answer-list li::before {
+  content:"";
+  position:absolute;
+  inset-inline-start:-12px;
+  inset-block-start:.9em;
+  display:block;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor;
+  color:inherit
+}
+.msg.book-answer .answer-list li::before {
+  content:"";
+  display:block;
+  inset-inline-start:2px;
+  inset-block-start:19px;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:currentColor;
+  color:inherit;
+  font-size:0
 }
 /* A readable source page: the colour belongs to the reader, not to the source text. */
 :root {
@@ -1588,6 +1674,7 @@ body:not(.natural-voice) .voice-choice, body:not(.natural-voice) .listen-note { 
 @keyframes scholar-pages { 0%,100% { background-position:0% 0; } 25% { background-position:20% 0; } 50% { background-position:40% 0; } 75% { background-position:60% 0; } }
 .is-found .scholar-visual,.is-settled .scholar-visual { animation:scholar-close .55s step-end both; }
 @keyframes scholar-close { 0% { background-position:60% 0; } 40% { background-position:80% 0; } 80%,100% { background-position:100% 0; } }
+.msg.pending.rider-status { flex-wrap:wrap; }
 .rider-status-copy { color:var(--muted); font-size:14px; line-height:1.6; }
 .search-outcome { margin:0 0 12px; color:var(--muted); font-size:13px; }
 :root { --bg:#fff; --sidebar:#f8f8fc; --line:#dedee9; --shadow:0 3px 14px rgba(18,24,63,.04); }
@@ -1686,6 +1773,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 .source-shelf { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); align-items:start; gap:8px 12px; margin-top:7px; padding-bottom:9px; border-bottom:2px solid color-mix(in srgb,var(--accent) 28%,var(--line)); }
 .source-shelf .card { min-width:0; margin:0; }
 .source-shelf .card[open] { grid-column:1/-1; }
+.source-panel[hidden], .source-shelf .card[hidden] { display:none; }
 .card summary { position:relative; isolation:isolate; min-height:66px; display:flex; align-items:center; justify-content:center; gap:8px; padding:9px 18px; border-radius:8px; background:radial-gradient(circle at 25% 30%,rgba(255,255,255,.11),transparent 45%),repeating-linear-gradient(105deg,transparent 0 3px,rgba(0,0,0,.035) 4px 5px),#365545; color:#F7EBD4; box-shadow:inset 0 0 0 2px #9E8561,inset 0 0 0 6px #365545,inset 0 0 0 7px rgba(224,197,139,.46),0 3px 5px rgba(0,0,0,.12); text-align:center; line-height:1.6; text-shadow:0 1px 1px #17291E,0 -1px rgba(255,244,204,.15); transition:transform .18s ease,box-shadow .18s ease; }
 .card summary::before,.card summary::after { content:"✦"; position:absolute; inset-inline-start:12px; top:50%; transform:translateY(-50%); font-size:11px; color:#D8C096; opacity:.75; }
 .card summary::after { inset-inline-start:auto; inset-inline-end:12px; }
@@ -1731,20 +1819,42 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     <p class="history-empty" id="historyEmpty" data-t="historyEmpty"></p>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-preferences">
-      <details class="sidebar-setting"><summary data-t="appearance"></summary><div class="preference-fields"><label class="answer-layout-wrap"><span data-t="answerLayout"></span><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select></label><label class="palette-wrap"><span data-t="answerPalette"></span><select id="answerPalette" aria-label=""><option value="sage" data-t="paletteSage"></option><option value="blue" data-t="paletteBlue"></option><option value="sepia" data-t="paletteSepia"></option><option value="plum" data-t="palettePlum"></option></select></label><button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><span id="settingsThemeLabel"></span></button></div></details>
-      <details class="sidebar-setting"><summary data-t="lang"></summary><div class="preference-fields"><label class="lang-wrap"><span data-t="lang"></span><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option><option value="ur">اردو</option></select></label></div></details>
-      <details class="sidebar-setting"><summary data-t="voiceSettings"></summary><div class="preference-fields"><button type="button" class="mic voice-mode" id="voiceMode" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg><span data-t="voiceMode"></span></button></div></details>
+      <button type="button" class="side-tool" id="verifyButton" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="m8.5 11 2 2 3.5-4"/></svg><span data-t="verifyText"></span></button>
+      <div class="pop-wrap appearance-pop">
+        <button type="button" class="side-tool" id="appearanceButton" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/></svg><span data-t="appearance"></span></button>
+        <div class="pop-panel" id="appearancePanel" role="dialog" hidden>
+          <div class="seg" id="layoutSeg" role="group"></div>
+          <div class="dots" id="paletteDots" role="group"></div>
+          <button class="icon-button theme-toggle" id="themeToggle" type="button" aria-pressed="false" aria-label=""><svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8 8 0 1 0 20 15.5Z"/></svg><svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg><span id="settingsThemeLabel"></span></button>
+        </div>
+      </div>
+      <div hidden><button type="button" class="mic voice-mode" id="voiceMode" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg><span data-t="voiceMode"></span></button><select id="lang" aria-label=""><option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option><option value="en">English</option><option value="ur">اُردو</option></select><select id="answerLayout"><option value="book" data-t="layoutBook"></option><option value="plain" data-t="layoutPlain"></option></select><select id="answerPalette" aria-label=""><option value="sage" data-t="paletteSage"></option><option value="blue" data-t="paletteBlue"></option><option value="sepia" data-t="paletteSepia"></option><option value="plum" data-t="palettePlum"></option></select></div>
     </div>
     <div class="sidebar-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s8-4 8-10V5l-8-3-8 3v6c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg><span data-t="privacyNote"></span></div>
 
   </aside>
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
+  <dialog class="verify-dialog" id="verifyDialog" aria-labelledby="verifyTitle">
+    <form method="dialog" class="verify-head"><h2 id="verifyTitle" data-t="verifyText"></h2><button class="icon-button" id="verifyClose" aria-label="" value="close">&times;</button></form>
+    <p class="verify-hint" data-t="verifyHint"></p>
+    <textarea id="verifyInput" rows="1" maxlength="600"></textarea>
+    <button type="button" class="verify-go" id="verifyGo" data-t="verifyGo"></button>
+    <button type="button" class="verify-up" id="verifyUp" data-t="upload"></button>
+    <input type="file" id="verifyFile" accept="image/*,.pdf,.docx,.odt,.txt,.html,.htm,.md" hidden>
+    <p class="verify-hint verify-limit" data-t="uploadLimit"></p>
+    <p class="verify-hint" id="verifyUpStatus" role="status" hidden></p>
+    <div class="verify-pieces" id="verifyPieces"></div>
+    <div class="verify-result" id="verifyResult" aria-live="polite"></div>
+  </dialog>
   <main class="workspace">
     <div class="ambient" aria-hidden="true"></div>
     <header class="topbar">
       <div class="topbar-start">
         <button class="icon-button history-toggle" id="openHistory" type="button" aria-label="" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h1 id="conversationTitle" data-t="newChat"></h1>
+      </div>
+      <div class="pop-wrap lang-pop" id="langPop">
+        <button class="icon-button" id="langButton" type="button" aria-haspopup="listbox" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 3.9 5.7 3.9 9s-1.3 6.3-3.9 9c-2.6-2.7-3.9-5.7-3.9-9S9.4 5.7 12 3Z"/></svg></button>
       </div>
     </header>
     <div class="synthetic" id="synthetic" hidden></div>
@@ -1771,6 +1881,8 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
             <summary id="explanationSummary"><span data-t="style"></span><span class="explanation-current" id="selectedExplanation"></span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></summary>
             <fieldset class="explanation-options"><legend class="sr-only" data-t="style"></legend><label class="explanation-option"><input type="radio" name="explanation-choice" value="kids"><span data-t="kids"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="youth"><span data-t="youth"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="extended"><span data-t="extended"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="newcomer"><span data-t="newcomer"></span></label></fieldset><select id="style" hidden><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></details>
 
+          <button type="button" class="mic attach" id="attach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l8.6-8.6a3.7 3.7 0 015.2 5.2l-8.6 8.6a1.8 1.8 0 01-2.6-2.6l7.9-7.9"/></svg><span data-t="upload"></span></button>
+          <input type="file" id="attachFile" accept="image/*,.pdf,.docx,.odt,.txt,.html,.htm,.md" hidden>
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="button" class="send composer-voice" id="composerVoice" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 10v4m4-8v12m3-15v18m3-15v12m4-8v4"/></svg></button>
@@ -1807,7 +1919,7 @@ const UI = {
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
         style: "أسلوب الشرح", kids: "للصغار", youth: "لليافعين", extended: "موسّع", newcomer: "جديد على الإسلام", send: "اسأل", stopRequest: "توقف الانتظار", requestStopped: "توقف الانتظار. يمكنك تعديل السؤال وإرساله مجددًا.", darkTheme: "تفعيل الوضع الليلي", lightTheme: "تفعيل الوضع الفاتح", answerLayout: "شكل الإجابة", layoutBook: "صفحة كتاب", layoutPlain: "إجابة بسيطة", answerPalette: "لون صفحة الإجابة", paletteSage: "أخضر", paletteBlue: "أزرق", paletteSepia: "ورقي", palettePlum: "بنفسجي",
         mic: "🎤 تحدّث", micStop: "⏹ إيقاف", voiceNote: "إذا استخدمت الميكروفون، قد يرسل المتصفح صوتك إلى خدمة خارجية لتحويله إلى نص.",
-        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", pending: "يكتب…", thinking: ["أقرأ سؤالك…", "أبحث في المصادر…", "أكتب الجواب من النصوص التي وجدتها…", "أطابق كل جملة مع مصدرها…"], readContext: "اقرأ ما قبله وما بعده في الكتاب", hideContext: "إخفاء ما قبله وما بعده", contextBefore: "قبله في الكتاب", contextAfter: "بعده في الكتاب", contextNone: "لا نص قبله ولا بعده في هذا الكتاب", contextFailed: "تعذّر جلب النص", found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
+        exampleTag: "مثال توضيحي من مُحاور", recite: "استمع للتلاوة", reciter: "بصوت القارئ مشاري العفاسي (everyayah.com)", reciteFailed: "تعذّر تشغيل التلاوة", listen: "استمع", stop: "إيقاف", responseActions: "إجراءات الإجابة", copyAnswer: "نسخ الإجابة", copied: "نُسخت الإجابة", copyFailed: "تعذّر نسخ الإجابة", shareAnswer: "مشاركة الإجابة", shareFailed: "تعذّرت المشاركة", shareFallback: "ميزة المشاركة غير متاحة؛ نُسخت الإجابة بدلًا من ذلك", regenerate: "إعادة الإجابة", clear: "واضحة", unclear: "تحتاج توضيحًا", thanks: "شكرًا لتقييمك", thanksUnclear: "شكرًا لك. يمكنك طلب شرح أبسط من «مزيد من الخيارات».", regenerating: "جارٍ إعداد إجابة جديدة…", showSources: "إظهار المصادر", hideSources: "إخفاء المصادر", more: "مزيد من الخيارات", copyWithSources: "نسخ الإجابة مع نصوص المصادر", simplifyAnswer: "اشرح الإجابة بطريقة أبسط", moreDetail: "وضّح أكثر", simplifyPrompt: "اشرح إجابتك السابقة بطريقة أبسط", searchIn: "جارٍ البحث في", upload: "رفع ملف أو صورة", uploadLimit: "الأنواع: صور، PDF، Word، نص. الحد الأقصى للملف ٨ ميغابايت.", uploading: "جارٍ قراءة الملف…", uploadPick: "اختر المقطع الذي تريد التحقق منه:", uploadCut: "قُصّ النص ليناسب الحد المسموح؛ استعمل «تحقق من نص» للنصوص الأطول.", uploadFormats: "صور، PDF، Word، نص", e_too_large: "الملف كبير؛ الحد ٨ ميغابايت.", e_unsupported: "هذا النوع من الملفات غير مدعوم.", e_unreadable: "تعذّرت قراءة الملف.", e_no_text: "لم أجد نصًا في الملف أو الصورة. جرّب صورة أوضح.", e_encrypted: "الملف محمي بكلمة مرور.", e_ocr_unavailable: "قراءة الصور غير متاحة الآن.", e_too_slow: "استغرقت القراءة وقتًا طويلًا؛ جرّب ملفًا أصغر.", e_busy: "الخدمة مشغولة؛ حاول بعد قليل.", e_failed: "تعذّر رفع الملف.", verifyText: "تحقق من نص", verifyHint: "الصق آية أو حديثًا أو عبارة متداولة، وأخبرك هل هي في المصادر وأين.", verifyGo: "ابحث عن النص", verifyBusy: "جارٍ البحث…", verifyExact: "وجدتُ النص كما هو في المصادر", verifyClose: "وجدتُ نصًا قريبًا، وليس مطابقًا تمامًا", verifyNone: "لم أجد هذا النص في المصادر المتاحة. هذا لا يعني أنه غير صحيح، فقد لا يكون الكتاب الذي ورد فيه ضمن مصادري.", verifyGeneric: "هذه العبارة عامة وترد بألفاظها في مواضع كثيرة، فلا أستطيع أن أنسبها إلى موضع واحد. الصق جزءًا أطول أو أكثر تحديدًا.", verifyAlso: "ورد أيضًا في", verifyAskVerse: "هل تقصد هذه الآية؟", verifyAskHadith: "هل تقصد هذا الحديث؟", verifyAskText: "هل تقصد هذا النص؟", verifyYes: "نعم", verifyConfirmed: "هذا هو النص كما ورد في المصادر", verifyNo: "لا", verifyShort: "النص قصير؛ الصق ثلاث كلمات على الأقل.", verifyFailed: "تعذّر البحث الآن. حاول بعد قليل.", verifyGrade: "الحكم", verifyCoverage: "نسبة المطابقة",  pending: "يكتب…", thinking: ["أقرأ سؤالك…", "جارٍ البحث في المصادر…", "أكتب الجواب من النصوص التي وجدتها…", "أطابق كل جملة مع مصدرها…"], readContext: "اقرأ ما قبله وما بعده في الكتاب", hideContext: "إخفاء ما قبله وما بعده", contextBefore: "قبله في الكتاب", contextAfter: "بعده في الكتاب", contextNone: "لا نص قبله ولا بعده في هذا الكتاب", contextFailed: "تعذّر جلب النص", found: "وجدت الإجابة", notFound: "لم أجد شيئًا في المصادر", settled: "اكتملت المراجعة",
         noVoice: "لا يوجد صوت عربي في هذا المتصفح. جرّب متصفح Edge، أو أضف اللغة العربية من إعدادات الكلام في جهازك.",
         maleVoice: "رجل", femaleVoice: "امرأة", voiceChoice: "الصوت", azureNotice: "يُرسَل نص الإجابة فقط إلى خدمة Microsoft لتحويله إلى صوت.", voiceLoading: "جارٍ تجهيز الصوت…", voiceTap: "اضغط استمع مرة أخرى لتشغيل الصوت.",
         generalInfo: "هل تريد معرفة الأحكام العامة في مثل هذه الحالات؟", understoodAs: "إذا كنت تقصد:", didYouMean: "هل تقصد:", yes: "نعم", no: "لا", whatDidYouMean: "ماذا تقصد؟ اكتب سؤالك بطريقة أخرى.", views: "أقوال العلماء كما وردت في المصادر",
@@ -1823,7 +1935,7 @@ const UI = {
         qlabel: "Your question", placeholder: "Type a question…", empty: "Type or speak your question, and I will answer from the sources.",
         appearance: "Appearance", voiceSettings: "Voice", style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
-        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", pending: "Typing…", thinking: ["Reading your question…", "Searching the sources…", "Writing the answer from the passages found…", "Checking each sentence against its source…"], readContext: "Read what comes before and after", hideContext: "Hide what comes before and after", contextBefore: "Before it in the book", contextAfter: "After it in the book", contextNone: "Nothing before or after it in this book", contextFailed: "Could not load the text", found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
+        exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", searchIn: "Searching", upload: "Upload a file or photo", uploadLimit: "Accepted: images, PDF, Word, text. Maximum file size: 8 MB.", uploading: "Reading the file…", uploadPick: "Pick the passage to check:", uploadCut: "The text was cut to fit the limit; use «Check a quotation» for longer text.", uploadFormats: "Images, PDF, Word, text", e_too_large: "The file is too large; the limit is 8 MB.", e_unsupported: "This file type is not supported.", e_unreadable: "The file could not be read.", e_no_text: "No text was found in the file or photo. Try a clearer image.", e_encrypted: "The file is password protected.", e_ocr_unavailable: "Reading images is unavailable right now.", e_too_slow: "Reading took too long; try a smaller file.", e_busy: "The service is busy; try again shortly.", e_failed: "The upload failed.", verifyText: "Check a quotation", verifyHint: "Paste a verse, a hadith or a saying in circulation, and I will tell you whether it is in the sources and where.", verifyGo: "Look it up", verifyBusy: "Searching…", verifyExact: "Found exactly as written in the sources", verifyClose: "Found a close passage, not an exact match", verifyNone: "I did not find this text in the available sources. That does not mean it is false: the book it comes from may not be among my sources.", verifyGeneric: "This phrase is made of common wording found in many places, so I cannot pin it to one passage. Paste a longer or more specific part.", verifyAlso: "Also in", verifyAskVerse: "Do you mean this verse?", verifyAskHadith: "Do you mean this hadith?", verifyAskText: "Do you mean this text?", verifyYes: "Yes", verifyConfirmed: "This is the text as it appears in the sources", verifyNo: "No", verifyShort: "The text is short; paste at least three words.", verifyFailed: "The search failed. Please try again shortly.", verifyGrade: "Grading", verifyCoverage: "Match",  pending: "Typing…", thinking: ["Reading your question…", "Searching the sources…", "Writing the answer from the passages found…", "Checking each sentence against its source…"], readContext: "Read what comes before and after", hideContext: "Hide what comes before and after", contextBefore: "Before it in the book", contextAfter: "After it in the book", contextNone: "Nothing before or after it in this book", contextFailed: "Could not load the text", found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
         noVoice: "This browser has no English voice. Try Edge, or add a voice in your device's speech settings.",
         maleVoice: "Man", femaleVoice: "Woman", voiceChoice: "Voice", azureNotice: "Only the answer text is sent to Microsoft to turn it into speech.", voiceLoading: "Preparing audio…", voiceTap: "Tap Listen again to play the audio.",
         generalInfo: "Would you like the general rulings for cases like this?", understoodAs: "If you meant:", didYouMean: "Did you mean:", yes: "Yes", no: "No", whatDidYouMean: "What did you mean? Please write your question another way.", views: "Scholars' views as stated in the sources",
@@ -1838,7 +1950,7 @@ const UI = {
         topicQuran: "قرآن", topicFiqh: "فقہ", topicAqidah: "عقیدہ", promptQuran: "میں قرآن میں تدبر کیسے کروں؟", promptFiqh: "فرض اور سنت میں کیا فرق ہے؟", promptAqidah: "توحید کا کیا مطلب ہے؟", assistant: "محاور",
         style: "وضاحت کا انداز", kids: "بچوں کے لیے", youth: "نوجوانوں کے لیے", extended: "تفصیلی", newcomer: "اسلام میں نئے", send: "پوچھیں", stopRequest: "انتظار روکیں", requestStopped: "انتظار روک دیا گیا۔ آپ سوال میں ترمیم کر کے دوبارہ بھیج سکتے ہیں۔", darkTheme: "رات کا انداز", lightTheme: "دن کا انداز", answerPalette: "جواب کے صفحے کا رنگ", paletteSage: "سبز", paletteBlue: "نیلا", paletteSepia: "کاغذی", palettePlum: "بنفشی",
         mic: "🎤 بولیں", micStop: "⏹ روکیں", voiceNote: "مائیکروفون استعمال کرنے پر براؤزر آپ کی آواز کو متن میں بدلنے کے لیے کسی بیرونی سروس کو بھیج سکتا ہے۔",
-        exampleTag: "محاور کی طرف سے وضاحتی مثال", recite: "تلاوت سنیں", reciter: "قاری مشاری العفاسی کی آواز میں (everyayah.com)", reciteFailed: "تلاوت نہیں چل سکی", listen: "سنیں", stop: "روکیں", responseActions: "جواب کے اختیارات", copyAnswer: "جواب کاپی کریں", copied: "جواب کاپی ہو گیا", copyFailed: "جواب کاپی نہیں ہو سکا", shareAnswer: "جواب شیئر کریں", shareFailed: "شیئر نہیں ہو سکا", shareFallback: "شیئر کی سہولت دستیاب نہیں؛ اس کے بجائے جواب کاپی کر دیا گیا", regenerate: "دوبارہ جواب", clear: "واضح ہے", unclear: "مزید وضاحت چاہیے", thanks: "رائے دینے کا شکریہ", thanksUnclear: "شکریہ۔ آپ «مزید اختیارات» سے آسان وضاحت مانگ سکتے ہیں۔", regenerating: "نیا جواب تیار ہو رہا ہے…", showSources: "مصادر دکھائیں", hideSources: "مصادر چھپائیں", more: "مزید اختیارات", copyWithSources: "جواب مصادر کے متن کے ساتھ کاپی کریں", simplifyAnswer: "جواب آسان انداز میں سمجھائیں", moreDetail: "مزید وضاحت کریں", simplifyPrompt: "اپنا پچھلا جواب آسان انداز میں سمجھائیں", pending: "لکھ رہا ہے…", thinking: ["آپ کا سوال پڑھ رہا ہوں…", "مصادر میں تلاش کر رہا ہوں…", "ملنے والے متون سے جواب لکھ رہا ہوں…", "ہر جملے کو اس کے مصدر سے ملا رہا ہوں…"], readContext: "کتاب میں اس سے پہلے اور بعد کا متن پڑھیں", hideContext: "پہلے اور بعد کا متن چھپائیں", contextBefore: "کتاب میں اس سے پہلے", contextAfter: "کتاب میں اس کے بعد", contextNone: "اس کتاب میں اس سے پہلے یا بعد کوئی متن نہیں", contextFailed: "متن نہیں لایا جا سکا", found: "جواب مل گیا", notFound: "مصادر میں کچھ نہیں ملا", settled: "جائزہ مکمل",
+        exampleTag: "محاور کی طرف سے وضاحتی مثال", recite: "تلاوت سنیں", reciter: "قاری مشاری العفاسی کی آواز میں (everyayah.com)", reciteFailed: "تلاوت نہیں چل سکی", listen: "سنیں", stop: "روکیں", responseActions: "جواب کے اختیارات", copyAnswer: "جواب کاپی کریں", copied: "جواب کاپی ہو گیا", copyFailed: "جواب کاپی نہیں ہو سکا", shareAnswer: "جواب شیئر کریں", shareFailed: "شیئر نہیں ہو سکا", shareFallback: "شیئر کی سہولت دستیاب نہیں؛ اس کے بجائے جواب کاپی کر دیا گیا", regenerate: "دوبارہ جواب", clear: "واضح ہے", unclear: "مزید وضاحت چاہیے", thanks: "رائے دینے کا شکریہ", thanksUnclear: "شکریہ۔ آپ «مزید اختیارات» سے آسان وضاحت مانگ سکتے ہیں۔", regenerating: "نیا جواب تیار ہو رہا ہے…", showSources: "مصادر دکھائیں", hideSources: "مصادر چھپائیں", more: "مزید اختیارات", copyWithSources: "جواب مصادر کے متن کے ساتھ کاپی کریں", simplifyAnswer: "جواب آسان انداز میں سمجھائیں", moreDetail: "مزید وضاحت کریں", simplifyPrompt: "اپنا پچھلا جواب آسان انداز میں سمجھائیں", searchIn: "تلاش جاری:", upload: "فائل یا تصویر اپ لوڈ کریں", uploadLimit: "قابلِ قبول: تصاویر، PDF، Word، متن۔ فائل کی زیادہ سے زیادہ حد: ۸ میگابائٹ۔", uploading: "فائل پڑھی جا رہی ہے…", uploadPick: "وہ حصہ منتخب کریں جسے جانچنا ہے:", uploadCut: "متن حد کے مطابق کاٹ دیا گیا؛ لمبے متن کے لیے «عبارت کی جانچ» استعمال کریں۔", uploadFormats: "تصاویر، PDF، Word، متن", e_too_large: "فائل بڑی ہے؛ حد ۸ میگابائٹ ہے۔", e_unsupported: "اس قسم کی فائل معاون نہیں۔", e_unreadable: "فائل پڑھی نہیں جا سکی۔", e_no_text: "فائل یا تصویر میں متن نہیں ملا۔ زیادہ واضح تصویر آزمائیں۔", e_encrypted: "فائل پاس ورڈ سے محفوظ ہے۔", e_ocr_unavailable: "تصاویر پڑھنے کی سہولت ابھی دستیاب نہیں۔", e_too_slow: "پڑھنے میں بہت وقت لگا؛ چھوٹی فائل آزمائیں۔", e_busy: "سروس مصروف ہے؛ تھوڑی دیر بعد کوشش کریں۔", e_failed: "اپ لوڈ نہیں ہو سکا۔", verifyText: "عبارت کی جانچ", verifyHint: "کوئی آیت، حدیث یا مشہور عبارت چسپاں کریں؛ میں بتاؤں گا کہ وہ مصادر میں ہے یا نہیں اور کہاں۔", verifyGo: "تلاش کریں", verifyBusy: "تلاش جاری ہے…", verifyExact: "متن مصادر میں بالکل ایسے ہی ملا", verifyClose: "قریبی متن ملا، ہوبہو نہیں", verifyNone: "یہ متن دستیاب مصادر میں نہیں ملا۔ اس کا مطلب یہ نہیں کہ یہ غلط ہے؛ ممکن ہے جس کتاب میں ہے وہ میرے مصادر میں نہ ہو۔", verifyGeneric: "یہ عبارت عام الفاظ پر مشتمل ہے اور بہت سی جگہوں پر آتی ہے، اس لیے میں اسے ایک مقام سے منسوب نہیں کر سکتا۔ لمبا یا زیادہ مخصوص حصہ چسپاں کریں۔", verifyAlso: "یہ مقامات پر بھی آیا ہے", verifyAskVerse: "کیا آپ کی مراد یہ آیت ہے؟", verifyAskHadith: "کیا آپ کی مراد یہ حدیث ہے؟", verifyAskText: "کیا آپ کی مراد یہ متن ہے؟", verifyYes: "جی ہاں", verifyConfirmed: "یہ متن مصادر میں اسی طرح آیا ہے", verifyNo: "نہیں", verifyShort: "متن مختصر ہے؛ کم از کم تین الفاظ چسپاں کریں۔", verifyFailed: "تلاش نہیں ہو سکی۔ تھوڑی دیر بعد کوشش کریں۔", verifyGrade: "درجہ", verifyCoverage: "مطابقت",  pending: "لکھ رہا ہے…", thinking: ["آپ کا سوال پڑھ رہا ہوں…", "مصادر میں تلاش کر رہا ہوں…", "ملنے والے متون سے جواب لکھ رہا ہوں…", "ہر جملے کو اس کے مصدر سے ملا رہا ہوں…"], readContext: "کتاب میں اس سے پہلے اور بعد کا متن پڑھیں", hideContext: "پہلے اور بعد کا متن چھپائیں", contextBefore: "کتاب میں اس سے پہلے", contextAfter: "کتاب میں اس کے بعد", contextNone: "اس کتاب میں اس سے پہلے یا بعد کوئی متن نہیں", contextFailed: "متن نہیں لایا جا سکا", found: "جواب مل گیا", notFound: "مصادر میں کچھ نہیں ملا", settled: "جائزہ مکمل",
         noVoice: "اس براؤزر میں اردو آواز موجود نہیں۔ Edge آزمائیں، یا اپنے آلے کی اسپیچ ترتیبات سے اردو شامل کریں۔",
         maleVoice: "مرد", femaleVoice: "خاتون", voiceChoice: "آواز", azureNotice: "آواز بنانے کے لیے صرف جواب کا متن Microsoft کو بھیجا جاتا ہے۔", voiceLoading: "آواز تیار ہو رہی ہے…", voiceTap: "آواز چلانے کے لیے دوبارہ «سنیں» دبائیں۔",
         generalInfo: "کیا آپ ایسے معاملات کے عمومی احکام جاننا چاہتے ہیں؟", understoodAs: "اگر آپ کی مراد یہ ہے:", didYouMean: "کیا آپ کی مراد ہے:", yes: "ہاں", no: "نہیں", whatDidYouMean: "آپ کی کیا مراد ہے؟ اپنا سوال کسی اور طرح لکھیں۔", views: "علما کے اقوال جیسے مصادر میں آئے ہیں",
@@ -2030,7 +2142,7 @@ function createRiderStatus(locale) {
   // checking. The last step stays until the answer arrives (22 October 2026)
   pending.dataset.stage = "0";
   const advance = (stage) => {
-    if (!pending.classList.contains("is-searching") || stage >= STAGE_AFTER_MS.length + 1) return;
+    if (pending.dataset.live || !pending.classList.contains("is-searching") || stage >= STAGE_AFTER_MS.length + 1) return;
     pending.dataset.stage = String(stage);
     translateSearchStatus(pending, lang);
     if (stage < STAGE_AFTER_MS.length) setTimeout(() => advance(stage + 1), STAGE_AFTER_MS[stage]);
@@ -2039,23 +2151,183 @@ function createRiderStatus(locale) {
   return pending;
 }
 const STAGE_AFTER_MS = [3500, 2500, 8000];
+// Index-answer stream: the server reports the step it has really reached, so the status follows it instead of a timer
+// Source-names: the books the search reaches, one after another in the status line («جارٍ البحث في صحيح البخاري»)
+function queueSourceNames(pending, names) {
+  const queue = pending._names = pending._names || { list: [], seen: new Set(), shown: 0, busy: false };
+  for (const name of names) if (name && !queue.seen.has(name)) { queue.seen.add(name); queue.list.push(name); }
+  if (queue.busy) return;
+  queue.busy = true;
+  const next = () => {
+    const name = queue.list.shift();
+    if (!name || !pending.isConnected || !pending.classList.contains("is-searching")) {
+      queue.busy = false;
+      delete pending.dataset.hold;
+      if (pending.isConnected) translateSearchStatus(pending, lang);
+      return;
+    }
+    pending.dataset.hold = "1";
+    pending.querySelector(".rider-status-copy").textContent = `${(UI[lang] || UI.ar).searchIn} ${name}`;
+    setTimeout(next, queue.list.length > 6 ? 220 : queue.list.length > 2 ? 450 : 850);  // the more books, the quicker the names pass
+  };
+  next();
+}
+const STREAM_STAGES = { understanding: 0, searching: 1, writing: 2, checking: 3 };
+async function askStreamed(payload, signal, pending) {
+  const body = JSON.stringify(payload);
+  const headers = { "Content-Type": "application/json" };
+  let r = await fetch("/api/ask_stream", { method: "POST", headers, body, signal });
+  if (r.status === 404 || r.status === 405 || !r.body) {  // an older server: the whole reply at once
+    r = await fetch("/api/ask", { method: "POST", headers, body, signal });
+    if (!r.ok) throw Object.assign(new Error(r.status), { status: r.status });
+    return r.json();
+  }
+  if (!r.ok) throw Object.assign(new Error(r.status), { status: r.status });
+  const reader = r.body.getReader(), decoder = new TextDecoder();
+  let buffer = "", reply = null;
+  const take = (line) => {
+    if (!line.trim()) return;
+    const item = JSON.parse(line);
+    if (item.stage === "source" && pending?.classList.contains("is-searching")) {
+      pending.dataset.live = "1";
+      queueSourceNames(pending, item.data || []);
+    } else if (item.stage in STREAM_STAGES && pending?.classList.contains("is-searching")) {
+      pending.dataset.live = "1";
+      pending.dataset.stage = String(STREAM_STAGES[item.stage]);
+      translateSearchStatus(pending, lang);
+    } else if (item.reply) reply = item.reply;
+    else if (item.error) throw Object.assign(new Error(item.error), { status: item.error });
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    lines.forEach(take);
+    if (done) break;
+  }
+  take(buffer);
+  if (!reply) throw new Error("no reply");
+  return reply;
+}
+// Index-answer typing: the checked answer appears as if being typed, in about two seconds at most
+function typeAnswer(msg) {
+  if (welcomeMotion.matches || !msg.dataset.sourcedAnswer) return;
+  const skip = ".answer-actions, .sources, details, button, [hidden], .source-cards";
+  const nodes = [];
+  msg.querySelectorAll("p.answer, h4.answer-section, li").forEach((box) => {
+    if (box.closest(skip)) return;
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (n.data.trim() && !n.parentElement.closest("sup")) nodes.push([n, n.data]);
+    }
+  });
+  const total = nodes.reduce((sum, [, text]) => sum + text.length, 0);
+  if (!total) return;
+  nodes.forEach(([n]) => { n.data = ""; });
+  const perFrame = Math.max(3, Math.ceil(total / 120));  // 120 frames, about two seconds
+  let node = 0, shown = 0, frames = 0;
+  const step = () => {
+    let budget = perFrame;
+    while (budget > 0 && node < nodes.length) {
+      const [n, text] = nodes[node];
+      const take = Math.min(budget, text.length - shown);
+      shown += take; budget -= take;
+      n.data = text.slice(0, shown);
+      if (shown >= text.length) { node++; shown = 0; }
+    }
+    frames++;
+    if (node < nodes.length) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 async function completeRiderStatus(pending, response, locale) {
   const outcome = sourceSearchOutcome(response);
   pending.classList.remove("is-searching");
+  delete pending.dataset.hold;
   pending.classList.add(outcome === "found" ? "is-found" : "is-settled");
   pending.dataset.searchPhase = outcome;
   translateSearchStatus(pending, lang);
   if (!pending.isConnected) return;
-  await new Promise((resolve) => setTimeout(resolve, welcomeMotion.matches ? 350 : 850));
+  await new Promise((resolve) => setTimeout(resolve, welcomeMotion.matches ? 100 : 250));
 }
 
 function translateSearchStatus(pending, locale) {
+  if (pending.dataset.hold) return;  // a source name is on show (Source-names)
   const t = UI[locale] || UI.en;
   const phase = pending.dataset.searchPhase || "searching";
   pending.dir = locale === "en" ? "ltr" : "rtl";
   const stage = Math.min(+(pending.dataset.stage || 0), t.thinking.length - 1);
   pending.querySelector(".rider-status-copy").textContent = phase === "searching" ? t.thinking[stage] : t[phase];
 }
+
+// Pop-menus (Language-icon, Appearance-panel): one tap opens a small list or panel in Muhawir's own look; the hidden
+// selects stay the value holders, so the rest of the page reads and sets them as before
+const popMenus = [];
+function closePops() { popMenus.forEach((menu) => menu.close()); }
+document.addEventListener("click", (e) => { popMenus.forEach((menu) => { if (!menu.wrap.contains(e.target)) menu.close(); }); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePops(); });
+function popList(select, button, wrap) {
+  const list = el("ul", "pop-list");
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+  wrap.append(list);
+  const close = () => { list.hidden = true; button.setAttribute("aria-expanded", "false"); };
+  const sync = () => {
+    list.replaceChildren(...[...select.options].map((option) => {
+      const item = el("li", "pop-item", option.textContent);
+      item.setAttribute("role", "option");
+      item.tabIndex = 0;
+      item.lang = option.value;
+      item.setAttribute("aria-selected", String(option.value === select.value));
+      const choose = () => { select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); close(); button.focus(); };
+      item.addEventListener("click", choose);
+      item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); } });
+      return item;
+    }));
+    button.title = select.getAttribute("aria-label") || "";
+    button.setAttribute("aria-label", button.title);
+  };
+  button.addEventListener("click", () => {
+    const opening = list.hidden;
+    closePops();
+    if (opening) { sync(); list.hidden = false; button.setAttribute("aria-expanded", "true"); list.querySelector('[aria-selected="true"]')?.focus(); }
+  });
+  popMenus.push({ wrap, close, sync });
+  sync();
+}
+const PALETTE_COLORS = { sage: "#30694E", blue: "#3A5F9E", sepia: "#A07F52", plum: "#7B4B7A" };
+function appearancePanel() {
+  const button = $("appearanceButton"), panel = $("appearancePanel"), wrap = button.parentElement;
+  const close = () => { panel.hidden = true; button.setAttribute("aria-expanded", "false"); };
+  const sync = () => {
+    $("layoutSeg").replaceChildren(...[...$("answerLayout").options].map((option) => {
+      const b = el("button", "", option.textContent);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(option.value === $("answerLayout").value));
+      b.addEventListener("click", () => { $("answerLayout").value = option.value; $("answerLayout").dispatchEvent(new Event("change", { bubbles: true })); sync(); });
+      return b;
+    }));
+    $("paletteDots").replaceChildren(...[...$("answerPalette").options].map((option) => {
+      const b = el("button", "");
+      b.type = "button";
+      b.style.background = PALETTE_COLORS[option.value] || "var(--accent)";
+      b.title = option.textContent;
+      b.setAttribute("aria-label", option.textContent);
+      b.setAttribute("aria-pressed", String(option.value === $("answerPalette").value));
+      b.addEventListener("click", () => { $("answerPalette").value = option.value; $("answerPalette").dispatchEvent(new Event("change", { bubbles: true })); sync(); });
+      return b;
+    }));
+  };
+  button.addEventListener("click", () => {
+    const opening = panel.hidden;
+    closePops();
+    if (opening) { sync(); panel.hidden = false; button.setAttribute("aria-expanded", "true"); }
+  });
+  popMenus.push({ wrap, close, sync });
+  sync();
+}
+function syncPickMenus() { popMenus.forEach((menu) => menu.sync()); }
 
 // 4. The history sidebar, the welcome screen and switching between conversations.
 function renderHistory() {
@@ -2231,6 +2503,141 @@ function toggleHistory() {
   updateHistoryToggle();
 }
 
+// Quote-check: paste a quotation, see whether and where it appears in the sources (no model is used on the server).
+(function () {
+  const dialog = $("verifyDialog"), input = $("verifyInput"), go = $("verifyGo"), out = $("verifyResult");
+  if (!dialog || !$("verifyButton")) return;
+  // The box is one line high and grows with the text, up to a limit, then scrolls.
+  const fit = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight + 2, window.innerHeight * 0.4) + "px"; };
+  input.addEventListener("input", fit);
+  window.fitVerifyBox = fit;
+  const add = (parent, tag, text, cls) => { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = text; parent.appendChild(n); return n; };
+  $("verifyButton").addEventListener("click", () => {
+    if (typeof closeHistory === "function") closeHistory();
+    out.textContent = ""; $("verifyClose").setAttribute("aria-label", "×");
+    if (typeof dialog.showModal === "function") dialog.showModal(); else dialog.setAttribute("open", "");
+    fit(); input.focus();
+  });
+  go.addEventListener("click", async () => {
+    const t = UI[lang], text = input.value.trim();
+    out.textContent = "";
+    if (text.split(/\s+/).length < 3) { add(out, "div", t.verifyShort, "verify-verdict").dataset.tone = "none"; return; }
+    go.disabled = true; go.textContent = t.verifyBusy;
+    try {
+      const res = await fetch("/api/verify_text", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      if (res.status === 422) { add(out, "div", t.verifyShort, "verify-verdict").dataset.tone = "none"; return; }
+      if (!res.ok) throw new Error(String(res.status));
+      const body = await res.json();
+      if (body.status === "not_found") { add(out, "div", t.verifyNone, "verify-verdict").dataset.tone = "none"; return; }
+      if (body.status === "too_generic") { add(out, "div", t.verifyGeneric, "verify-verdict").dataset.tone = "none"; return; }
+      const showResult = (confirmed) => {
+        out.textContent = "";
+        add(out, "div", body.status === "exact" ? t.verifyExact : confirmed ? t.verifyConfirmed : t.verifyClose, "verify-verdict").dataset.tone = body.status;
+        body.matches.forEach((m) => {
+          const card = add(out, "div", "", "verify-card");
+          add(card, "strong", m.source_name);
+          const where = [m.location];
+          if (m.grade) where.push(t.verifyGrade + ": " + m.grade);
+          if (m.status !== "exact") where.push(t.verifyCoverage + ": " + Math.round(m.coverage * 100) + "%");
+          add(card, "div", where.join(" \u00b7 "), "where");
+          if ((m.also || []).length) add(card, "div", t.verifyAlso + ": " + m.also.join("\u060c "), "where");
+          const side = (label, part) => {
+            if (!part) return;
+            const block = add(card, "div", "", "verify-side");
+            add(block, "span", label + " \u00b7 " + part.location, "verify-side-label");
+            add(block, "p", part.text);
+          };
+          side(t.contextBefore, m.before);
+          const w = m.window || { lead: "", match: m.excerpt, trail: "" };
+          const main = add(card, "p", "", "verify-passage");
+          main.append((w.cut_lead ? "\u2026" : "") + w.lead);
+          add(main, "strong", w.match);
+          main.append(w.trail + (w.cut_trail ? "\u2026" : ""));
+          side(t.contextAfter, m.after);
+        });
+      };
+      if (body.status === "close") {
+        // The wording differs from the source: a visitor who half remembers a verse is asked whether this is the one meant,
+        // before the sources and their context are shown; "no" ends with the plain not-found message.
+        const first = body.matches[0], ask = first.kind === "quran" ? t.verifyAskVerse : first.kind === "hadith" ? t.verifyAskHadith : t.verifyAskText;
+        add(out, "div", ask, "verify-verdict").dataset.tone = "close";
+        const card = add(out, "div", "", "verify-card");
+        add(card, "strong", first.source_name);
+        add(card, "div", first.location, "where");
+        add(card, "p", first.excerpt, "verify-passage");
+        const row = add(card, "div", "", "verify-answer");
+        const yes = add(row, "button", t.verifyYes, "verify-go"), no = add(row, "button", t.verifyNo, "verify-no");
+        yes.type = no.type = "button";
+        yes.addEventListener("click", () => showResult(true));
+        no.addEventListener("click", () => { out.textContent = ""; add(out, "div", t.verifyNone, "verify-verdict").dataset.tone = "none"; });
+        return;
+      }
+      showResult();
+    } catch { add(out, "div", t.verifyFailed, "verify-verdict").dataset.tone = "none"; }
+    finally { go.disabled = false; go.textContent = t.verifyGo; }
+  });
+})();
+
+// Upload: the text of a photo or a file is read on the server (nothing is stored) and put in a box for the visitor to check.
+const uploadText = async (file) => {
+  const t = UI[lang];
+  if (file.size > 8 * 1024 * 1024) throw new Error(t.e_too_large);
+  let res;
+  try { res = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file }); }
+  catch { throw new Error(t.e_failed); }
+  if (res.ok) return res.json();
+  let code = "";
+  try { code = (await res.json()).detail || ""; } catch { /* no body */ }
+  if (res.status === 429) code = "busy";
+  throw new Error(t["e_" + code] || t.e_failed);
+};
+(function () {
+  const btn = $("verifyUp"), file = $("verifyFile"), status = $("verifyUpStatus"), list = $("verifyPieces"), input = $("verifyInput"), go = $("verifyGo");
+  if (!btn || !file) return;
+  const say = (text) => { status.textContent = text; status.hidden = !text; };
+  btn.addEventListener("click", () => file.click());
+  file.addEventListener("change", async () => {
+    const f = file.files && file.files[0]; file.value = "";
+    if (!f) return;
+    const t = UI[lang];
+    list.textContent = ""; $("verifyResult").textContent = ""; say(t.uploading); btn.disabled = true;
+    try {
+      const body = await uploadText(f);
+      const pieces = body.pieces && body.pieces.length ? body.pieces : [body.text];
+      input.value = pieces[0].slice(0, input.maxLength); if (window.fitVerifyBox) window.fitVerifyBox();
+      if (pieces.length > 1) {
+        say(t.uploadPick);
+        pieces.forEach((p) => {
+          const b = document.createElement("button"); b.type = "button"; b.className = "verify-piece"; b.textContent = p.slice(0, input.maxLength);
+          b.addEventListener("click", () => { input.value = b.textContent; if (window.fitVerifyBox) window.fitVerifyBox(); go.click(); });
+          list.appendChild(b);
+        });
+      } else { say(""); go.click(); }
+    } catch (e) { say(e.message); }
+    finally { btn.disabled = false; }
+  });
+})();
+(function () {
+  const btn = $("attach"), file = $("attachFile"), q = $("q");
+  if (!btn || !file || !q) return;
+  btn.addEventListener("click", () => { btn.title = UI[lang].uploadLimit; file.click(); });
+  file.addEventListener("change", async () => {
+    const f = file.files && file.files[0]; file.value = "";
+    if (!f) return;
+    const t = UI[lang], note = $("requestNotice");
+    note.textContent = t.uploading; note.hidden = false; btn.disabled = true;
+    try {
+      const body = await uploadText(f);
+      const text = body.text.replace(/\s+/g, " ").trim(), room = q.maxLength > 0 ? q.maxLength : 500;
+      q.value = text.slice(0, room);
+      q.dispatchEvent(new Event("input", { bubbles: true }));
+      note.textContent = text.length > room ? t.uploadCut : ""; note.hidden = text.length <= room;
+      q.focus();
+    } catch (e) { note.textContent = e.message; }
+    finally { btn.disabled = false; }
+  });
+})();
+
 // 5. Language and theme: apply the chosen language to the whole page, switch the light and dark theme.
 function applyLang() {
   const t = UI[lang];
@@ -2249,6 +2656,7 @@ function applyLang() {
   $("lang").setAttribute("aria-label", t.lang);
   $("answerPalette").setAttribute("aria-label", t.answerPalette);
   $("answerLayout").setAttribute("aria-label", t.answerLayout);
+  syncPickMenus();
   $("historySearch").placeholder = t.historySearch;
   $("historySearch").setAttribute("aria-label", t.historySearch);
   $("closeHistory").setAttribute("aria-label", t.closeHistory);
@@ -2838,6 +3246,7 @@ function renderAnswer(res, style, context) {
   const number = new Map((res.sources || []).map((s, i) => [s.passage_id, i + 1]));
   const cardFor = new Map();
   const sourceCards = [];
+  let showOnlyCard = () => {};  // Source-on-tap: set below, once the sources panel exists
   const quoted = new Set((res.sources || []).map((s) => `«${s.quote}»`));
   // A claim that only repeats a passage word for word is already shown in its source card.
   const shown = new Set();  // passages whose text is itself the answer stay open
@@ -2851,12 +3260,32 @@ function renderAnswer(res, style, context) {
       a.addEventListener("click", (e) => {
         e.preventDefault();
         const card = cardFor.get(id);
-        if (card) { card.open = true; card.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+        if (card) showOnlyCard(card);
       });
       sup.append(a);
     }
     return sup;
   };
+  // Label-once: several sentences in a row under the same label («من الأدعية») say it once, then number the items
+  if (!res._ordinals) {
+    res._ordinals = true;
+    const words = (context?.lang || lang) === "ar"
+      ? ["الأول", "الثاني", "الثالث", "الرابع", "الخامس", "السادس", "السابع", "الثامن", "التاسع", "العاشر"] : [];
+    const claims = res.claims || [];
+    for (let i = 0; i < claims.length;) {
+      let j = i + 1;
+      while (j < claims.length && claims[i].label && claims[j].label === claims[i].label && !!claims[j].section === !!claims[i].section) j++;
+      if (j - i > 1) {
+        const shared = claims[i].label;
+        for (let k = i; k < j; k++) {
+          const ordinal = words[k - i] || String(k - i + 1);
+          claims[k].label = k === i ? `${shared}: ${ordinal}` : ordinal;
+          claims[k].text = claims[k].text.replace(/^\s*و?منها\s*:\s*/, "");  // the number now says «منها»
+        }
+      }
+      i = j;
+    }
+  }
   const sentences = (res.claims || []).filter((c) => {
     if (!quoted.has(c.text)) return true;
     c.passage_ids.forEach((id) => shown.add(id));
@@ -2927,7 +3356,7 @@ function renderAnswer(res, style, context) {
     if (items) msg.append(items);
   }
   if (res.note) msg.append(el("p", "note", res.note));
-  if ((res.views || []).length) {
+  if ((res.views || []).some((v) => v.text) && res.status !== "referred") {  // a referred reply carries no panel of views
     // the usual order: Hanafi, Maliki, Shafi'i, Hanbali, then others
     const ORDER = [/حنيف|حنف|احناف|أحناف/, /مالك/, /شافع/, /أحمد|احمد|حنبل/];
     const rank = (name) => { const i = ORDER.findIndex((re) => re.test(name)); return i < 0 ? ORDER.length : i; };
@@ -2975,15 +3404,13 @@ function renderAnswer(res, style, context) {
   }
   // «وضّح أكثر»: the same question again in the detailed style, more sentences from more passages, each checked
   // as before. The question as Muhawir understood it is asked on its own (a saved reply is reused at no cost).
+  let deepen = null;
   if (context && res.status === "answered" && !res.by_code && style !== "extended" && (res.claims || []).length) {
-    const deeper = el("button", "follow-up more-detail", t.moreDetail);
-    deeper.type = "button"; deeper.dir = "auto";
-    deeper.addEventListener("click", () => {
+    deepen = () => {
       nextAsk = { style: "extended", history: res.understood ? [] : (context.history || []) };
       setQuestionText(res.understood || context.question);
       $("ask").requestSubmit();
-    });
-    if (!general) msg.append(deeper);
+    };
   }
   if (res.referral && res.referral.title) {  // who to ask when Muhawir refers on: official bodies, opened in a new tab
     const box = el("section", "referral");
@@ -3006,10 +3433,14 @@ function renderAnswer(res, style, context) {
   if (general) msg.append(general);
   const sourcesHome = general || msg;  // a folded answer keeps its sources with it
   const shelf = el("div", "source-shelf");
+  // Source-on-tap: the sources stay folded inside their icon; a number or the icon opens them
+  const panel = el("div", "source-panel");
+  panel.hidden = true;
   if ((res.sources || []).length) {
     const sourcesTitle = el("div", "sources-title");
-    sourcesTitle.append(actionIcon("sources"), el("span", "sr-only", t.sources));
-    sourcesHome.append(sourcesTitle, shelf);
+    sourcesTitle.append(el("span", "sr-only", t.sources));  // one sources icon only: the one in the toolbar
+    panel.append(sourcesTitle, shelf);
+    sourcesHome.append(panel);
   }
   for (const s of res.sources || []) {
     const card = el("details", "card");
@@ -3054,6 +3485,19 @@ function renderAnswer(res, style, context) {
     shelf.append(card);
     sourceCards.push(card);
   }
+  // a reply that is its own source (the closest hadith, a passage that is itself the answer) shows it at once
+  if (sourceCards.length && (!(res.claims || []).length || shown.size)) panel.hidden = false;
+  let sourcesChanged = () => {};
+  showOnlyCard = (card) => {
+    const alone = !panel.hidden && sourceCards.every((c) => c.hidden === (c !== card)) && card.open;
+    if (alone) { panel.hidden = true; sourcesChanged(); return; }  // the same number again folds it
+    panel.hidden = false;
+    sourceCards.forEach((c) => { c.hidden = c !== card; });
+    card.open = true;
+    if (general) general.open = true;
+    sourcesChanged();
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
   if (general && next) msg.append(next);
   const actions = el("div", "tools");
   actions.setAttribute("role", "group");
@@ -3099,15 +3543,31 @@ function renderAnswer(res, style, context) {
       try {
         if (!vowelled) {
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 50000);
+          const timer = setTimeout(() => controller.abort(), 240000);
           try {
-            const response = await fetch("/api/tashkeel", {
+            const send = () => fetch("/api/tashkeel", {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ texts: original, passage_ids: (res.sources || []).map(s => s.passage_id) }),
               signal: controller.signal
             });
-            if (!response.ok) throw new Error("Unavailable");
-            const data = await response.json();
+            let data = null;
+            // a long answer is read a few sentences at a time: the server says when some are still unread, and the
+            // sentences already read are kept there, so asking again only reads the rest
+            for (let round = 0; round < 6; round++) {
+              let response = await send();
+              if (response.status === 503) {  // busy: one more try after a short wait
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+                response = await send();
+              }
+              if (!response.ok) {
+                let reason = "";
+                try { reason = (await response.json()).detail || ""; } catch {}
+                throw Object.assign(new Error("Unavailable"), { reason, code: response.status });
+              }
+              data = await response.json();
+              if (data.complete !== false) break;
+              status.textContent = "جارٍ التشكيل… (" + (round + 1) + ")";
+            }
             const bare = text => text.replace(/[\u064b-\u0652\u0670]/g, "");
             if (!Array.isArray(data.texts) || data.texts.length !== original.length ||
                 data.texts.some((text, i) => typeof text !== "string" || bare(text) !== bare(original[i])))
@@ -3120,8 +3580,14 @@ function renderAnswer(res, style, context) {
         setVowelLabel("النص الأصلي");
         vowelButton.setAttribute("aria-pressed", "true");
         status.textContent = vowelled.rejected ? "تشكيل آلي؛ أُبقيت أجزاء على أصلها لحماية النص." : "تشكيل آلي مساعد قد يخطئ. النسخ والمشاركة يحتفظان بالأصل.";
-      } catch {
-        status.textContent = "تعذّر التشكيل؛ النص الأصلي محفوظ. حاول لاحقًا.";
+      } catch (error) {
+        const reason = error?.reason || "";
+        status.textContent = /environment unavailable/.test(reason) ? "خدمة التشكيل غير مفعّلة على الخادم؛ النص الأصلي محفوظ."
+          : /rate limit/.test(reason) ? "كثرت طلبات التشكيل الآن؛ النص الأصلي محفوظ. حاول بعد دقيقة."
+          : /busy/.test(reason) ? "التشكيل مشغول الآن؛ النص الأصلي محفوظ. حاول بعد قليل."
+          : error?.code === 422 ? "الجواب أطول من أن يُشكَّل دفعة واحدة؛ النص الأصلي محفوظ."
+          : error?.message === "Changed text" ? "اختلف النص بعد التشكيل فأُبقي الأصل حمايةً له."
+          : "تعذّر التشكيل؛ النص الأصلي محفوظ. حاول لاحقًا.";
       } finally { vowelButton.disabled = false; }
     };
     vowelButton.addEventListener("click", applyVowels);
@@ -3196,6 +3662,13 @@ function renderAnswer(res, style, context) {
     $("ask").requestSubmit();
   });
   menu.append(copySources, simplify);
+  if (deepen) {  // «وضّح أكثر» lives in this menu, not under every answer
+    const detail = el("button", "more-item", t.moreDetail);
+    detail.type = "button";
+    detail.dataset.itemKey = "moreDetail";
+    detail.addEventListener("click", () => { more.open = false; deepen(); });
+    menu.append(detail);
+  }
   if (listen) {
     const voiceChoice = listen.querySelector(".voice-choice");
     const voiceNote = listen.querySelector(".listen-note");
@@ -3215,7 +3688,7 @@ function renderAnswer(res, style, context) {
   actions.append(more);
 
   if (sourceCards.length) {
-    const sourcesButton = makeActionButton(sourceCards.every((card) => card.open) ? t.hideSources : t.showSources, "sources", "", "sources");
+    const sourcesButton = makeActionButton(panel.hidden ? t.showSources : t.hideSources, "sources", "", "sources");
     const label = sourcesButton.querySelector(".action-label");
     sourcesButton.dataset.count = String(sourceCards.length);
     sourcesButton.classList.add("sources-chip");
@@ -3227,11 +3700,16 @@ function renderAnswer(res, style, context) {
       sourcesButton.title = text;
       sourcesButton.setAttribute("aria-expanded", String(expanded));
     };
-    setSourceLabel(sourceCards.every((card) => card.open));
+    setSourceLabel(!panel.hidden);
+    sourcesChanged = () => setSourceLabel(!panel.hidden);
     sourcesButton.addEventListener("click", () => {
-      const expanded = !sourceCards.every((card) => card.open);
-      sourceCards.forEach((card) => { card.open = expanded; });
-      if (expanded && general) general.open = true;
+      const single = !panel.hidden && sourceCards.some((card) => card.hidden);  // one source shown: the icon lists them all
+      const expanded = panel.hidden || single;
+      panel.hidden = !expanded;
+      if (expanded) {  // all the sources, each folded to its title
+        sourceCards.forEach((card) => { card.hidden = false; card.open = false; });
+        if (general) general.open = true;
+      }
       setSourceLabel(expanded);
     });
     actions.append(sourcesButton);
@@ -3373,8 +3851,13 @@ function stopAnswerRequest() {
     else { updateConversationTitle(); renderHistory(); }
     $("q").focus();
   } else renderHistory();
-  $("requestNotice").textContent = UI[lang].requestStopped;
-  $("requestNotice").hidden = false;
+  // Stopping a new answer leaves the question to edit; stopping a re-written answer leaves the old answer in place,
+  // and that button's own status already says so.
+  if (request.kind !== "regenerate") {
+    const note = $("requestNotice"), said = UI[lang].requestStopped;
+    note.textContent = said; note.hidden = false;
+    setTimeout(() => { if (note.textContent === said) note.hidden = true; }, 8000);
+  }
 }
 
 async function regenerateAnswer(message) {
@@ -3390,10 +3873,7 @@ async function regenerateAnswer(message) {
   if (activeConversation === conversation) { $("thread").append(pending); scrollDown(); }
   const request = beginAnswerRequest({ kind: "regenerate", conversation, pending, message });
   try {
-    const response = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: context.question, style: context.style, lang: context.lang, history: context.history }), signal: request.controller.signal });
-    if (!response.ok) throw new Error(response.status);
-    const res = await response.json();
+    const res = await askStreamed({ question: context.question, style: context.style, lang: context.lang, history: context.history }, request.controller.signal, pending);
     if (request.cancelled) return;
     await completeRiderStatus(pending, res, context.lang || lang);
     if (request.cancelled) return;
@@ -3403,6 +3883,7 @@ async function regenerateAnswer(message) {
     if (activeConversation === conversation) {
       message.replaceWith(replacement);
       pending.remove();
+      typeAnswer(replacement);
     }
     conversation.turns = context.history.slice();
     if (rememberable(res)) {
@@ -3640,11 +4121,7 @@ $("ask").addEventListener("submit", async (e) => {
   scrollDown();
   try {
     lastAskStatus = 0;
-    const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, style, lang: requestLang, history: requestHistory }), signal: request.controller.signal });
-    lastAskStatus = r.status;
-    if (!r.ok) throw new Error(r.status);
-    const res = await r.json();
+    const res = await askStreamed({ question, style, lang: requestLang, history: requestHistory }, request.controller.signal, pending);
     showUsage(res.usage);
     if (request.cancelled) return;
     await completeRiderStatus(pending, res, requestLang);
@@ -3653,6 +4130,7 @@ $("ask").addEventListener("submit", async (e) => {
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = msg;
     pending.replaceWith(msg);
+    if (!(askedBySpeech && voiceMode)) typeAnswer(msg);
     if (askedBySpeech && voiceMode) voiceRead(res);  // voice mode: the answer, its sources, then listen again
     else if (askedBySpeech && msg.listen && !msg.querySelector(".confirm-body[hidden]")) msg.listen.play();  // spoken question: spoken reply
     // answers and Muhawir's offers (e.g. "shall I explain it more simply?") are remembered, so a follow-up
@@ -3663,8 +4141,9 @@ $("ask").addEventListener("submit", async (e) => {
     }
     logAnswer(conversation, context, res);
     syncRegenerateButtons();
-  } catch {
+  } catch (error) {
     if (request.cancelled) return;
+    lastAskStatus = error?.status || 0;
     const errorMessage = el("div", "msg", lastAskStatus === 429 ? UI[lang].tooMany : UI[lang].error);
     const pendingIndex = conversation.messages.indexOf(pending);
     if (pendingIndex >= 0) conversation.messages[pendingIndex] = errorMessage;
@@ -3767,6 +4246,15 @@ function playUrl(url) {
   });
 }
 // one piece of text aloud: the natural voice the listener chose when the server has it, else the browser's own
+let voiceNoticeAt = 0;
+function voiceNoVoice(speakLang) {  // said on the page, at most every 20 seconds
+  if (Date.now() - voiceNoticeAt < 20000) return;
+  voiceNoticeAt = Date.now();
+  const note = $("requestNotice");
+  note.textContent = (UI[speakLang] || UI[lang]).noVoice;
+  note.hidden = false;
+  setTimeout(() => { if (note.textContent === (UI[speakLang] || UI[lang]).noVoice) note.hidden = true; }, 9000);
+}
 async function voiceSay(text, speakLang = textLang(text)) {
   const run = voiceRun;
   // a verse quoted inside a passage (between ﴿﴾ or {}) is never read by a synthetic voice, in any language
@@ -3791,11 +4279,16 @@ async function voiceSay(text, speakLang = textLang(text)) {
   }
   if (!("speechSynthesis" in window) || run !== voiceRun) return;
   const voice = pickVoice(await voicesReady(), speakLang, selectedSpeechVoice);
+  if (!voice) {
+    // No voice for this language on the device: a voice of another language would read only the digits, in English
+    voiceNoVoice(speakLang);
+    return;
+  }
   for (const part of pieces(text)) {
     if (run !== voiceRun) return;
     await new Promise((resolve) => {
       const u = new SpeechSynthesisUtterance(part);
-      if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = { ar: "ar-SA", ur: "ur-PK" }[speakLang] || "en-US";
+      u.voice = voice; u.lang = voice.lang;
       u.onend = resolve; u.onerror = resolve;
       setTimeout(resolve, 4000 + part.length * 120);  // a browser that never says it finished does not stop the turn
       speechSynthesis.speak(u);
@@ -3873,6 +4366,8 @@ renderHistory();
 applyLang();
 fitQuestionBox();
 
+popList($("lang"), $("langButton"), $("langPop"));
+appearancePanel();
 </script>
 </body>
 </html>

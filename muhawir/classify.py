@@ -23,9 +23,11 @@ OUT_OF_SCOPE = "out_of_scope"        # contemporary financial rulings: refer to 
 SMALL_TALK = "small_talk"            # greeting or thanks only: short fixed reply, no search
 
 _GREETING = (r"السلام عليكم(?: ورحمه الله(?: وبركاته)?)?|عليكم السلام(?: ورحمه الله(?: وبركاته)?)?|"
-             r"مرحبا|اهلا(?: وسهلا)?|صباح الخير|مساء الخير|hello|hi|hey|salam|assalamu alaikum")
+             r"مرحبا|اهلا(?: وسهلا)?|صباح الخير|مساء الخير|hello|hi|hey|salam|assalamu alaikum|"
+             r"السلام عل[یي][کك]م|اداب|خوش امد[یي]د")
 _THANKS = (r"شكرا(?: جزيلا)?|جزاك(?:م)? الله(?: كل)? خيرا?|بارك الله فيك(?:م)?|فتح الله عليك(?:م)?|"
-           r"احسن الله اليك(?:م)?|thank you(?: very much)?|thanks|jazakallah(?: khair)?")
+           r"احسن الله اليك(?:م)?|thank you(?: very much)?|thanks|jazakallah(?: khair)?|"
+           r"ش[کك]ر[یي][ہه]|ب[ہه]ت ش[کك]ر[یي][ہه]|جزا[کك] الل[ہه](?: خ[یي]ر)?")
 
 
 def _only(phrases: str) -> re.Pattern:
@@ -36,31 +38,28 @@ _SMALL_TALK, _THANKS_ONLY = _only(f"{_GREETING}|{_THANKS}"), _only(_THANKS)
 
 
 def is_small_talk(question: str) -> bool:
+    """True when the whole message is a greeting or other small talk."""
     return bool(_SMALL_TALK.match(normalize(question)))
 
 
 def is_thanks(question: str) -> bool:
+    """True when the whole message is only thanks."""
     return bool(_THANKS_ONLY.match(normalize(question)))
 
 _PERSONAL = [re.compile(p) for p in (
-    r"\bهل يجوز لي\b", r"\bيلزمني\b", r"\bتلزمني\b", r"\bهل علي\b", r"\bفي حالتي\b",
-    r"\bحلفت\b", r"\bطلقت\b", r"\bزواجي\b", r"\bزوجي\b", r"\bزوجتي\b",
-    r"\bam i allowed\b", r"\bis it permissible for me\b", r"\bin my case\b",
-    r"\bmy (husband|wife|marriage|divorce)\b",
-    # the person's own circumstance that changes the ruling (Codex audit, 6 October 2026). A general question
-    # with no circumstance («فاتتني الصلاة، ماذا أفعل؟», how to make up a prayer) is answered from the sources.
-    r"\b(?:و|ف)?انا (مريض|مريضه|مسافر|مسافره|حامل|مرضع|حائض|نفساء|مصاب|مصابه|عيان|عيانه|تعبان|تعبانه)\b",
-    # the same in the main dialects (19 October 2026: real questions came in Sudanese): «can I…» with a dialect
-    # word and a first-person act, «my wife / my husband», and a divorce the person says they pronounced
-    r"\b(?:يصير|بيصير|ينفع|بينفع|بقدر|بجوز|بيجوز|يزبط|بيزبط)( لي| ليا)?( اني| ان)? "
-    r"(افطر|اصوم|اصلي|اتوضا|اغتسل|احج|اعتمر|اجمع|اقصر|اتيمم|اطلق|ارجع)\b",
-    r"\b(?:يصير|بيصير|ينفع|بينفع|بجوز|بيجوز) (لي|ليا)\b",
-    r"\b(مراتي|مرتي|جوزي|راجلي)\b",
-    r"\bقلت ?لها (انتي|انت|انتِ) طالق\b",
-    r"\b(لا|ما) (استطيع|اقدر|اقوى)( علي)? (ان )?(اصوم|الصوم|الصيام|اصلي|الصلاه|اتوضا|الوضوء|احج|الحج|اغتسل|الغسل)\b",
-    r"\bi (can ?t|cannot|can not|am unable to) (fast|pray|make wudu|do wudu|perform hajj|go to hajj)\b",
-    r"\bi am (sick|ill|pregnant|breastfeeding|travell?ing|menstruating)\b",
-    r"\bwhat (is required of me|do i (have|need) to do|must i do)\b",
+    # Only what a scholar must hear the details of. A first-person question about worship, purity, fasting, zakat, an
+    # oath's expiation or food has a known ruling and is answered from the sources (an own illness or journey, «هل علي»,
+    # «يلزمني», «حلفت» are no longer referred); what stays is the wording of a divorce (whether it took place depends
+    # on the words and the intention) and a question that says its own details change the answer. Disputes over an
+    # inheritance or a right between people, and a contemporary matter with private facts, are told apart by the
+    # understanding step, which sets `personal`.
+    # The list rests on the books of adab al-fatwa, not on inference: ibn as-Salah, Adab al-Mufti pp. 115-116 and ibn Hamdan,
+    # Sifat al-Mufti p. 198 (no fatwa on oaths, confessions and wording unless one knows the speaker's usage); ibn al-Qayyim,
+    # I'lam al-Muwaqqi'in 1/25-26 (the fact must be known) and 6/92 (ask before ruling on a breach of an oath); an-Nawawi,
+    # Adab al-Fatwa pp. 45-46 (a ruling with kinds is answered by giving each kind its ruling) and pp. 44-45, 63-65 (what
+    # one does not know one holds back from: «I do not know», pointing to another mufti only if there is one).
+    r"\bفي حالتي\b", r"\bطلقت\b", r"\bقلت ?لها (انتي|انت|انتِ) طالق\b",
+    r"\bin my case\b", r"\bmy divorce\b",
 )]
 
 # matched on normalized text (أ/إ → ا, ؤ → و, ة → ه, ى → ي, no diacritics)
@@ -82,6 +81,12 @@ _CRISIS = [re.compile(p) for p in (
     r"\bkill myself\b", r"\bend my life\b", r"\bwant to die\b", r"\bhurt myself\b",
     r"\bi (?:want|am going|m going|will|plan) to (?:commit suicide|end it all)\b", r"\bthinking (?:about|of) (?:suicide|killing myself)\b",
     r"\bdon ?t want to live\b",
+    # Urdu (22 October 2026), on the same normalised text (آ → ا); ی/ي, ک/ك and ہ/ه are both allowed, as keyboards differ
+    r"خود ?[کك]ش[یي] (?:[کك]ر|[کك]رنا|[کك]رنے|[کك]روں|[کك]ر لوں|[کك]رلوں)",
+    r"(?:مرنا|مر جانا|مرجانا) چا[ہه]ت[اےی]",
+    r"(?:ج[یي]نا|زند[ہه] ر[ہه]نا) ن[ہه][یي]ں چا[ہه]ت[اےی]",
+    r"(?:خود|اپن[ےي] اپ) [کك]و (?:مار|ختم [کك]ر|نقصان پ[ہه]نچا)",
+    r"اپن[یي] جان ل[ےي]", r"زندگ[یي] ختم [کك]ر",
 )]
 
 _JUDGING = [re.compile(p) for p in (
@@ -99,6 +104,7 @@ _OVERRIDE = [re.compile(p) for p in (
 
 @dataclass(frozen=True)
 class Gate:
+    """The result of the safety check on a question: its kind, or None when it may proceed."""
     kind: str | None   # one of the constants above, or None when the question may proceed
     rule: str = ""     # the pattern that matched, for logs and tests
 
@@ -147,6 +153,7 @@ def product_words(question: str) -> tuple[str, ...]:
 
 
 def speaks_of(passage_text: str, words: tuple[str, ...]) -> bool:
+    """True when the passage text contains any of the words."""
     text = normalize(passage_text)
     return any(w in text for w in words)
 
@@ -159,7 +166,7 @@ def names_company(text: str) -> bool:
     return bool(_COMPANY.search(normalize(text)))
 
 
-_SUICIDE_TOPIC = re.compile(r"انتحار|انتحر|\bsuicid")
+_SUICIDE_TOPIC = re.compile(r"انتحار|انتحر|\bsuicid|خود ?[کك]ش[یي]")
 
 
 def mentions_suicide(question: str) -> bool:
@@ -168,6 +175,7 @@ def mentions_suicide(question: str) -> bool:
 
 
 def check(question: str) -> Gate:
+    """Check a question against the safety patterns in a fixed order and return the first kind that matches."""
     text = normalize(question)
     for kind, patterns in ((CRISIS, _CRISIS), (OVERRIDE, _OVERRIDE), (JUDGING_PEOPLE, _JUDGING),
                            (PERSONAL_CASE, _PERSONAL), (OUT_OF_SCOPE, _OUT_OF_SCOPE)):

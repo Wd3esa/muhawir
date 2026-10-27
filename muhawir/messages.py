@@ -1,6 +1,8 @@
 """Fixed user-facing texts. Answers themselves only come from passages."""
 
-LANGS = ("ar", "en")
+LANGS = ("ar", "en", "ur")
+# languages whose answers quote an approved translation of a verse beside it, never one of Muhawir's own
+TRANSLATED_LANGS = ("en", "ur")
 STYLES = ("kids", "youth", "extended", "newcomer")
 
 TEXT = {
@@ -39,15 +41,16 @@ TEXT = {
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
                             "إن كان لديك سؤال، فاكتبه وسأبحث عنه في المصادر، أو اسأل مختصًا.",
         "reexplain_lead": "لا بأس، سأشرح لك الجواب نفسه بطريقة أبسط:",
-        "partial_note": "ما في مصادري يجيب عن جزء من سؤالك فقط، وليس فيها ما يغطيه كله. فهذا ما وجدته، ولا أزيد عليه من عندي.",
+        "partial_note": "المصادر الموجودة تغطي بعض الكلمات",
         "ruling_note": "هذا عرض لأقوال العلماء كما وردت في المصدر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
         "ruling_note_agreed": "هذا ما ورد في المصادر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
-        "choose_lang": "يجيب مُحاور حاليًا بالعربية والإنجليزية فقط. بأي لغة تريد الجواب؟",
+        "choose_lang": "يجيب مُحاور حاليًا بالعربية والإنجليزية والأردية فقط. بأي لغة تريد الجواب؟",
         "closest_hadith": "لم أجد هذا الحديث بلفظه في المصادر المتاحة لي. أقرب نص وجدته في {where} "
                           "معروض أدناه، فقارن بينهما؛ فقد لا يكون هو المقصود.{grade} وللحكم على صحة حديث اسأل مختصًا في علم الحديث.",
         "closest_hadith_grade": " وحكم المحدث عليه كما في المصدر: {grade}.",
         "choose_ar": "بالعربية",
         "choose_en": "In English",
+        "choose_ur": "اردو میں",
         "translation_pending": "",
         "synthetic": "بيانات تجريبية مصطنعة للاختبار، وليست نصوصًا دينية.",
         "too_long": "السؤال طويل جدًا. اختصره من فضلك.",
@@ -94,22 +97,74 @@ TEXT = {
                             "give fatwas of my own. Ask your question and I will look for it in the "
                             "sources, or ask a qualified scholar.",
         "reexplain_lead": "No problem, I will explain the same answer again, more simply:",
-        "partial_note": "What is in my sources answers only part of your question; they do not cover all of it. This is what I found, and I add nothing of my own.",
+        "partial_note": "The available sources cover some of the words",
         "ruling_note": "This presents the scholars' views as the source states them; it is not a fatwa. "
                        "For a matter that concerns you, ask a qualified scholar.",
         "ruling_note_agreed": "This is what the sources state; it is not a fatwa. "
                               "For a matter that concerns you, ask a qualified scholar.",
-        "choose_lang": "Muhawir currently answers in Arabic and English only. Which language would you like the answer in?",
+        "choose_lang": "Muhawir currently answers in Arabic, English and Urdu only. Which language would you like the answer in?",
         "closest_hadith": "I could not find this hadith in these words in the sources available to me. The closest text I "
                           "found, in {where}, is shown below; compare them, as it may not be the one you "
                           "mean.{grade} To know whether a hadith is authentic, ask a specialist in hadith.",
         "closest_hadith_grade": " Its grading as the source gives it: {grade}.",
         "choose_ar": "بالعربية",
         "choose_en": "In English",
+        "choose_ur": "اردو میں",
         "translation_pending": "The quotation is shown in its original language. Translation will be "
                                "added once a language model is connected.",
         "synthetic": "Synthetic test data, not religious texts.",
         "too_long": "The question is too long. Please shorten it.",
         "empty": "Please type your question first.",
+    },
+    "ur": {
+        "abstain": "مجھے دستیاب معتبر مصادر میں اس سوال کا جواب نہیں ملا۔ "
+                   "آپ کسی مستند عالمِ دین سے پوچھ سکتے ہیں۔",
+        "no_reason": {"ayah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں اس آیت ({where}) کا کوئی سببِ نزول مذکور نہیں۔",
+                      "surah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں {where} کا کوئی سببِ نزول مذکور نہیں۔"},
+        "out_of_scope": "جدید مالی معاملات (جیسے بینک، ڈیجیٹل کرنسی، ٹریڈنگ اور انشورنس) کا حکم فتویٰ کے اداروں اور فقہی مجامع کے اجتہاد کا محتاج ہے، "
+                        "اور یہ میرے دائرے سے باہر ہے۔ براہِ کرم اپنے ملک کے کسی معتبر دارالافتاء یا فقہی مجامع کی قراردادوں سے رجوع کریں۔",
+        "unavailable": "سروس عارضی طور پر دستیاب نہیں، اس لیے میں ابھی تلاش کر کے جواب نہیں دے سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+        "small_talk": "خوش آمدید۔ اسلام کے بارے میں اپنا سوال لکھیے، میں اسے معتبر مصادر میں تلاش کروں گا۔",
+        "translation_label": "یہ لسانی ترجمہ ہے، مصادر سے جواب نہیں۔",
+        "verse_translation_label": "آیت کے معانی کا ترجمہ معتبر ترجمے کے مطابق ({where})، محاور کا اپنا ترجمہ نہیں۔",
+        "misquoted_verse": "تنبیہ: مصحف میں آیت ({where}) کے الفاظ یہ ہیں: ﴿{verse}﴾، نہ کہ «{quoted}»۔",
+        "verse_not_found": "میں قرآن کی آیات کا ترجمہ خود نہیں کرتا، بلکہ ان کے معانی کا معتبر ترجمہ نقل کرتا ہوں۔ مجھے یہ عبارت اپنے مصادر میں "
+                           "کسی آیت کے طور پر نہیں ملی، اس لیے اس کے الفاظ دیکھ لیں یا سورت کا نام اور آیت نمبر لکھیں۔",
+        "crisis": "مجھے افسوس ہے کہ آپ اس کیفیت سے گزر رہے ہیں۔ آپ جو محسوس کر رہے ہیں وہ اہم ہے، اور آپ اکیلے نہیں ہیں۔ براہِ کرم ابھی کسی "
+                  "قابلِ اعتماد شخص سے بات کریں: گھر کے کسی فرد یا قریبی دوست سے۔ اگر آپ خود کو نقصان پہنچانے کا سوچ رہے ہیں یا خطرہ محسوس "
+                  "کر رہے ہیں تو ابھی اپنے ملک کے ہنگامی نمبر پر فون کریں یا قریبی ہسپتال جائیں، یا کسی ماہرِ نفسیات سے رابطہ کریں۔ "
+                  "آپ اور آپ کی زندگی دیکھ بھال کے مستحق ہیں۔",
+        "care_note": "اگر یہ سوال آپ سے یا آپ کے کسی عزیز سے متعلق ہے تو ابھی کسی قابلِ اعتماد شخص سے بات کریں، "
+                     "اور اگر کوئی خطرے میں ہو تو اپنے ملک کے ہنگامی نمبر پر فون کریں۔",
+        "comfort": "مجھے آپ کے دکھ پر افسوس ہے۔ اللہ آپ کے بچھڑنے والے پر رحم فرمائے اور آپ کے دل کو صبر دے۔ اگر آپ اپنی کیفیت مجھے بتانا چاہیں، "
+                   "یا مصیبت پر صبر کے بارے میں مصادر کی باتیں سننا چاہیں، تو میں آپ کے ساتھ ہوں۔",
+        "no_question_after_answer": "لگتا ہے میرا جواب واضح نہیں تھا یا وہ نہیں تھا جو آپ چاہتے تھے۔ کیا میں اسے آسان انداز میں سمجھاؤں؟ یا اپنا سوال کسی اور طرح لکھیں، میں دوبارہ کوشش کروں گا۔",
+        "did_you_mean": "لگتا ہے کی بورڈ انگریزی پر تھا۔ کیا آپ کا مطلب ہے: «{guess}»؟",
+        "no_question": "میں یہاں آپ سے بات کرنے اور معتبر مصادر سے اسلام کے بارے میں آپ کے سوالوں کے جواب دینے کے لیے ہوں۔ آپ کیا جاننا چاہتے ہیں؟",
+        "thanks": "آپ کا بھی شکریہ، اللہ آپ کو برکت دے۔ اگر کوئی اور سوال ہو تو لکھیے۔",
+        "personal_case": "آپ کا سوال ایک ذاتی معاملے کے بارے میں ہے، اور اس کا حکم کسی ایسے مستند مفتی کے فتوے کا محتاج ہے جو اس کی تفصیل سنے۔ "
+                         "براہِ کرم اپنے ملک کے کسی معتبر دارالافتاء سے پوچھیں۔",
+        "personal_case_info": "یہ مصادر سے عمومی معلومات ہیں، آپ کے معاملے کا حکم نہیں:",
+        "contemporary_info": "میں کسی خاص معاملے یا پروڈکٹ پر خود حکم نہیں لگاتا، اس کے لیے معاہدے کی تفصیل جاننے والے سے فتویٰ درکار ہے۔ "
+                             "مصادر میں علما کے فتاویٰ اور اقوال میں سے جو ملا، وہ جوں کا توں ان سے منقول ہے:",
+        "judging_people": "میں متعین افراد یا جماعتوں پر حکم نہیں لگاتا، یہ میرے دائرے سے باہر ہے۔ "
+                          "میں آپ کو بتا سکتا ہوں کہ معتبر مصادر خود ان تصورات کے بارے میں کیا کہتے ہیں۔",
+        "override_attempt": "میں اپنا طریقہ نہیں بدل سکتا: میں صرف معتبر مصادر سے جواب دیتا ہوں اور اپنی رائے سے فتویٰ نہیں دیتا۔ "
+                            "اپنا سوال لکھیے، میں اسے مصادر میں تلاش کروں گا، یا کسی مستند عالم سے پوچھیں۔",
+        "reexplain_lead": "کوئی بات نہیں، میں وہی جواب آسان انداز میں دوبارہ سمجھاتا ہوں:",
+        "partial_note": "دستیاب مصادر کچھ الفاظ کا احاطہ کرتے ہیں",
+        "ruling_note": "یہ علما کے اقوال کا بیان ہے جیسے مصدر میں آئے ہیں، فتویٰ نہیں۔ اپنے کسی معاملے پر عمل کے لیے کسی مستند عالم سے پوچھیں۔",
+        "ruling_note_agreed": "یہ وہ ہے جو مصادر میں آیا ہے، فتویٰ نہیں۔ اپنے کسی معاملے پر عمل کے لیے کسی مستند عالم سے پوچھیں۔",
+        "choose_lang": "محاور فی الحال صرف عربی، انگریزی اور اردو میں جواب دیتا ہے۔ آپ کس زبان میں جواب چاہتے ہیں؟",
+        "closest_hadith": "مجھے یہ حدیث ان الفاظ کے ساتھ اپنے مصادر میں نہیں ملی۔ سب سے قریب عبارت جو {where} میں ملی، نیچے دی گئی ہے؛ "
+                          "دونوں کا موازنہ کر لیں، ممکن ہے یہ وہ نہ ہو جو آپ کی مراد ہے۔{grade} کسی حدیث کی صحت جاننے کے لیے علمِ حدیث کے ماہر سے پوچھیں۔",
+        "closest_hadith_grade": " مصدر کے مطابق محدث کا حکم: {grade}۔",
+        "choose_ar": "بالعربية",
+        "choose_en": "In English",
+        "choose_ur": "اردو میں",
+        "translation_pending": "اقتباس اپنی اصل زبان میں دکھایا گیا ہے۔ لسانی ماڈل جڑنے کے بعد ترجمہ شامل ہوگا۔",
+        "synthetic": "جانچ کے لیے مصنوعی ڈیٹا، دینی متون نہیں۔",
+        "too_long": "سوال بہت لمبا ہے۔ براہِ کرم اسے مختصر کریں۔",
+        "empty": "پہلے اپنا سوال لکھیے۔",
     },
 }

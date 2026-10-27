@@ -19,12 +19,14 @@ MIN_COVERAGE = 0.5   # share of distinct question terms found in the best passag
 
 @dataclass(frozen=True)
 class Hit:
+    """A passage found by a search, with its score and the share of the question's words it contains."""
     passage: Passage
     score: float
     coverage: float
 
 
 class Retriever:
+    """BM25 search over the passages held in memory."""
     def __init__(self, corpus: Corpus, k1: float = 1.5, b: float = 0.75) -> None:
         self.corpus = corpus
         self.k1, self.b = k1, b
@@ -38,6 +40,7 @@ class Retriever:
         self.idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
+        """The best k passages for a question, by BM25 score."""
         terms = list(dict.fromkeys(tokenize(question)))
         if not terms:
             return []
@@ -59,4 +62,5 @@ class Retriever:
 
 def is_sufficient(hits: list[Hit], min_score: float = MIN_SCORE,
                   min_coverage: float = MIN_COVERAGE) -> bool:
+    """True when the best hit is strong enough to answer from."""
     return bool(hits) and hits[0].score >= min_score and hits[0].coverage >= min_coverage

@@ -49,6 +49,7 @@ _POEM = re.compile(r"^(?:شعر|قصيده|رثاء|مرثي|ارتجاز|رجز
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -61,6 +62,7 @@ def _heading(line: str) -> str:
 
 
 def is_poem(heading: str) -> bool:
+    """True when a heading is the title of a poem."""
     return bool(_POEM.match(normalize(heading)))
 
 
@@ -77,6 +79,7 @@ def parse(text: str) -> list[dict]:
     skipping = False
 
     def add_piece(piece: str) -> None:
+        """Add a cleaned piece of text to the section being read; text outside any section is ignored."""
         piece = _clean(piece)
         if piece and current is not None:
             current["pieces"].append((piece, len(ends)))
@@ -141,6 +144,7 @@ def build(text: str, min_passages: int = MIN_PASSAGES) -> tuple[dict, list[dict]
     group: list[dict] = []
 
     def flush() -> None:
+        """Write the paragraphs gathered so far as one passage, then start a new group."""
         if not group:
             return
         pages = [pg for p in group for pg in p["pages"]]

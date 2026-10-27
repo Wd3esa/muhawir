@@ -52,6 +52,7 @@ _SAYING = re.compile(r"^حديث\s*[:.]\s*([^،؛.]+)")
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 

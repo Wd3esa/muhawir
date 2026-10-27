@@ -36,6 +36,7 @@ CREDIT = {
 
 
 def person(source_id: str, lang: str = "ar") -> str:
+    """The person a source is credited to, as a view label, in the given language; empty if the source has none."""
     names = PERSON.get(source_id)
     return (names[1] if lang == "en" else names[0]) if names else ""
 
@@ -46,6 +47,7 @@ def label(source_id: str) -> str:
 
 
 def credit(source_id: str, lang: str = "ar") -> str:
+    """How a source is named when a sentence is credited to it, in the given language; empty if it has no name listed."""
     names = CREDIT.get(source_id)
     return (names[1] if lang == "en" else names[0]) if names else ""
 
@@ -151,26 +153,37 @@ _SAYS_EN = re.compile(r"\b(?:according|said|says|held|holds|ruled|stated|states|
                       r"narrated|scholars|jurists|the prophet|allah|sheikh|imam)\b|ﷺ", re.IGNORECASE)
 
 
+# Urdu (22 October 2026): the same rulings in the words Urdu uses, and the words that say whose they are
+_RULING_UR = frozenset(normalize(w) for w in (
+    "ناجائز", "جائز", "مکروہ", "مکروه", "سنت", "واجب", "فرض", "حرام", "حلال", "مستحب", "مباح", "باطل", "فاسد"))
+_SAYS_UR = frozenset(normalize(w) for w in (
+    "کہا", "کہتے", "فرمایا", "فرماتے", "مطابق", "رائے", "علما", "علماء", "فقہا", "فقہاء", "جمہور", "روایت", "مفتی",
+    "شیخ", "امام", "نبی", "رسول", "تعالیٰ", "فتویٰ", "ﷺ"))
+
+
 def gives_ruling(text: str, lang: str = "ar") -> bool:
+    """True when the sentence states a ruling (permitted, forbidden, obligatory and so on) in the given language."""
     if lang == "en":
         return bool(_RULING_EN.search(text))
     words = normalize(text).split()
     plain = set(words) | {f"{a} {b}" for a, b in zip(words, words[1:])}
-    return bool(plain & _RULING)
+    return bool(plain & (_RULING | _RULING_UR if lang == "ur" else _RULING))
 
 
 def prefers(text: str) -> bool:
+    """True when the sentence opens with a word that says which view is preferred."""
     words = normalize(text).split()
     return bool(words) and words[0] in _PREFERS
 
 
 def says_who(text: str, lang: str = "ar") -> bool:
+    """True when the sentence says whose word it reports («وقال», according to, كها and similar) or carries the blessing formula."""
     if lang == "en":
         return bool(_SAYS_EN.search(text))
     words = set(normalize(text).split())
     # «وقال», «وسُئل», «فأجاب»: the same words with a joining letter in front
     words |= {w[1:] for w in words if w[:1] in "وف" and len(w) > 3}
-    return bool(words & _SAYS) or "ﷺ" in text
+    return bool(words & (_SAYS | _SAYS_UR if lang == "ur" else _SAYS)) or "ﷺ" in text
 
 
 def credited(text: str, passage_ids, corpus, lang: str = "ar") -> str | None:
@@ -188,4 +201,6 @@ def credited(text: str, passage_ids, corpus, lang: str = "ar") -> str | None:
     if lang == "en":
         who = " and ".join(names)
         return f"According to {who}, {text[:1].lower() + text[1:]}"
+    if lang == "ur":
+        return f"{' اور '.join(names)} کے مطابق، {text}"
     return f"بحسب {' و'.join(names)}، {text}"

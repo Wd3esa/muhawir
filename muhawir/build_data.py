@@ -75,6 +75,7 @@ def download_hadith(folder: Path) -> None:
     for book in aqeedah.BOOKS.values():
         _fetch(list(book["download"]), folder / book["file"])
     _fetch(list(translation.DOWNLOAD), folder / translation.FILE)
+    _fetch(list(translation.UR_DOWNLOAD), folder / translation.UR_FILE)
     _fetch(list(wordforms.AWN_DOWNLOAD), folder / wordforms.AWN_FILE)
     if not (folder / bayyinat.FILE).exists():
         try:  # one site: if it cannot be reached, the other sources are still built
@@ -85,6 +86,7 @@ def download_hadith(folder: Path) -> None:
 
 
 def download(folder: Path) -> None:
+    """Download every source file into the folder."""
     folder.mkdir(parents=True, exist_ok=True)
     for name in (MUSHAFS_ZIP, TOPICS_FILE, TAFSIR_FILE, ASBAB_FILE):
         _fetch([BASE + name], folder / name)
@@ -96,6 +98,7 @@ def _load_gz(data: bytes) -> dict:
 
 
 def read_mushaf(folder: Path) -> dict:
+    """Read the Hafs mushaf dump from the folder, directly or from the mushafs zip."""
     direct = folder / MUSHAF_FILE
     if direct.exists():
         return _load_gz(direct.read_bytes())
@@ -105,6 +108,7 @@ def read_mushaf(folder: Path) -> dict:
 
 
 def build(folder: Path, out: Path) -> int:
+    """Build the corpus from the files in the folder, write it to the database and return the number of passages."""
     mushaf = read_mushaf(folder)
     topics = _load_gz((folder / TOPICS_FILE).read_bytes())
     tafsir = _load_gz((folder / TAFSIR_FILE).read_bytes())
@@ -137,6 +141,10 @@ def build(folder: Path, out: Path) -> int:
         translation.add_to_corpus(corpus, (folder / translation.FILE).read_text(encoding="utf-8"))
     else:
         print("note: the English translation of the Quran is not in this folder; add it with --get-hadith")
+    if (folder / translation.UR_FILE).exists():
+        translation.add_urdu_to_corpus(corpus, (folder / translation.UR_FILE).read_text(encoding="utf-8"))
+    else:
+        print("note: the Urdu translation of the Quran is not in this folder; add it with --get-hadith")
     texts = {sid: (folder / book["file"]).read_text(encoding="utf-8")
              for sid, book in aqeedah.BOOKS.items() if (folder / book["file"]).exists()}
     if texts:
@@ -192,6 +200,7 @@ def build(folder: Path, out: Path) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Command-line entry point: download the sources and/or build the database."""
     parser = argparse.ArgumentParser(description="Build data/muhawir.db from Quranpedia dumps")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--download", action="store_true", help="download the dumps into data/dumps")

@@ -71,6 +71,7 @@ _KEYWORDS = re.compile(r"^كلمات دلالية\s*:\s*")
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -272,6 +273,7 @@ def build(lines: list[dict], min_questions: int = MIN_QUESTIONS) -> tuple[dict, 
             group: list[tuple[int, str]] = []
 
             def flush() -> None:
+                """Write the gathered paragraphs as one question-and-answer passage, then start a new group."""
                 if not group:
                     return
                 pages = [p for p, _ in group]

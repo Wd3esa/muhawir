@@ -6,6 +6,8 @@ stopped, and never answers when retrieval found nothing sufficient.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import copy
 import json
 import logging
@@ -21,7 +23,7 @@ from . import attribution, bayyinat, bidaya, classify, keyboard, quran_count, re
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
-from .messages import LANGS, STYLES, TEXT
+from .messages import LANGS, STYLES, TEXT, TRANSLATED_LANGS
 from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
@@ -53,8 +55,38 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_meaning": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
 _stats_lock = threading.Lock()
+
+
+SEARCH_THREADS = max(1, int(os.environ.get("MUHAWIR_SEARCH_THREADS", "4")))  # 1 = one phrase after the other
+_progress: "contextvars.ContextVar" = contextvars.ContextVar("muhawir_progress", default=None)
+
+
+def progress(stage: str, data=None) -> None:
+    """Tell whoever waits for this answer which stage it has reached (Server-ask stream); no listener: nothing."""
+    listener = _progress.get()
+    if listener is not None:
+        try:
+            listener(stage, data)
+        except Exception:  # a closed connection must never break the answer
+            log.debug("progress listener failed", exc_info=True)
+
+
+TIMING = os.environ.get("MUHAWIR_TIMING", "") == "1"  # one log line per new answer: the seconds of each step
+_steps: "contextvars.ContextVar" = contextvars.ContextVar("muhawir_steps", default=None)
+
+
+@contextlib.contextmanager
+def _timed(step: str):
+    """Step-timing: adds the seconds of one step to this answer's timing line (MUHAWIR_TIMING=1). Never the question."""
+    started = time.time()
+    try:
+        yield
+    finally:
+        steps = _steps.get()
+        if steps is not None:
+            steps[step] = steps.get(step, 0.0) + time.time() - started
 
 
 def _stat(name: str, add: float = 1) -> None:
@@ -63,7 +95,8 @@ def _stat(name: str, add: float = 1) -> None:
 CACHED = frozenset({"answered", "referred", "declined", "abstained", "translated"})
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _CHOOSE_LANG = {TEXT[lang]["choose_lang"] for lang in TEXT}
-_CHOICES = {normalize(TEXT[lang][k]): v for lang in TEXT for k, v in (("choose_ar", "ar"), ("choose_en", "en"))}
+_CHOICES = {normalize(TEXT[lang][k]): v for lang in TEXT
+            for k, v in (("choose_ar", "ar"), ("choose_en", "en"), ("choose_ur", "ur"))}
 # the message says the text is a verse («ترجم الآية…», «قوله تعالى», ﴿…﴾, "translate this ayah")
 _VERSE_HINT = re.compile(r"[﴿﴾]|\bتعالى\b|\bالآي[ةه]\b|\bآي[ةه]\b|\bسور[ةه]\b|\bالقرآن\b|\b(?:verse|ayah|aya|surah|sura|quran|qur'an)\b",
                          re.IGNORECASE)
@@ -104,6 +137,7 @@ KIDS_LONGEST = 18
 
 
 def fit_style(answer: list, style: str, listing: bool) -> list:
+    """Cut an answer to the length its style allows; for children the longest sentences go first."""
     prose, items = STYLE_LIMITS.get(style, STYLE_LIMITS["youth"])
     limit = items if listing else prose
     if style == "kids" and len(answer) > limit:
@@ -261,6 +295,18 @@ def _confused(passage: Passage, user_words: str) -> bool:
     words = set(tokenize(user_words))  # whole words: «الإقراض» (lending) is not «القراض»
     return any(any(h in heading for h in c["heading"]) and not words & set(c["user"]) for c in CONFUSABLE)
 _LATIN = re.compile(r"[A-Za-z]{2,}")
+# letters Urdu writes and Arabic does not (ٹ ڈ ڑ ں ھ ہ ے ۓ): Urdu is in the Arabic script, so a question with any of
+# them is Urdu, not Arabic (22 October 2026)
+_URDU = re.compile(r"[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]")
+
+
+def script_lang(text: str, fallback: str) -> str:
+    """The language a text is written in, as far as its letters tell: Urdu, Arabic or English."""
+    if _URDU.search(text or ""):
+        return "ur"
+    if _ARABIC.search(text or ""):
+        return "ar"
+    return "en" if _LATIN.search(text or "") else fallback
 # a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
 # or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
 _ASKS_FOR_KINDS = re.compile(r"(?<!\w)[وفبل]?(?:ال)?(?:انواع|اقسام)")
@@ -285,13 +331,14 @@ def _still_a_question(message: str, turns: list[dict]) -> bool:
     return "؟" in message or "?" in message or (len(words) >= 2 and bool(set(words) & _ASK_WORDS))
 ALL_MODELS_FAILED = "every model call failed"
 DEBUG = os.environ.get("MUHAWIR_DEBUG") == "1"  # adds the reason for not answering to each response
-log = logging.getLogger("muhawir")
+log = logging.getLogger(__name__)
 MAX_HISTORY_TURNS = 6
 MAX_TURN_CHARS = 600
 
 
 @dataclass
 class Response:
+    """What the server returns for a question: a status, a message or the claims with their sources, and the optional parts the page shows."""
     status: str
     message: str
     claims: list[dict] = field(default_factory=list)
@@ -308,6 +355,7 @@ class Response:
     by_code: bool = False  # counted or quoted by code with no model (a word count, a verse shown): nothing to detail
 
     def to_dict(self) -> dict:
+        """The response as a plain dict, ready for JSON."""
         return asdict(self)
 
 
@@ -361,8 +409,9 @@ def _referral_kind(res: Response, question: str) -> str:
         return ""  # the fixed caring reply already points to people and the emergency number; no card
     if any(res.message in (t["out_of_scope"], t["contemporary_info"]) for t in texts.values()):
         return "finance"
-    if res.status == REFERRED or (res.status == ABSTAINED and any(res.message == t["abstain"] for t in texts.values())):
-        return "fatwa"  # a personal case, or nothing in the sources: a scholar (not for «no reason of revelation»)
+    if res.status == REFERRED:
+        return "fatwa"  # a case that needs a scholar. Nothing in the sources is not a referral: the sources were silent, and
+        # the books of adab al-fatwa say to hold back and say «I do not know» (an-Nawawi, Adab al-Fatwa, pp. 13-19, 44-45)
     if res.status == ANSWERED and referrals.wants_to_become_muslim(question):
         return "newcomer"
     if res.status == ANSWERED and any(res.note == t["ruling_note"] for t in texts.values()):
@@ -576,11 +625,15 @@ def _copies_a_source(text: str, translations: tuple[str, ...] = (), hadiths: tup
     the words of the Prophet ﷺ quoted as they are in a hadith passage («بُني الإسلام على خمس…»): a hadith is quoted,
     not retold in other words (21 October 2026). `hadiths` are the hadith passages, normalized."""
     def approved(quote: str) -> bool:
+        """True when the quotation is the exact text of a hadith or of an approved translation."""
         inner = " ".join(quote.strip('"“”').split()).lower()
+        plain = inner.strip("«»").strip()
         if inner.startswith("«") and hadiths:
-            said = normalize(inner.strip("«»"))
-            return bool(said) and any(said in h for h in hadiths)
-        return bool(inner) and any(inner in t for t in translations)
+            said = normalize(plain)
+            if said and any(said in h for h in hadiths):
+                return True
+        # an Urdu answer quotes the approved Urdu translation between «» as well as ""
+        return bool(plain) and any(plain in t for t in translations)
     quoted = sum(len(m.group(0).split()) for m in _COPIED.finditer(text) if not approved(m.group(0)))
     return quoted > 0 and quoted / max(1, len(text.split())) > MAX_QUOTED_SHARE
 
@@ -621,6 +674,7 @@ class AnswerStore:
         return json.dumps(key, ensure_ascii=False)
 
     def get(self, key: tuple) -> Response | None:
+        """The kept reply for this key while it is current (same version, not older than STORE_SECONDS), else None."""
         with self._lock:
             row = self._db.execute("SELECT at, reply FROM replies WHERE key = ? AND version = ?",
                                    (self._key(key), self.version)).fetchone()
@@ -632,6 +686,7 @@ class AnswerStore:
             return None
 
     def put(self, key: tuple, res: Response) -> None:
+        """Keep a reply and trim the oldest ones beyond STORE_SIZE."""
         with self._lock:
             self._db.execute("INSERT OR REPLACE INTO replies VALUES (?, ?, ?, ?)",
                              (self._key(key), self.version, time.time(), json.dumps(res.to_dict(), ensure_ascii=False)))
@@ -644,12 +699,14 @@ class AnswerStore:
             return self._db.execute("SELECT COUNT(*) FROM replies").fetchone()[0]
 
     def delete(self, key: tuple) -> None:
+        """Forget the reply kept for this key."""
         with self._lock:
             self._db.execute("DELETE FROM replies WHERE key = ?", (self._key(key),))
             self._db.commit()
 
 
 class Muhawir:
+    """The question-answering pipeline: understand the question, search the corpus, write from the passages, check every sentence, and keep answers in memory and on disk."""
     def __init__(self, corpus: Corpus, generator: Generator, retriever=None, store: AnswerStore | None = None) -> None:
         self.corpus = corpus
         self.retriever = retriever or Retriever(corpus)
@@ -662,6 +719,47 @@ class Muhawir:
         self._inflight: dict = {}  # question key -> lock: the same question arriving twice at once is written once
         self._quran_index: quran_count.QuranIndex | None = None  # built on the first counting question
         self._quran_index_lock = threading.Lock()
+        self._vowel_lexicon: dict | None = None  # built on the first vowelling request that asks for it
+        self._vowel_pairs: dict = {}
+        self._vowel_lexicon_lock = threading.Lock()
+
+    def _vowel_books(self) -> None:
+        """Build, once, what the vowelled books agree on (tashkeel.build_lexicon and build_pairs). Only passages the book
+        itself vowels (the verses, the hadith, the vowelled commentaries) are read: a partly vowelled one would teach
+        that a word is written without its vowels."""
+        from . import tashkeel
+        with self._vowel_lexicon_lock:
+            if self._vowel_lexicon is None:
+                con = getattr(self.corpus, "con", None)
+                if con is not None:
+                    rows = (r[0] for r in con.execute("SELECT text FROM passages WHERE kind IN ('quran', 'hadith', 'tafsir')"))
+                else:
+                    rows = (p.text for p in self.corpus.passages if p.kind in ("quran", "hadith", "tafsir"))
+                texts = [t for t in rows if tashkeel.mostly_vowelled(t)]
+                self._vowel_pairs = tashkeel.build_pairs(texts)
+                self._vowel_lexicon = tashkeel.build_lexicon(texts)
+                log.info("vowel lexicon: %d words and %d word pairs the vowelled books agree on",
+                         len(self._vowel_lexicon), len(self._vowel_pairs))
+
+    def vowel_stem(self, plain_word: str):
+        """What the vowelled books (the verses, the hadith and the vowelled commentaries, whose vowels are the books' own)
+        agree on for a word written without vowels: (head, tail, usual ending), or None. Built once, on first use."""
+        self._vowel_books()
+        return self._vowel_lexicon.get(plain_word)
+
+    def vowel_pair(self, previous: str, plain_word: str):
+        """The same for a word after a given word (both written without vowels): where a word alone is read several ways
+        and the word before decides. None when the books do not agree."""
+        self._vowel_books()
+        return self._vowel_pairs.get((previous, plain_word))
+
+    def vowelled_form(self, word: str) -> str | None:
+        """The way the mushaf writes a word, with its vowels, when it writes it one way only; None otherwise. Used to
+        vowel a lone heading word («غورا» → «غَوْرًا»), which the vowelling tool cannot guess without a sentence."""
+        with self._quran_index_lock:
+            if self._quran_index is None:
+                self._quran_index = quran_count.QuranIndex.from_corpus(self.corpus)
+        return self._quran_index.vowelled_forms().get(normalize(word))
 
     def _count_reply(self, word: str, surah: str, root_asked: bool, lang: str) -> Response:
         """«كم مرة وردت كلمة الرشد في القرآن»: counted by code over every verse, with each place listed and cited.
@@ -737,7 +835,8 @@ class Muhawir:
         tidy = [_without_inference(_without_ids(_resolve_ids(c, allowed), allowed)) for c in draft]
         return [c for c in tidy if c.text]
 
-    def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = ""):
+    def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = "",
+                 early: dict | None = None):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
         second reading against the cited passages and the question. None when the second reading could not run."""
         shape = [Rejected(c, "starts with a conclusion of its own") for c in draft if _opens_with_conclusion(c.text)]
@@ -749,10 +848,18 @@ class Muhawir:
         # form or synonym are put to the model, and the sentence goes only when it confirms they are not there
         invented = {}
         judge = getattr(self.generator, "judge_definition", None)
+        cases = []
         for c in kept:
             texts = [corpus.passage(pid).text for pid in c.passage_ids]
             suspects = invented_definition(c.text, texts, question)
-            absent = judge(c.text, suspects, texts) if suspects and judge else None
+            if suspects and judge:
+                cases.append((c, suspects, texts))
+        if len(cases) > 1:  # Definition-parallel: the model reads every suspect sentence at the same time
+            with ThreadPoolExecutor(max_workers=min(SEARCH_THREADS, len(cases))) as pool:
+                verdicts = list(pool.map(lambda case: judge(case[0].text, case[1], case[2]), cases))
+        else:
+            verdicts = [judge(c.text, suspects, texts) for c, suspects, texts in cases]
+        for (c, _, _), absent in zip(cases, verdicts):
             if absent:
                 invented[id(c)] = absent
         rejected += [Rejected(c, f"definition not in the source's words: {', '.join(invented[id(c)])}")
@@ -777,6 +884,13 @@ class Muhawir:
         check = getattr(self.generator, "check_support", None)
         if kept and check:
             by_id = {p.id: p for p in passages}
+            judge_now = getattr(self.generator, "judge_relevance", None)
+            if early is not None and judge_now:
+                # Judge-early: the relevance judge reads the sentences while the support check reads them too; its
+                # verdict is used only if the check keeps every sentence unchanged, else it is asked again
+                early["claims"] = list(kept)
+                early["pool"] = ThreadPoolExecutor(max_workers=1)
+                early["future"] = early["pool"].submit(judge_now, question, list(kept), by_id)
             flags = check(kept, by_id, question)
             if flags is None:
                 return None
@@ -913,10 +1027,25 @@ class Muhawir:
         said = set(tokenize(f"{original} {question}"))
         extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
-        lists = [[h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
-                  and h.coverage >= MODEL_MIN_COVERAGE
-                  and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
-                 for query in queries]
+        emit = _progress.get()  # taken here: the searches below run in other threads
+
+        def found(query: str) -> list:
+            hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
+                    and h.coverage >= MODEL_MIN_COVERAGE
+                    and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
+            if emit is not None and hits:  # Source-names: the books this search reached, shown as the status line
+                try:
+                    emit("source", list(dict.fromkeys(self.corpus.source_of(h.passage).name for h in hits)))
+                except Exception:
+                    log.debug("source names not sent", exc_info=True)
+            return hits
+        # Search-parallel: each phrase is searched at the same time (the vector scan and the query embedding run
+        # outside Python's lock), in the order of the phrases, so the result is the same as one after the other
+        if len(queries) > 1 and SEARCH_THREADS > 1:
+            with ThreadPoolExecutor(max_workers=min(SEARCH_THREADS, len(queries))) as pool:
+                lists = list(pool.map(found, queries))
+        else:
+            lists = [found(query) for query in queries]
         # take turns between the phrases, so one long phrase with high scores cannot fill every place
         for rank in range(MODEL_CANDIDATES):
             for hits in lists:
@@ -939,19 +1068,24 @@ class Muhawir:
         """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
-        if lang == "en":  # an English answer quotes the approved translation of a verse, never its own
-            passages = [replace(p, translation=self._translation(p)) if p.kind == "quran" else p for p in passages]
+        if lang in TRANSLATED_LANGS:  # an English or Urdu answer quotes the approved translation of a verse, never its own
+            passages = [replace(p, translation=self._translation(p, lang=lang)) if p.kind == "quran" else p
+                        for p in passages]
         allowed = {p.id for p in passages}
         corpus = self.corpus
         if hasattr(self.generator, "last_note"):
             self.generator.last_note = self.generator.last_raw = ""
             self.generator.last_as_list = False
             self.generator.last_follow_up = ""
-        draft = self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed)
+        with _timed("draft"):
+            draft = self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed)
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
-        result = self._checked(draft, corpus, allowed, passages, question)
+        progress("checking")
+        early: dict = {}
+        with _timed("check"):
+            result = self._checked(draft, corpus, allowed, passages, question, early)
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "support check could not run")
@@ -963,9 +1097,10 @@ class Muhawir:
             """One full rewrite from the feedback, checked again; kept only if it leaves more sentences."""
             nonlocal kept, rejected, rewritten
             rewritten = True
-            redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
-                                              **extra)
-            second = self._checked(self._tidy(redraft, allowed), corpus, allowed, passages, question) if redraft else None
+            with _timed("rewrite"):
+                redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
+                                                  **extra)
+                second = self._checked(self._tidy(redraft, allowed), corpus, allowed, passages, question) if redraft else None
             if second is not None and len(second[0]) > len(kept):
                 kept, rejected = second
 
@@ -974,12 +1109,19 @@ class Muhawir:
             # answer: ask once for a full rewrite that avoids the rejected sentences, then check it again
             rewrite(_feedback(rejected))
         judge = getattr(self.generator, "judge_relevance", None)
-        verdict = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+        with _timed("relevance"):
+            if early.get("future") is not None and not rewritten and kept == early["claims"]:
+                verdict = early["future"].result()  # already read while the support check ran
+            else:
+                verdict = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+        if early.get("pool") is not None:
+            early["pool"].shutdown(wait=False)
         partial = verdict == "partly"
         if partial and not rewritten and can_review:  # it answers only part of what was asked
             rewrite(_feedback(rejected, incomplete=True))
             # the rewrite may now cover the question: it is judged again, and a notice is kept only if it still does not
-            again = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+            with _timed("relevance"):
+                again = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
             partial = again != "yes"
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
@@ -1015,10 +1157,11 @@ class Muhawir:
             card = {"passage_id": p.id, "quote": p.text, "location": p.location,
                     "kind": p.kind, "grade": p.grade, "topics": p.keywords, "source_name": s.name,
                     "source_about": s.about, "source_url": s.url}
-            translation = self._translation(p, corpus) if p.kind == "quran" and lang == "en" else ""
+            translation = self._translation(p, corpus, lang) if p.kind == "quran" and lang in TRANSLATED_LANGS else ""
             if translation:
                 card["translation"] = translation
-                card["translation_name"] = getattr(corpus, "translation_name", "")
+                card["translation_name"] = (corpus.translation_name_for(lang) if hasattr(corpus, "translation_name_for")
+                                            else getattr(corpus, "translation_name", ""))
             cards.append(card)
         return cards
 
@@ -1101,8 +1244,8 @@ class Muhawir:
         parts = verse.id.split(":")
         surah = verse.location.split("،")[0].strip()
         if len(parts) == 3 and surah:
-            res.follow_up = (f"ما تفسير الآية {parts[2]} من {surah}؟" if lang != "en"
-                             else f"What does verse {parts[2]} of {surah} mean?")
+            res.follow_up = {"en": f"What does verse {parts[2]} of {surah} mean?",
+                             "ur": f"{surah} کی آیت {parts[2]} کی تفسیر کیا ہے؟"}.get(lang, f"ما تفسير الآية {parts[2]} من {surah}؟")
         return res
 
     def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
@@ -1133,11 +1276,11 @@ class Muhawir:
         Three or fewer words that merely occur in a verse («الله أكبر» is in al-Ankabut 45) are not taken for
         one unless the message says it is a verse or the text is written with the Quran's diacritics."""
         said_verse = bool(_VERSE_HINT.search(question) or _VERSE_HINT.search(text)) or _vocalised(text)
-        verse = self._verse(text) if target == "en" else None
+        verse = self._verse(text) if target in TRANSLATED_LANGS else None
         if verse is not None and (said_verse or len(normalize(text).split()) >= 4):
-            translation = self._translation(verse)
+            translation = self._translation(verse, lang=target)
             if translation:
-                return Response(TRANSLATED, translation, sources=self._cards([verse.id], lang="en"),
+                return Response(TRANSLATED, translation, sources=self._cards([verse.id], lang=target),
                                 synthetic=self.corpus.synthetic,
                                 note=TEXT[lang]["verse_translation_label"].format(where=verse.location))
             return Response(ABSTAINED, TEXT[lang]["verse_not_found"], synthetic=self.corpus.synthetic)
@@ -1145,9 +1288,9 @@ class Muhawir:
             return Response(ABSTAINED, TEXT[lang]["verse_not_found"], synthetic=self.corpus.synthetic)
         return None
 
-    def _translation(self, passage: Passage, corpus=None) -> str:
+    def _translation(self, passage: Passage, corpus=None, lang: str = "en") -> str:
         lookup = getattr(corpus or self.corpus, "translation", None)
-        return lookup(passage.id) if lookup else ""
+        return lookup(passage.id, lang) if lookup else ""
 
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
             history: list[dict] | None = None) -> Response:
@@ -1211,10 +1354,25 @@ class Muhawir:
 
     def _answer_new(self, question: str, style: str, lang: str, history: list[dict] | None, key) -> Response:
         started = time.time()
-        res = self._ask_once(question, style, lang, history)
+        token = _steps.set({})
+        try:
+            res = self._ask_once(question, style, lang, history)
+        finally:
+            steps = _steps.get()
+            _steps.reset(token)
+        took = time.time() - started
         _stat("written")
-        _stat("written_seconds", time.time() - started)
-        if key and res.status in CACHED and not res.why:
+        _stat("written_seconds", took)
+        if TIMING:
+            log.warning("timing answer %.1fs status=%s %s", took, res.status,
+                        " ".join(f"{k}={v:.1f}" for k, v in steps.items()))
+        if key:
+            self._keep(key, res)
+        return res
+
+    def _keep(self, key: tuple, res: Response) -> None:
+        """Keep a checked reply in memory and on disk under this question, style and language."""
+        if res.status in CACHED and not res.why:
             with self._cache_lock:
                 self._cache[key] = (time.time(), copy.deepcopy(res))
                 self._cache.move_to_end(key)
@@ -1224,8 +1382,7 @@ class Muhawir:
                 try:
                     self.store.put(key, res)
                 except Exception:  # the disk is full or locked: the reply is still given
-                    logging.getLogger(__name__).warning("answer store: could not save a reply", exc_info=True)
-        return res
+                    log.warning("answer store: could not save a reply", exc_info=True)
 
     def _ask_once(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
         question = as_question(question)
@@ -1238,15 +1395,20 @@ class Muhawir:
                     where=verse.location, verse=verse.text, quoted=quoted)
                 res.note = f"{line} {res.note}".strip()
         kind = _referral_kind(res, question)
+        for texts in TEXT.values():  # the page already says Muhawir is no source of fatwas: the notice is not repeated in the answer
+            for key in ("ruling_note", "ruling_note_agreed"):
+                res.note = res.note.replace(texts[key], "").strip()
         if kind:
             reply_text = " ".join([res.message, *(c.get("text", "") for c in res.claims)])
-            reply_lang = "ar" if _ARABIC.search(reply_text) else ("en" if reply_text.strip() else lang)
+            reply_lang = script_lang(reply_text, lang)
             res.referral = referrals.card(kind, reply_lang)
         return res
 
     def _respond(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
+        if _URDU.search(question or ""):  # an Urdu question gets its fixed replies in Urdu, whatever the page language
+            lang_ok = "ur"
         if lang_ok == "ar" and keyboard.latin_only(question):
             # Arabic typed with the keyboard on English («hgvfh» → «الربا»): offered back as «هل تقصد: «الربا»؟» with
             # a button that asks it, only when every word of it is in the sources (an English question stays English)
@@ -1287,11 +1449,12 @@ class Muhawir:
         if question and understand and len(question) <= MAX_QUESTION_CHARS:
             gate = classify.check(question)  # the user's own words are checked before any rewording
             if gate.kind not in (classify.JUDGING_PEOPLE, classify.OVERRIDE):
-                u = self._understood(understand, question, turns)
+                with _timed("understand"):
+                    u = self._understood(understand, question, turns)
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
-                    reply_lang = "ar" if _ARABIC.search(question) else "en" if _LATIN.search(question) else lang_ok
+                    reply_lang = script_lang(question, lang_ok)
                     if u.get("feeling") == "crisis":
                         # thoughts of suicide or self-harm said in any words or dialect, which the word list above
                         # cannot all hold: the same fixed caring reply, no answer from the sources
@@ -1306,7 +1469,7 @@ class Muhawir:
                         # choose; the choice is sent as the next message and the question is taken from the conversation
                         t_ = TEXT[reply_lang]
                         res = Response(CHAT, t_["choose_lang"], synthetic=self.corpus.synthetic)
-                        res.choices = [t_["choose_ar"], t_["choose_en"]]
+                        res.choices = [t_["choose_ar"], t_["choose_en"], t_["choose_ur"]]
                         return res
                     if not u["question"] and not u.get("translate") and u.get("feeling") == "sad":
                         # sorrow without a question: comfort first
@@ -1341,14 +1504,39 @@ class Muhawir:
                             style = SIMPLER.get(style, style)
                     if u.get("lang") in LANGS:  # e.g. "the meaning of Tawhid in English": answer in English
                         lang = u["lang"]
+                    elif _URDU.search(question):
+                        lang = "ur"  # an Urdu question gets an Urdu answer
                     elif _LATIN.search(question) and not _ARABIC.search(question):
                         lang = "en"  # an English question gets an English answer, whatever the page language
                     elif _ARABIC.search(question) and not _LATIN.search(question):
                         lang = "ar"
                     if normalize(u["question"]) != normalize(question):
                         understood = u["question"]
+                        # a counting question the fixed rules did not recognise in the user's own words (any dialect,
+                        # any order of words) but the understanding step put plainly: counted by code all the same
+                        counting = quran_count.asked(understood) if len(understood) <= MAX_QUESTION_CHARS else None
+                        if counting:
+                            res = self._count_reply(*counting, lang_ok)
+                            res.understood = understood
+                            return res
+        # Cache-by-meaning: a question put in other words is understood as the same plain question, and the checked
+        # reply kept for that plain question is given at once: no search, writing or checking (the costly steps)
+        alias = None
+        if (understood and CACHE_SIZE and not previous and not feeling and not personal
+                and not classify.mentions_suicide(question)):
+            alias = (normalize(as_question(understood)), style, lang)
+            if alias[0]:
+                kept = self._kept(alias)
+                if kept is not None:
+                    _stat("from_meaning")
+                    kept.understood = understood
+                    return kept
+            else:
+                alias = None
         res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous,
                         kind=kind, feeling=feeling, personal=personal)
+        if alias is not None:
+            self._keep(alias, res)
         if classify.mentions_suicide(question) and res.status == ANSWERED:
             res.message = TEXT[lang_ok]["care_note"]  # the topic is answered, with a caring line above it
         if feeling == "sad" and res.status == ABSTAINED:
@@ -1398,16 +1586,23 @@ class Muhawir:
             hits = self.retriever.search(question)
             passages = [h.passage for h in hits if bayyinat.is_answer_part(h.passage)
                         and is_sufficient([h]) and not _confused(h.passage, f"{original} {question}")]
+            if passages:
+                progress("source", list(dict.fromkeys(self.corpus.source_of(p).name for p in passages)))
         else:
-            passages, queries = self._gather(question, original, queries)
+            progress("searching")
+            with _timed("search"):
+                passages, queries = self._gather(question, original, queries)
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
+        if passages:
+            progress("writing")
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
         if isinstance(written, Response):  # the model could not be reached, or the check could not run
             return written
         if (written is None or not written.kept) and not personal and not self.generator.strict_retrieval:
-            written = self._retry(question, original, queries or [], style, lang, extra, written)
+            with _timed("second_search"):
+                written = self._retry(question, original, queries or [], style, lang, extra, written)
             if isinstance(written, Response):
                 return written
         if written is None:
@@ -1488,7 +1683,7 @@ class Muhawir:
                  for c in named]
         cards = self._cards([pid for c in answer + named for pid in c.passage_ids], corpus,
                             lang)
-        note = t["translation_pending"] if lang == "en" and self.generator.name == "extractive" else ""
+        note = t["translation_pending"] if lang in TRANSLATED_LANGS and self.generator.name == "extractive" else ""
         if kind == "ruling":  # said by the system, not written by the model: a notice cannot cite a passage
             # «the scholars' views» only when views are shown: an agreed ruling («are the five prayers obligatory?»)
             # has no views to present
