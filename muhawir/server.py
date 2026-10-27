@@ -123,6 +123,7 @@ class Ask(BaseModel):
     style: Literal["kids", "youth", "extended", "newcomer"] = "youth"
     lang: Literal["ar", "en", "ur"] = "ar"
     history: list[Turn] = Field(default_factory=list, max_length=20)  # kept by the browser, not stored here
+    as_question: bool = False  # «اسأل عنه» under a quotation found in the sources: answer it, do not look it up again
 
 
 # Bound paid work across all visitors, including deployments behind a reverse proxy.
@@ -202,7 +203,7 @@ def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]
     """Answer a question: check the visitor's rate, take an answer slot (waiting briefly if all are busy), then run the pipeline."""
     address = _admit(request)
     try:
-        reply = _run_ask(body)
+        reply = _quoted(body) or _run_ask(body)
         usage = usage_of(address)
         if usage:
             reply["usage"] = usage
@@ -224,7 +225,7 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
         _progress.set(lambda stage, data=None: events.put({"stage": stage, **({"data": data} if data else {})}))
         try:
             events.put({"stage": "understanding"})
-            reply = _run_ask(body)
+            reply = _quoted(body) or _run_ask(body)
             usage = usage_of(address)
             if usage:
                 reply["usage"] = usage
@@ -253,6 +254,22 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
 
     return StreamingResponse(lines(), media_type="application/x-ndjson",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+def _quoted(body: Ask) -> dict | None:
+    """Quote-in-box: a pasted verse, hadith or saying found in the sources word for word (or nearly) is answered with
+    where it is, at once and with no model; anything else (None) goes on to the answer. See quote_check.looks_like_quote."""
+    if body.as_question or not quote_check.looks_like_quote(body.question):
+        return None
+    try:
+        found = quote_lookup(body.question.strip(), explain_miss=False)
+    except Exception:  # the lookup must never stop a question from being answered
+        log.warning("quote lookup failed", exc_info=True)
+        return None
+    best = found["matches"][0] if found["matches"] else None
+    if best is None or not (best["status"] == "exact" or best["coverage"] >= quote_check.QUOTE_IN_BOX_CLOSE):
+        return None
+    return {"status": "quote", "message": "", "quote": found}
 
 
 def _run_ask(body: Ask) -> dict:
@@ -506,6 +523,12 @@ def verify_text(body: QuoteCheck, request: Request = None) -> dict:  # type: ign
     text = body.text.strip()
     if len(normalize(text).split()) < quote_check.MIN_QUOTE_WORDS:
         raise HTTPException(status_code=422, detail="Quotation too short to look up")
+    return quote_lookup(text)
+
+
+def quote_lookup(text: str, explain_miss: bool = True) -> dict:
+    """Where a quotation is in the sources: {"status": "exact" | "close" | "not_found" | "too_generic", "matches"}.
+    Each match names its book and place, the passage cut around the words, and the passages before and after it."""
     matches, seen = [], {}
     for match, hit in quote_check.find_quote(engine.retriever, text):
         passage = hit.passage
@@ -525,6 +548,8 @@ def verify_text(body: QuoteCheck, request: Request = None) -> dict:  # type: ign
                       "after": {"location": after.location, "text": quote_check.edge(after.text)} if after else None}
         matches.append(seen[same])
     matches = matches[:3]
+    if not matches and not explain_miss:
+        return {"status": "not_found", "matches": []}
     if not matches:
         # a phrase of common words is in the wording of many passages: say so, not «not found»
         return {"status": "too_generic" if quote_check.is_generic(engine.retriever, text) else "not_found", "matches": []}

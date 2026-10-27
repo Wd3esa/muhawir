@@ -28,6 +28,32 @@ FUZZY_MAX_STARTS = 150     # places tried in one passage
 FUZZY_SLACK = 2            # words the passage may add inside the span of the quotation
 _WORD = re.compile(r"\S+")
 
+# Quote-in-box: a message typed or pasted in the question box is looked up as a quotation, with no model, only when it
+# is long enough to point to one passage and asks nothing. Most people write without punctuation, so the test is on
+# words: a first word that asks or requests («ما، هل، اذكر، اشرح…»), or a last word that asks about the text
+# («صحيح، معناه، تفسيره…»), makes it a question. The lookup itself decides the rest: only a text found in the
+# sources word for word (or nearly) is shown as a quotation.
+QUOTE_IN_BOX_WORDS = 6
+QUOTE_IN_BOX_CLOSE = 0.8   # a nearly verbatim text («هل تقصد هذه الآية؟») must hold this share of its words in order
+_ASK_FIRST = {normalize(w) for w in (
+    "ما", "ماذا", "من", "متى", "اين", "أين", "كيف", "كم", "لماذا", "لم", "هل", "أي", "اي", "ماهو", "ماهي", "حكم",
+    "معنى", "تفسير", "شرح", "شنو", "ايش", "إيش", "وش", "ليش", "ليه", "إيه", "شو", "منو", "وين", "ليه",
+    "اذكر", "أذكر", "اشرح", "عدد", "عدّد", "بين", "بيّن", "وضح", "وضّح", "فسر", "فسّر", "أعطني", "اعطني", "عطني",
+    "أريد", "اريد", "ابغى", "أبغى", "ابي", "أبي", "ودي", "ممكن", "لو", "أخبرني", "اخبرني", "قل", "علمني", "علّمني",
+    "what", "who", "when", "where", "how", "why", "is", "are", "does", "do", "can", "explain", "tell", "list", "give")}
+_ASK_LAST = {normalize(w) for w in (
+    "صحيح", "صحيحه", "صحيحة", "صحته", "ضعيف", "معناه", "معناها", "تفسيره", "تفسيرها", "شرحه", "شرحها", "حكمه", "حكمها",
+    "درجته", "درجتها", "سنده", "مصدره", "مصدرها", "true", "authentic", "mean", "meaning")}
+
+
+def looks_like_quote(text: str) -> bool:
+    """True when a message may be a quotation to look up rather than a question: enough words, and none of them at
+    the start or the end asks or requests anything. The lookup then decides whether it is one."""
+    words = normalize(text).split()
+    if len(words) < QUOTE_IN_BOX_WORDS:
+        return False
+    return words[0] not in _ASK_FIRST and words[-1] not in _ASK_LAST and "هل" not in words[-3:]
+
 
 @dataclass(frozen=True)
 class QuoteMatch:
