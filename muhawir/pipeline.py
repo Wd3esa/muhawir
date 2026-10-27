@@ -1474,6 +1474,10 @@ class Muhawir:
                         res = Response(CHAT, t_["choose_lang"], synthetic=self.corpus.synthetic)
                         res.choices = [t_["choose_ar"], t_["choose_en"], t_["choose_ur"]]
                         return res
+                    if u.get("kind") == "about" and gate.kind is None:
+                        # About-Muhawir: a question on Muhawir itself or the form of its last reply («لماذا ترد بهذه
+                        # الطريقة؟») is a turn of the conversation, not a search: said by the system, with no religious content
+                        return Response(CHAT, TEXT[reply_lang]["about_muhawir"], synthetic=self.corpus.synthetic)
                     if not u["question"] and not u.get("translate") and u.get("feeling") == "sad":
                         # sorrow without a question: comfort first
                         return Response(CHAT, TEXT[lang_ok]["comfort"], synthetic=self.corpus.synthetic)

@@ -257,7 +257,7 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
 
 
 def _quoted(body: Ask) -> dict | None:
-    """Quote-in-box: a pasted verse, hadith or saying found in the sources word for word (or nearly) is answered with
+    """Quote-in-box: a pasted verse, hadith or saying found in the sources word for word is answered with
     where it is, at once and with no model; anything else (None) goes on to the answer. See quote_check.looks_like_quote."""
     if body.as_question or not quote_check.looks_like_quote(body.question):
         return None
@@ -267,7 +267,7 @@ def _quoted(body: Ask) -> dict | None:
         log.warning("quote lookup failed", exc_info=True)
         return None
     best = found["matches"][0] if found["matches"] else None
-    if best is None or not (best["status"] == "exact" or best["coverage"] >= quote_check.QUOTE_IN_BOX_CLOSE):
+    if best is None or best["status"] != "exact":  # a text recalled with other words is a question about it
         return None
     return {"status": "quote", "message": "", "quote": found}
 

@@ -191,6 +191,8 @@ def test_a_question_without_punctuation_is_still_a_question():
                  "اذكر النخلة شجرة تحتاج إلى ماء كثير في الصيف",  # a request
                  "النخلة شجرة تحتاج إلى ماء كثير في الصيف صحيح",  # asks about the text at the end
                  "النخلة شجرة تحتاج إلى ماء كثير هل هو",          # «هل» near the end
+                 "صحة حديث اطلبوا العلم ولو في الصين",              # names what is asked about (28 October 2026)
+                 "حديث إنما الأعمال بالنيات وإنما لكل امرئ",
                  "جواهر الكهف اذكر الكلمات الغريبة", "الربا"):     # short
         assert not quote_check.looks_like_quote(text), text
     assert quote_check.looks_like_quote("النخلة شجرة تحتاج إلى ماء كثير في الصيف")
@@ -201,3 +203,11 @@ def test_ask_about_it_and_text_not_in_the_sources_go_to_the_answer():
     as_question = client.post("/api/ask", json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الصيف", "as_question": True}).json()
     unknown = client.post("/api/ask", json={"question": "كلام طويل لا يوجد في أي مصدر محفوظ أبدا هنا"}).json()
     assert as_question["status"] != "quote" and unknown["status"] != "quote"
+
+
+def test_a_text_recalled_with_other_words_is_a_question_not_a_did_you_mean(monkeypatch):
+    _reset()
+    asked = []
+    monkeypatch.setattr(server.engine, "ask", lambda *a, **k: asked.append(a) or server.engine.__class__.ask(server.engine, *a, **k))
+    reply = client.post("/api/ask", json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الشتاء وغيره"}).json()
+    assert reply["status"] != "quote" and asked

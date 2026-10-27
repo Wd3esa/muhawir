@@ -27,6 +27,10 @@ TEXT = {
                      "وإن كان أحد في خطر فاتصل برقم الطوارئ في بلدك.",
         "comfort": "أنا آسف لما تمر به، وأسأل الله أن يرحم من فقدت وأن يربط على قلبك. إن أحببت أن تحدثني عما تشعر به، "
                    "أو أن أذكر لك ما ورد في الصبر على المصيبة، فأنا هنا معك.",
+        "about_muhawir": "أنا مُحاور، أجيب عن أسئلتك من مصادر شرعية معتمدة فقط، وأذكر مع كل جملة مصدرها، ولا أفتي من عندي. "
+                         "إذا كتبت نصًا موجودًا بلفظه في المصادر، كآية أو حديث، عرضت لك موضعه وما قبله وما بعده، "
+                         "وإن أردت معناه أو حكمه أو صحته فاسألني عنه بما تريد، أو اضغط «اسأل عنه». "
+                         "وإذا لم أجد في المصادر جوابًا قلت ذلك بصراحة. ما الذي تريد أن نتحاور فيه؟",
         "no_question_after_answer": "يبدو أن جوابي لم يكن واضحًا أو لم يكن ما تريده. هل أشرحه لك بطريقة أبسط؟ أو اكتب سؤالك بطريقة أخرى، وسأحاول من جديد.",
         "did_you_mean": "يبدو أن لوحة المفاتيح كانت على الإنجليزية. هل تقصد: «{guess}»؟",
         "no_question": "أنا هنا لأحاورك وأجيبك عن أسئلتك عن الإسلام من المصادر المعتمدة. ما الذي تحب أن تعرفه؟",
@@ -81,6 +85,11 @@ TEXT = {
         "comfort": "I am sorry for what you are going through. May God have mercy on the one you lost and give your heart "
                    "strength. If you would like to tell me how you feel, or hear what the sources say about patience in "
                    "hardship, I am here with you.",
+        "about_muhawir": "I am Muhawir. I answer from approved Islamic sources only, give the source of every sentence, and "
+                         "issue no fatwas of my own. When you write a text found word for word in the sources, such as a verse "
+                         "or a hadith, I show where it is and what comes before and after it; if you want its meaning, ruling "
+                         "or authenticity, ask me about it or tap «Ask about it». When the sources hold no answer, I say so "
+                         "plainly. What would you like to talk about?",
         "no_question_after_answer": "It seems my answer was not clear, or not what you wanted. Shall I explain it more simply? Or ask your question another way and I will try again.",
         "did_you_mean": "It looks like the keyboard was set to English. Did you mean «{guess}»?",
         "no_question": "I am here to talk with you and answer your questions about Islam from the approved sources. What would you like to know?",
@@ -138,6 +147,10 @@ TEXT = {
                      "اور اگر کوئی خطرے میں ہو تو اپنے ملک کے ہنگامی نمبر پر فون کریں۔",
         "comfort": "مجھے آپ کے دکھ پر افسوس ہے۔ اللہ آپ کے بچھڑنے والے پر رحم فرمائے اور آپ کے دل کو صبر دے۔ اگر آپ اپنی کیفیت مجھے بتانا چاہیں، "
                    "یا مصیبت پر صبر کے بارے میں مصادر کی باتیں سننا چاہیں، تو میں آپ کے ساتھ ہوں۔",
+        "about_muhawir": "میں مُحاور ہوں۔ میں صرف معتبر شرعی مصادر سے جواب دیتا ہوں، ہر جملے کا مصدر بتاتا ہوں اور اپنی طرف سے فتویٰ نہیں دیتا۔ "
+                         "اگر آپ کوئی ایسا متن لکھیں جو مصادر میں ہوبہو موجود ہو، جیسے آیت یا حدیث، تو میں اس کا مقام اور اس سے پہلے اور بعد کا متن دکھاتا ہوں؛ "
+                         "اس کا معنی، حکم یا صحت جاننی ہو تو اس کے بارے میں پوچھیں یا «اس کے بارے میں پوچھیں» دبائیں۔ "
+                         "اگر مصادر میں جواب نہ ملے تو میں صاف بتا دیتا ہوں۔ آپ کس بارے میں بات کرنا چاہیں گے؟",
         "no_question_after_answer": "لگتا ہے میرا جواب واضح نہیں تھا یا وہ نہیں تھا جو آپ چاہتے تھے۔ کیا میں اسے آسان انداز میں سمجھاؤں؟ یا اپنا سوال کسی اور طرح لکھیں، میں دوبارہ کوشش کروں گا۔",
         "did_you_mean": "لگتا ہے کی بورڈ انگریزی پر تھا۔ کیا آپ کا مطلب ہے: «{guess}»؟",
         "no_question": "میں یہاں آپ سے بات کرنے اور معتبر مصادر سے اسلام کے بارے میں آپ کے سوالوں کے جواب دینے کے لیے ہوں۔ آپ کیا جاننا چاہتے ہیں؟",

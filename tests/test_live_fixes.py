@@ -41,13 +41,13 @@ def test_general_questions_and_the_word_dair_alone_are_still_answered(text):
     assert classify.check(text).kind is None
 
 
-def _model(answer_lang="", views=False, feeling="", personal=False, understood="ما حكم سقي النخلة؟"):
+def _model(answer_lang="", views=False, feeling="", personal=False, understood="ما حكم سقي النخلة؟", kind="ruling"):
     pid = "v:1" if views else "test-a:1"
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if '"question"' in keys:
             return json.dumps({"question": understood, "translate": "", "answer_lang": answer_lang,
-                               "feeling": feeling, "personal": personal, "kind": "ruling", "reexplain": False, "recall": "",
+                               "feeling": feeling, "personal": personal, "kind": kind, "reexplain": False, "recall": "",
                                "queries": ["النخلة"]},
                               ensure_ascii=False)
         if "verdict" in keys:
@@ -352,3 +352,11 @@ def test_a_question_in_other_words_reuses_the_reply_kept_for_its_plain_form():
     second = engine.ask("ما رأي الشرع في ري النخلة؟")
     assert first.status == ANSWERED and second.status == ANSWERED
     assert len(pipeline_calls) == 1 and second.understood == "ما حكم سقي النخلة؟"
+
+
+def test_a_question_about_muhawir_itself_is_answered_as_a_turn_of_the_conversation():
+    """28 October 2026: «لماذا ترد بهذه الطريقة؟» after a quotation was searched for and ended «not found»."""
+    res = _model(kind="about", understood="لماذا يرد مُحاور بهذه الطريقة؟").ask(
+        "لماذا ترد بهذه الطريقة؟", history=[{"role": "user", "text": "اطلبوا العلم ولو في الصين"},
+                                             {"role": "assistant", "text": "اطلبوا العلم ولو بالصين"}])
+    assert res.status == CHAT and res.message == TEXT["ar"]["about_muhawir"] and not res.claims
