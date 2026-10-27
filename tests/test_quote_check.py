@@ -167,3 +167,37 @@ def test_scattered_common_words_in_a_long_passage_are_not_a_fuzzy_match():
 def test_one_letter_apart_words_need_four_letters():
     assert quote_check._same_word("اسرفو", "اسرفوا") and quote_check._same_word("يغفر", "تغفر")
     assert not quote_check._same_word("في", "من") and not quote_check._same_word("على", "علي")
+
+
+# --- Quote-in-box: the question box looks a pasted quotation up first, with no model ----------------------------------
+
+def _no_answer(monkeypatch):
+    calls = []
+    monkeypatch.setattr(server.engine, "ask", lambda *a, **k: calls.append(a) or (_ for _ in ()).throw(AssertionError("answered")))
+    return calls
+
+
+def test_a_quotation_typed_in_the_question_box_is_located_without_the_model(monkeypatch):
+    _reset()
+    _no_answer(monkeypatch)
+    for path in ("/api/ask", "/api/ask_stream"):
+        r = client.post(path, json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الصيف"})
+        reply = r.json() if path == "/api/ask" else __import__("json").loads(r.text.strip().splitlines()[-1])["reply"]
+        assert reply["status"] == "quote" and reply["quote"]["matches"][0]["passage_id"] == "test-a:1"
+
+
+def test_a_question_without_punctuation_is_still_a_question():
+    for text in ("ما حكم النخلة شجرة تحتاج إلى ماء كثير",       # asks at the start
+                 "اذكر النخلة شجرة تحتاج إلى ماء كثير في الصيف",  # a request
+                 "النخلة شجرة تحتاج إلى ماء كثير في الصيف صحيح",  # asks about the text at the end
+                 "النخلة شجرة تحتاج إلى ماء كثير هل هو",          # «هل» near the end
+                 "جواهر الكهف اذكر الكلمات الغريبة", "الربا"):     # short
+        assert not quote_check.looks_like_quote(text), text
+    assert quote_check.looks_like_quote("النخلة شجرة تحتاج إلى ماء كثير في الصيف")
+
+
+def test_ask_about_it_and_text_not_in_the_sources_go_to_the_answer():
+    _reset()
+    as_question = client.post("/api/ask", json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الصيف", "as_question": True}).json()
+    unknown = client.post("/api/ask", json={"question": "كلام طويل لا يوجد في أي مصدر محفوظ أبدا هنا"}).json()
+    assert as_question["status"] != "quote" and unknown["status"] != "quote"
