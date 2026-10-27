@@ -1043,3 +1043,14 @@ def test_each_style_keeps_its_own_length_whatever_the_model_wrote():
     kids = fit_style([long_one] + short[:6], "kids", False)
     assert long_one not in kids and kids == short[:5]
     assert fit_style([long_one, short[0]], "kids", False) == [long_one, short[0]]
+
+
+def test_the_second_search_is_counted_with_what_it_gave(monkeypatch):
+    before = dict(pipeline.STATS)
+    engine = Muhawir(CORPUS, ModelGenerator([("m", lambda s, u, sc=None: json.dumps(
+        {"question": "سؤال لا جواب له في المصادر", "queries": ["لا شيء"]} if '"question"' in json.dumps(sc or {})
+        else {"abstain": True, "claims": [], "queries": []}))]))
+    engine.ask("سؤال لا جواب له في المصادر أبدا")
+    assert pipeline.STATS["second_search"] - before["second_search"] == 1
+    assert pipeline.STATS["second_search_saved"] == before["second_search_saved"]
+    assert pipeline.STATS["second_search_seconds"] >= before["second_search_seconds"]
