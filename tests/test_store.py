@@ -101,3 +101,15 @@ def test_real_sources_refuse_extractive_mode(tmp_path, monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "extractive")
     with pytest.raises(RuntimeError):
         server.build()
+
+
+def test_searches_from_many_threads_at_once_do_not_share_a_connection(tmp_path):
+    """The pipeline searches several phrases in threads; one shared sqlite connection failed with «API misuse»."""
+    from concurrent.futures import ThreadPoolExecutor
+    path = tmp_path / "threads.db"
+    build_db(json.loads(SYNTHETIC.read_text(encoding="utf-8")), path)
+    retriever = SqliteRetriever(SqliteCorpus(path))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: retriever.search("الصلاة والزكاة والصيام في الإسلام", k=3), range(200)))
+    assert all(r == results[0] for r in results)
+    assert len({id(c) for c in [retriever.corpus.con]}) == 1

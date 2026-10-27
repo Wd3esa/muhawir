@@ -102,3 +102,29 @@ def test_bil_quran_counts_as_in_the_quran():
 def test_dialect_verbs_in_a_counting_question():
     assert asked("كم مره جات النور بالمصحف") == ("النور", "", False)
     assert asked("كم مرة انذكرت كلمة النور في القرآن") == ("النور", "", False)
+
+
+def test_a_named_word_is_counted_in_the_quran_without_saying_so_unless_another_book_is_named():
+    assert asked("كم مره وردت كلمة الرشد") == ("الرشد", "", False)
+    assert asked("كم مرة وردت كلمة الرشد؟") == ("الرشد", "", False)
+    assert asked("كم مرة وردت كلمة الصلاة في صحيح البخاري") is None
+    assert asked("كم مرة وردت كلمة الصلاة في الحديث") is None
+    assert asked("كم مرة ذكرت الصلاة") == ("الصلاة", "", False)
+    assert asked("عدد مرات ذكر الصبر") == ("الصبر", "", False)
+    assert asked("كم مرة ذكرت الصلاة في البخاري") is None
+    assert asked("كم مرة أكلت اليوم") is None
+
+
+def test_a_counting_question_the_rules_miss_is_counted_once_the_understanding_step_puts_it_plainly():
+    """«النور كم مرة يجي عندكم؟» holds no phrase the fixed rules know; the model's plain rewording does."""
+    calls = []
+
+    def call(system, user, schema=None):
+        calls.append(user)
+        return json.dumps({"question": "كم مرة وردت كلمة النور في القرآن؟", "queries": []}, ensure_ascii=False)
+
+    m = Muhawir(corpus(), ModelGenerator([("m", call)]))
+    assert asked("النور شكثر مرة يجي في المصحف؟") is None
+    res = m.ask("النور شكثر مرة يجي في المصحف؟")
+    assert res.status == ANSWERED and res.by_code
+    assert "مرتين" in res.message and res.understood == "كم مرة وردت كلمة النور في القرآن؟"

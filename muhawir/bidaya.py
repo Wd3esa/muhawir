@@ -66,6 +66,7 @@ def continues(before: str, after: str) -> bool:
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -92,6 +93,7 @@ def parse(text: str) -> list[dict]:
     current: dict | None = None
 
     def add_piece(piece: str) -> None:
+        """Add a cleaned piece of text to the section being read; text outside any section is ignored."""
         piece = _clean(piece)
         if piece and current is not None:
             current["pieces"].append((piece, len(ends)))
@@ -152,6 +154,7 @@ def build(text: str, min_passages: int = MIN_PASSAGES) -> tuple[dict, list[dict]
     group: list[dict] = []
 
     def flush() -> None:
+        """Write the paragraphs gathered so far as one passage, then start a new group."""
         if not group:
             return
         pages = [pg for p in group for pg in p["pages"]]

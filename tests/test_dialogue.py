@@ -89,7 +89,7 @@ def test_the_retry_does_not_loop_and_ends_in_an_honest_not_found():
 
 def test_no_retry_for_a_personal_case():
     m, seen = _retrying_model(["النخلة ماء كثير الصيف"])
-    m.ask("هل يلزمني سقي شجرة البلح؟")
+    m.ask("هل يلزمني سقي شجرة البلح في حالتي؟")
     assert seen["retry"] == 0
 
 
@@ -166,19 +166,18 @@ def _kind_model(kind):
     return Muhawir(CORPUS, ModelGenerator([("m", call)]))
 
 
-def test_a_ruling_answer_carries_a_fixed_notice_that_it_is_not_a_fatwa():
-    assert "ليس فتوى" in _kind_model("ruling").ask(QUESTION).note
+def test_a_ruling_answer_does_not_repeat_the_notice_the_page_already_carries():
+    assert _kind_model("ruling").ask(QUESTION).note == ""
     assert _kind_model("what").ask(QUESTION).note == ""
 
 
 def test_a_personal_case_says_to_ask_a_specialist_once_not_twice():
     # the report: the referral message said it, and the ruling notice under the views said it again
-    res = _kind_model("ruling").ask("هل يلزمني أن أسقي النخلة في الصيف؟")
+    res = _kind_model("ruling").ask("هل يلزمني أن أسقي النخلة في الصيف في حالتي؟")
     assert res.status == REFERRED and res.claims
     assert res.note == ""
     assert (res.message + " " + res.note).count("مختص") == 1
     assert "ليست حكمًا في حالتك" in res.message
-    assert "ليس فتوى" in _kind_model("ruling").ask(QUESTION).note  # any other ruling question keeps its notice
 
 
 # --- the strict second reading --------------------------------------------------------------------

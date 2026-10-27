@@ -129,4 +129,5 @@ def in_text(token: str, text_roots: set[str]) -> bool:
 
 
 def text_roots(tokens: list[str]) -> set[str]:
+    """The possible roots of all the tokens."""
     return set().union(*(roots(t) for t in tokens)) if tokens else set()

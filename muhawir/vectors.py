@@ -63,6 +63,7 @@ class GeminiEmbeddingClient:
         self._last_request: float | None = None
 
     def close(self) -> None:
+        """Close the HTTP client."""
         self._client.close()
 
     def _pace(self) -> None:
@@ -142,9 +143,11 @@ class GeminiEmbeddingClient:
         return [item["values"] for item in embeddings]
 
     def embed_documents(self, model: str, texts: Sequence[str]) -> list[list[float]]:
+        """Embed passages as documents."""
         return self._embed(model, texts, query=False)
 
     def embed_query(self, model: str, question: str) -> list[float]:
+        """Embed one question."""
         return self._embed(model, [question], query=True)[0]
 
 
@@ -154,6 +157,7 @@ def _model_name(model: dict | str) -> str:
 
 
 def select_embedding_model(models: Sequence[dict | str]) -> str:
+    """Choose an embedding model from those the API lists: a preferred one, else any with 'embedding' in its name, else the first."""
     names = [_model_name(model) for model in models]
     for preferred in PREFERRED_MODELS:
         if preferred in names:
@@ -167,6 +171,7 @@ def select_embedding_model(models: Sequence[dict | str]) -> str:
 
 
 def is_local(model: str) -> bool:
+    """True when the model name selects the local embedder."""
     return model.startswith(LOCAL_PREFIX)
 
 
@@ -201,24 +206,29 @@ class LocalEmbedder:
 
             return HfApi().model_info(model).sha or "main"
         except Exception:  # offline: the cached copy is used, recorded as "main"
+            log.info("could not read the model revision (offline?); recording it as \"main\"")
             return "main"
 
     @classmethod
     def from_name(cls, name: str) -> "LocalEmbedder":
+        """A local embedder from a name of the form local:<model>@<revision>."""
         model, _, revision = name[len(LOCAL_PREFIX):].partition("@")
         return cls(model, revision or None)
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
+        """Embed texts into normalised float32 vectors."""
         vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
                                     convert_to_numpy=True, show_progress_bar=False)
         return np.asarray(vectors, dtype=np.float32)
 
     def embed_query(self, _model: str, question: str) -> np.ndarray:
+        """Embed one question; the model name is not used locally."""
         return self.embed([question])[0]
 
 
 @dataclass
 class VectorIndex:
+    """The vectors of the passages, their ids and the model that made them, with an optional approximate-search index."""
     ids: list[str]
     matrix: np.ndarray
     model_name: str
@@ -379,6 +389,7 @@ class HybridRetriever:
 
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
+        """Hybrid search: BM25 and vector hits merged by rank; if the vector part fails the BM25 hits are returned."""
         bm25_hits = self.sqlite_retriever.search(question, k * self.bm25_pool_factor)
         if self._disabled or k <= 0:
             return [h for h in bm25_hits if bayyinat.is_answer_part(h.passage)][:k]
@@ -622,6 +633,7 @@ def build_local_vectors(embedder: LocalEmbedder | None = None, *, db_path: str |
     corpus_ids, documents = _passages(Path(db_path or os.environ.get("MUHAWIR_DB") or DEFAULT_DB))
 
     def progress(done: int, total: int) -> None:
+        """Print the progress every few batches."""
         if done == total or done % (batch_size * 20) < batch_size:
             elapsed = time.monotonic() - started
             print(f"{done}/{total} passages, {elapsed / 60:.1f} min", flush=True)
@@ -703,6 +715,7 @@ def _print_results(label: str, hits: Sequence[Hit]) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Command line: build the index, compare BM25 and hybrid results, or build the approximate index."""
     import argparse
 
     parser = argparse.ArgumentParser(description="Build and inspect optional Muhawir vector search")

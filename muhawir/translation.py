@@ -27,6 +27,7 @@ NAME_AR = "ترجمة معاني القرآن الكريم إلى الإنجلي
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -53,4 +54,32 @@ def add_to_corpus(corpus: dict, text: str) -> dict:
     corpus["_translations"] = {pid: t for pid, t in verses.items() if pid in ids}
     corpus["_translation_name"] = NAME
     corpus.setdefault("_provenance", {})["translation_commit"] = COMMIT
+    return corpus
+
+
+# The Urdu translation of the meanings shown beside a verse in Urdu answers (22 October 2026): by Muhammad Junagarhi,
+# the one the King Fahd Complex prints with the Quran in Urdu, as the English one above is theirs. Same data, same
+# commit, edition «urd-muhammadjunagar» (from tanzil.net). Shown as it is and attributed; never stored in the repository.
+UR_PATH = "editions/urd-muhammadjunagar.min.json"
+UR_FILE = "quran-ur-junagarhi.min.json"
+UR_DOWNLOAD = (f"https://raw.githubusercontent.com/fawazahmed0/quran-api/{COMMIT}/{UR_PATH}",
+               f"https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@{COMMIT}/{UR_PATH}")
+UR_NAME = "ترجمۂ معانیِ قرآن کریم (اردو)، مولانا محمد جوناگڑھی (شاہ فہد قرآن کریم پرنٹنگ کمپلیکس)"
+
+
+def _plain_letters(text: str) -> str:
+    """The data writes a few letters in their presentation forms («ﻻ»، «ﻇ»): the ordinary letters instead, so the
+    text searches, quotes and reads aloud as it should. Nothing else is changed."""
+    import unicodedata
+    return "".join(unicodedata.normalize("NFKC", c) if "\ufb50" <= c <= "\ufeff" else c for c in text)
+
+
+def add_urdu_to_corpus(corpus: dict, text: str) -> dict:
+    """Attach the Urdu translation to a corpus built by quranpedia.build_corpus (only to its Quran verses)."""
+    verses = load(text)
+    ids = {p["id"] for p in corpus["passages"] if p.get("kind") == "quran"}
+    corpus.setdefault("_other_translations", {})["ur"] = {pid: _plain_letters(t) for pid, t in verses.items()
+                                                          if pid in ids}
+    corpus.setdefault("_other_translation_names", {})["ur"] = UR_NAME
+    corpus.setdefault("_provenance", {})["translation_ur_commit"] = COMMIT
     return corpus

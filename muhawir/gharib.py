@@ -51,6 +51,7 @@ _END = "مقدمة للفهارس"
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -103,6 +104,7 @@ def parse(text: str) -> list[dict]:
     page_ends: list[tuple[int, int]] = []
 
     def add(piece: str, tight: bool) -> None:
+        """Add a piece to the entry being read: a tight piece is glued to the previous one, any other starts a new piece."""
         if not current["pieces"]:
             current["pieces"].append(piece)
         elif tight:

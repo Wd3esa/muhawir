@@ -37,6 +37,7 @@ SOURCE_ID = "quranpedia-hafs"
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -163,6 +164,7 @@ def build_tafsir(tafsir_dump: dict, surah_names: dict[int, str],
 def build_corpus(dump: dict, expected_surahs: int = EXPECTED_SURAHS,
                  expected_ayahs: int = EXPECTED_AYAHS, topics_dump: dict | None = None,
                  tafsir_dump: dict | None = None, asbab_dump: dict | None = None) -> dict:
+    """Check the Hafs mushaf dump (right mushaf, expected surah and verse counts, a licence version) and turn it, with the optional topics, tafsir and asbab dumps, into corpus data."""
     data, licence = dump.get("data", {}), dump.get("license", {})
     version = licence.get("version", "")
     if data.get("id") != HAFS_MUSHAF_ID:
@@ -226,6 +228,7 @@ def build_corpus(dump: dict, expected_surahs: int = EXPECTED_SURAHS,
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Command-line entry point: read the dumps and write the corpus JSON."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("dump", type=Path)
     parser.add_argument("--topics", type=Path, help="topics.json.gz from quranpedia.net/dumps")

@@ -4,3 +4,5 @@ httpx==0.28.1
 numpy>=2.2,<3
 pymupdf==1.28.2
 nltk==3.10.3
+pypdf>=3.17,<7
+Pillow>=11,<13

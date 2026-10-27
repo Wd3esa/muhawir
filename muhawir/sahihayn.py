@@ -73,7 +73,7 @@ MAX_PART = 1500
 MIN_HADITH = {"bukhari": 7000, "muslim": 5000, "abudawud": 5000, "tirmidhi": 3800, "nasai": 5500,
               "ibnmajah": 4200, "malik": 1700, "nawawi": 40}  # a truncated download is refused
 
-_MARKS = re.compile("[‎‏]")
+_MARKS = re.compile("[\u200e\u200f]")
 _SPACES = re.compile(r"\s+")
 _SENTENCE_END = re.compile(r"(?<=[.؟!])\s+|(?<=\.\")\s+")
 
@@ -132,10 +132,12 @@ def translate_grades(grades: list[dict]) -> str:
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
 def clean(text: str) -> str:
+    """Strip unwanted marks from a hadith text and collapse its spaces."""
     return _SPACES.sub(" ", _MARKS.sub("", text)).strip()
 
 
@@ -156,6 +158,7 @@ def split_long(text: str, limit: int = MAX_PART) -> list[str]:
 
 
 def build_book(key: str, dump: dict) -> tuple[dict, list[dict]]:
+    """Turn one hadith book's dump into its source record and passages; a repeated hadith number is an error."""
     book = BOOKS[key]
     passages, seen = [], set()
     for h in dump.get("hadiths", []):

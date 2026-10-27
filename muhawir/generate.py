@@ -266,17 +266,22 @@ UNDERSTAND_PROMPT = """أمامك رسالة من مستخدم يحاور مسا
 2. translate: إن كان المطلوب ترجمة كلمة أو عبارة أو نص كتبه المستخدم نفسه في رسالته (مثل: «ترجم كلمة التوحيد»، «التوحيد بالإنجليزية؟»، «what is صلاة in English»)
    فاكتب هنا النص المطلوب ترجمته بحروفه كما هو، وإلا اتركه فارغًا "".
    أما طلب ترجمة آية أو حديث أو سورة بالاسم دون نصها (مثل: «ترجم آية الكرسي») فليس ترجمة: اترك translate فارغًا، واكتبه في question سؤالًا عن معناها.
-   answer_lang: اللغة التي طلبها المستخدم صراحةً للجواب أو للترجمة: "en" أو "ar"، و"other" إن طلب لغة غيرهما
-   (مثل الإسبانية أو الفرنسية أو الأردية)، وإلا "". ولا تكتب اللغة المطلوبة في question.
-   وإن كانت الرسالة اختيارًا للغة ردًّا على سؤال المساعد «بأي لغة تريد الجواب؟» (مثل «بالعربية»، «In English»)
+   answer_lang: اللغة التي طلبها المستخدم صراحةً للجواب أو للترجمة: "en" أو "ar" أو "ur" (الأردية)، و"other" إن طلب لغة غيرها
+   (مثل الإسبانية أو الفرنسية)، وإلا "". ولا تكتب اللغة المطلوبة في question.
+   وإن كانت الرسالة اختيارًا للغة ردًّا على سؤال المساعد «بأي لغة تريد الجواب؟» (مثل «بالعربية»، «In English»، «اردو میں»)
    فاكتب في question سؤال المستخدم السابق نفسه كاملًا دون طلب اللغة، وفي answer_lang اللغة التي اختارها.
    feeling: "crisis" إن قال المستخدم عن نفسه إنه يفكر في الانتحار أو في إيذاء نفسه، أو يتمنى الموت، أو لا يريد أن يعيش،
    بأي لفظ أو لهجة، صراحةً أو تلميحًا (مثل: «زهجت من الدنيا داير أفارقها»، «نفسي أنام وما أصحاش»، «ما عاد في شي يستاهل عيش كرمالو»).
    أما السؤال عن حكم الانتحار أو عن الموت عمومًا، أو ذكر موت شخص آخر، فليس crisis.
    و"sad" إن عبّرت الرسالة عن حزن أو فقد عزيز أو مصيبة أو ضيق أو خوف دون ذلك، وإلا "".
-   personal: true إن سأل المستخدم عن حكم واقعة تخصه هو أو تخص شخصًا بعينه من أهله أو معارفه (ماذا عليه، هل صحّ عمله، هل وقع الطلاق…)،
-   بأي لهجة (مثل: «أكلت لحم جمل وصليت، صلاتي صحيحة؟»، «أبوي كبير وما يقدر يصوم شنو عليه؟»، «مرتي حلفت…»).
-   و false للسؤال العام عن حكم أو معنى («هل يجوز للمريض أن يفطر؟»)، ولطلب تعلّم عبادة ولو بصيغة المتكلم («كيف أصلي الاستخارة؟»).
+   personal: true فقط في ثلاث حالات يحتاج فيها الحكم إلى مختص يسمع تفاصيلها: (أ) نزاع بين أشخاص على حق أو مال (خلاف في ميراث أو تركة
+   أو دين أو حضانة أو شراكة، أو أن أحدًا أخذ حقه أو امتنع عن إعطائه)، (ب) وقوع طلاق أو عدمه، أو ما يلزم من لفظ يمين أو إقرار قيل بعبارة معيّنة في موقف معيّن (لأن الحكم فيها يتوقف على اللفظ وعرف قائله ونيته)،
+   (ج) نازلة معاصرة بوقائع خاصة بصاحبها (عقد أو معاملة مالية أو علاج بعينه) لا يحسمها نص عام.
+   (مثل: «أخي استولى على نصيبي من تركة أبينا، ماذا أفعل؟»، «قلت لزوجتي في الغضب أنتِ طالق، هل وقع؟»، «شركتي تعمل بكذا وكذا، هل عقدنا صحيح؟»)
+   وما سوى ذلك false ولو كان بصيغة المتكلم وعن واقعة خاصة به، ما دام له حكم معروف في المصادر: العبادات والطهارة والصلاة والصيام
+   والزكاة والحج، وكفارة اليمين والنذر، والأطعمة والألبسة، وأحكام المريض والمسافر وكبير السن، والقضاء وما فات
+   (مثل: «أكلت لحم جمل وصليت، صلاتي صحيحة؟»، «أبوي كبير وما يقدر يصوم شنو عليه؟»، «حلفت وحنثت»، «فاتتني صلاة الصبح وصحيت العاشرة، أقرأ سرًّا أو جهرًا؟»).
+   وإن كان للمسألة أقسام يختلف حكمها بحسب أحوالها (كالناسي والجاهل والمكره في الحنث) فليست personal: تُجاب بذكر الأقسام وحكم كل قسم.
    والسؤال في question يبقى بصيغته العامة كما سبق.
    وعندها اكتب في question حاجته إلى المواساة سؤالًا (مثل: «ما الذي يواسي المسلم ويعينه على الصبر عند فقد قريب؟»)،
    واجعل queries من ألفاظ الصبر والمصيبة (مثل: «إنا لله وإنا إليه راجعون»، «اللهم أجرني في مصيبتي»، «الصبر عند الصدمة الأولى»).
@@ -408,7 +413,7 @@ UNDERSTAND_SCHEMA = {
     "type": "object",
     "properties": {"question": {"type": "string"},
                    "translate": {"type": "string"},
-                   "answer_lang": {"type": "string", "enum": ["ar", "en", "other", ""]},
+                   "answer_lang": {"type": "string", "enum": ["ar", "en", "ur", "other", ""]},
                    "feeling": {"type": "string", "enum": ["crisis", "sad", ""]},
                    "personal": {"type": "boolean"},
                    "kind": {"type": "string", "enum": ["what", "why", "how", "ruling", "objection", ""]},
@@ -434,7 +439,7 @@ EXPAND_SCHEMA = {
     "additionalProperties": False,
 }
 
-log = logging.getLogger("muhawir")
+log = logging.getLogger(__name__)
 MAX_QUERIES = 10  # search phrases kept from the understanding step
 TIMING = os.environ.get("MUHAWIR_TIMING", "") == "1"  # log each open-model call's time and token counts
 # The second reading reads each sentence in its own request: read together, sentences are judged leniently
@@ -486,6 +491,7 @@ def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
 
 
 class Generator(Protocol):
+    """What a writing step provides: given a question and the retrieved passages, claims that each cite passage ids."""
     name: str
     strict_retrieval: bool
 
@@ -503,12 +509,27 @@ class ExtractiveGenerator:
     def generate(self, question: str, passages: list[Passage], style: str, lang: str,
                  personal: bool = False, feedback: str = "", previous: str = "", kind: str = "",
                  feeling: str = "") -> list[Claim]:
+        """Offline fallback without a model: each passage is returned as a quotation of itself."""
         return [Claim(f"«{p.text}»", (p.id,)) for p in passages]
+
+
+LANG_GUIDE = {
+    "ar": "العربية الفصحى السهلة.",
+    "en": ("الإنجليزية. لا تقدّم ترجمتك على أنها نص القرآن. إن ذكرت معنى آية لها ترجمة معتمدة "
+           "في المقاطع فانقل الترجمة المعتمدة بنصها بين علامتي تنصيص ولا تترجم الآية بنفسك، "
+           "واكتب أنها ترجمة للمعاني (a translation of the meaning)."),
+    # 22 October 2026: Urdu, in the Urdu script with its own letters (ی ک ہ ے), not Arabic spelling
+    "ur": ("الأردية السهلة الواضحة كما يكتبها أهلها (اردو)، بحروفها الأردية (ی، ک، ہ، ے، ٹ…) لا بالإملاء العربي، "
+           "مع إبقاء المصطلحات الشرعية بأسمائها المعروفة في الأردية (نماز، روزہ، زکوٰۃ، حج). لا تقدّم ترجمتك على أنها نص القرآن: "
+           "إن ذكرت معنى آية لها ترجمة أردية معتمدة في المقاطع فانقلها بنصها بين «» ولا تترجم الآية بنفسك، "
+           "واكتب أنها ترجمۂ معانی. وأسماء الكتب والعلماء تُكتب كما هي بالعربية."),
+}
 
 
 def build_user_prompt(question: str, passages: list[Passage], style: str, lang: str,
                       personal: bool, feedback: str = "", previous: str = "", kind: str = "",
                       feeling: str = "") -> str:
+    """Build the message sent to the model: the numbered passages with their kind, source, location and grade, the approved translations when the language needs them, then the question and the instructions."""
     lines = ["المقاطع:"]
     for p in passages:
         grade = f" — حكم المحدث: {p.grade}" if p.grade else ""
@@ -517,16 +538,15 @@ def build_user_prompt(question: str, passages: list[Passage], style: str, lang: 
         lines.append(f"[{p.id}] ({KIND_AR.get(p.kind, 'نص')}{who} — {p.location}{grade})\n{p.text}")
         if lang == "en" and p.translation:
             lines.append(f"الترجمة الإنجليزية المعتمدة لهذه الآية (الهلالي ومحسن خان، مجمع الملك فهد): \"{p.translation}\"")
+        elif lang == "ur" and p.translation:
+            lines.append(f"الترجمة الأردية المعتمدة لهذه الآية (محمد جوناكَرهي، مجمع الملك فهد): «{p.translation}»")
     lines.append("")
     lines.append(f"أسلوب الشرح: {STYLE_GUIDE.get(style, STYLE_GUIDE['youth'])} {SPLIT_GUIDE}")
     if kind in KIND_GUIDE:
         lines.append(f"نوع السؤال: {KIND_GUIDE[kind]}")
     if feeling == "sad":
         lines.append(f"حال السائل: {SAD_GUIDE}")
-    lines.append("لغة الجواب: " + ("الإنجليزية. لا تقدّم ترجمتك على أنها نص القرآن. إن ذكرت معنى آية لها ترجمة معتمدة "
-                                   "في المقاطع فانقل الترجمة المعتمدة بنصها بين علامتي تنصيص ولا تترجم الآية بنفسك، "
-                                   "واكتب أنها ترجمة للمعاني (a translation of the meaning)." if lang == "en"
-                                   else "العربية الفصحى السهلة."))
+    lines.append("لغة الجواب: " + LANG_GUIDE.get(lang, LANG_GUIDE["ar"]))
     if personal:
         lines.append("السؤال عن حالة شخصية: اذكر المعلومات العامة الواردة في المقاطع فقط، "
                      "ولا تحكم في حالة السائل.")
@@ -602,6 +622,7 @@ def search_queries(data: object) -> list[str]:
 
 
 def displayed_claim(claim: Claim) -> str:
+    """The visible words of a claim on one line, for the checking prompts."""
     return " / ".join(part for part in (claim.section, claim.label, claim.school, claim.text) if part)
 
 
@@ -714,11 +735,46 @@ def json_reply(call: ModelCall, system: str, user: str, schema: dict, tries: int
                 raise
 
 
+BREAKER_FAILURES = max(1, int(os.environ.get("MUHAWIR_BREAKER_FAILURES", "3")))
+BREAKER_COOLDOWN = max(1.0, float(os.environ.get("MUHAWIR_BREAKER_COOLDOWN", "45")))
+BREAKERS: dict[str, dict] = {}  # model name -> {"failures", "open_until"}, shown by /api/ready
+_breaker_lock = threading.Lock()
+
+
+class CircuitOpen(Exception):
+    """A model that failed several times in a row is skipped for a short while (Model-breaker)."""
+
+
+def with_breaker(name: str, call: ModelCall, others: int, clock=time.monotonic) -> ModelCall:
+    """Model-breaker: after BREAKER_FAILURES failures in a row the model is skipped for BREAKER_COOLDOWN seconds, so
+    a provider that is down costs no timeout on every question and the fallback model answers at once. A model with
+    no other model to fall back on (`others` is 0) is always tried. One success closes the breaker."""
+    state = BREAKERS.setdefault(name, {"failures": 0, "open_until": 0.0})
+
+    def guarded(system: str, user: str, schema: dict) -> str:
+        if others and clock() < state["open_until"]:
+            raise CircuitOpen(f"model {name} is paused after repeated failures")
+        try:
+            out = call(system, user, schema)
+        except Exception:
+            with _breaker_lock:
+                state["failures"] += 1
+                if state["failures"] >= BREAKER_FAILURES:
+                    state["open_until"] = clock() + BREAKER_COOLDOWN
+                    state["failures"] = 0
+            raise
+        with _breaker_lock:
+            state["failures"], state["open_until"] = 0, 0.0
+        return out
+    return guarded
+
+
 class ModelGenerator:
+    """Writes answers with one or more language models, trying them in order; per-request state is kept thread-local."""
     strict_retrieval = False
 
     def __init__(self, calls: list[tuple[str, ModelCall]]) -> None:
-        self.calls = calls
+        self.calls = [(name, with_breaker(name, call, len(calls) - 1)) for name, call in calls]
         self.name = "+".join(name for name, _ in calls)
         # per-request state lives in thread-local storage: the server answers requests in parallel
         # threads, and one request's result must never be read by another
@@ -772,7 +828,7 @@ class ModelGenerator:
                 continue
             question = data.get("question", message)
             question = question.strip()[:500] if isinstance(question, str) else message
-            answer_lang = data.get("answer_lang") if data.get("answer_lang") in ("ar", "en", "other") else ""
+            answer_lang = data.get("answer_lang") if data.get("answer_lang") in ("ar", "en", "ur", "other") else ""
             translate = data.get("translate")
             translate = translate.strip()[:500] if isinstance(translate, str) else ""
             reexplain = data.get("reexplain") in (True, "true")
@@ -838,7 +894,7 @@ class ModelGenerator:
     def translate(self, text: str, target: str) -> str | None:
         """A plain language translation of what the user asked to translate (a word, a term, a
         sentence). Not an answer from the sources; the page labels it as a translation."""
-        system = TRANSLATE_PROMPT.format(target="الإنجليزية" if target == "en" else "العربية")
+        system = TRANSLATE_PROMPT.format(target={"en": "الإنجليزية", "ur": "الأردية"}.get(target, "العربية"))
         for name, call in self.calls:
             try:
                 data = json_reply(call, system, f"<<<{text}>>>", TRANSLATE_SCHEMA)
@@ -863,6 +919,7 @@ class ModelGenerator:
             return []
 
         def read(claim: Claim):
+            """Read one sentence: an example sentence has its own check, any other is checked against its passages, each with one retry."""
             if is_example(claim.text):  # an everyday example (only when examples are allowed)
                 return self._read_example(claim, passages, question)
             return self._check_once([claim], passages, question) or self._check_once([claim], passages, question)
@@ -967,6 +1024,7 @@ class ModelGenerator:
     def generate(self, question: str, passages: list[Passage], style: str, lang: str,
                  personal: bool = False, feedback: str = "", previous: str = "", kind: str = "",
                  feeling: str = "") -> list[Claim]:
+        """Ask the models in order for a draft answer; a model that fails is skipped and the next one is tried."""
         user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling)
         replied = False
         for name, call in self.calls:
@@ -1002,9 +1060,11 @@ class ModelGenerator:
 
 
 def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
+    """A model call for the Anthropic API that returns the model's JSON text."""
     import httpx
 
     def call(system: str, user: str, schema: dict) -> str:
+        """Send one request and return the reply text."""
         r = httpx.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
@@ -1019,9 +1079,11 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
 
 
 def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
+    """A model call for the Gemini API that returns the model's JSON text."""
     import httpx
 
     def call(system: str, user: str, schema: dict) -> str:
+        """Send one request and return the reply text."""
         r = httpx.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             headers={"x-goog-api-key": api_key, "content-type": "application/json"},
@@ -1045,7 +1107,7 @@ def _reasoning_body(reasoning: str) -> dict:
 
 
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-USAGE = {"model_calls": 0, "tokens_in": 0, "tokens_out": 0,
+USAGE = {"model_calls": 0, "tokens_in": 0, "tokens_cached": 0, "tokens_out": 0,
          "attempt_understand": 0, "attempt_support": 0, "attempt_draft": 0,
          "attempt_relevance": 0, "attempt_search_retry": 0, "attempt_other": 0}
 _usage_lock = threading.Lock()
@@ -1055,6 +1117,9 @@ def _count(usage: dict) -> None:
     with _usage_lock:
         USAGE["model_calls"] += 1
         USAGE["tokens_in"] += int(usage.get("prompt_tokens") or 0)
+        # the part of tokens_in the provider read from its prompt cache (billed at a fraction): shows whether the long
+        # instructions repeated on every call are cached at all
+        USAGE["tokens_cached"] += int((usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
         USAGE["tokens_out"] += int(usage.get("completion_tokens") or 0)
 
 
@@ -1072,6 +1137,7 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
     extra_check = _reasoning_body(reasoning_check) if reasoning_check.strip() else extra
 
     def call(system: str, user: str, schema: dict) -> str:
+        """Send one chat request to the endpoint and return the reply text (its timing is logged when MUHAWIR_TIMING is set)."""
         started = time.time()
         headers = {"content-type": "application/json"}
         if api_key:
@@ -1091,14 +1157,16 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
             usage = data.get("usage") or {}
             thought = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
-            log.warning("timing %s %.1fs in=%s out=%s reasoning=%s step=%s", model, time.time() - started,
-                        usage.get("prompt_tokens"), usage.get("completion_tokens"), thought,
+            cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
+            log.warning("timing %s %.1fs in=%s cached=%s out=%s reasoning=%s step=%s", model, time.time() - started,
+                        usage.get("prompt_tokens"), cached, usage.get("completion_tokens"), thought,
                         " ".join(system.split())[:40])
         return data["choices"][0]["message"]["content"] or ""
     return call
 
 
 def get_generator() -> Generator:
+    """Choose the generator from the environment: LLM_PROVIDER is 'extractive' (default) or 'model' with the providers configured."""
     provider = os.environ.get("LLM_PROVIDER", "extractive").strip().lower()
     if provider in ("", "extractive"):
         return ExtractiveGenerator()

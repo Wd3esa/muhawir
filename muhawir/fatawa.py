@@ -78,6 +78,7 @@ _LIST_ITEM = re.compile(r"^[\d٠-٩]+\s*[-–.)]?\s*$")  # «1 - »: an item of 
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -122,6 +123,7 @@ def parse(text: str, title: str, join_cut: bool = True) -> list[dict]:
     current: dict | None = None
 
     def add_piece(piece: str) -> None:
+        """Add a cleaned piece of text to the question being read; text outside any question is ignored."""
         piece = _clean(piece)
         if piece and current is not None:
             current["pieces"].append((piece, len(ends)))
@@ -197,6 +199,7 @@ def build(source_id: str, text: str, min_passages: int | None = None) -> tuple[d
     group: list[dict] = []
 
     def flush() -> None:
+        """Write the paragraphs gathered so far as one passage, then start a new group."""
         if not group:
             return
         pages = [pg for p in group for pg in p["pages"]]

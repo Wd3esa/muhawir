@@ -15,11 +15,13 @@ KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "see
 
 
 class CorpusError(ValueError):
+    """Raised when corpus data is malformed."""
     pass
 
 
 @dataclass(frozen=True)
 class Source:
+    """A book or collection the passages come from."""
     id: str
     name: str
     about: str  # one line: what this source is
@@ -28,6 +30,7 @@ class Source:
 
 @dataclass(frozen=True)
 class Passage:
+    """One quotable piece of a source, with its location and, for hadith, the grading the source states."""
     id: str
     source_id: str
     location: str
@@ -40,24 +43,47 @@ class Passage:
 
 @dataclass
 class Corpus:
+    """All sources and passages held in memory, with the approved translations of the verses."""
     sources: dict[str, Source]
     passages: list[Passage]
     synthetic: bool = False
     translations: dict[str, str] = field(default_factory=dict)
     translation_name: str = ""
+    other_translations: dict[str, dict[str, str]] = field(default_factory=dict)  # {"ur": {passage id: text}}
+    other_translation_names: dict[str, str] = field(default_factory=dict)
     _by_id: dict[str, Passage] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         self._by_id = {p.id: p for p in self.passages}
 
     def passage(self, passage_id: str) -> Passage | None:
+        """The passage with this id, or None."""
         return self._by_id.get(passage_id)
 
     def source_of(self, passage: Passage) -> Source:
+        """The source a passage belongs to."""
         return self.sources[passage.source_id]
 
-    def translation(self, passage_id: str) -> str:
-        return self.translations.get(passage_id, "")
+    def translation(self, passage_id: str, lang: str = "en") -> str:
+        """The approved translation of a verse in the given language; empty if there is none."""
+        if lang == "en":
+            return self.translations.get(passage_id, "")
+        return self.other_translations.get(lang, {}).get(passage_id, "")
+
+    def translation_name_for(self, lang: str = "en") -> str:
+        """The name of the translation used for that language."""
+        return self.translation_name if lang == "en" else self.other_translation_names.get(lang, "")
+
+    def neighbours(self, passage_id: str) -> tuple[Passage | None, Passage | None]:
+        """The passages just before and after this one in the same book (None at either end)."""
+        p = self._by_id.get(passage_id)
+        if p is None:
+            return None, None
+        i = self.passages.index(p)
+        before = self.passages[i - 1] if i > 0 else None
+        after = self.passages[i + 1] if i + 1 < len(self.passages) else None
+        same = lambda q: q if q is not None and q.source_id == p.source_id else None  # noqa: E731
+        return same(before), same(after)
 
 
 def _require(obj: dict, keys: tuple[str, ...], where: str) -> None:
@@ -68,6 +94,7 @@ def _require(obj: dict, keys: tuple[str, ...], where: str) -> None:
 
 
 def parse_corpus(data: dict) -> Corpus:
+    """Validate corpus data (a JSON object) and build a Corpus; raises CorpusError on any malformed entry."""
     if not isinstance(data, dict):
         raise CorpusError("corpus must be a JSON object")
     sources: dict[str, Source] = {}
@@ -99,10 +126,12 @@ def parse_corpus(data: dict) -> Corpus:
     unknown = [pid for pid in translations if pid not in seen]
     if unknown:
         raise CorpusError(f"translation for unknown passage '{unknown[0]}'")
+    others = {lang: dict(v) for lang, v in (data.get("_other_translations") or {}).items()}
     return Corpus(sources, passages, bool(data.get("synthetic", False)), dict(translations),
-                  str(data.get("_translation_name", "")))
+                  str(data.get("_translation_name", "")), others, dict(data.get("_other_translation_names") or {}))
 
 
 def load_corpus(path: str | Path) -> Corpus:
+    """Read a corpus JSON file."""
     with open(path, encoding="utf-8") as fh:
         return parse_corpus(json.load(fh))

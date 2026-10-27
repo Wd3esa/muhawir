@@ -24,10 +24,14 @@ def test_distress_in_the_main_dialects_gets_the_fixed_caring_reply(text):
     assert classify.check(text).kind == classify.CRISIS
 
 
+def test_a_divorce_wording_in_a_dialect_is_referred():
+    assert classify.check("مراتي قلتلها انتي طالق وانا متعصب").kind == classify.PERSONAL_CASE
+
+
 @pytest.mark.parametrize("text", ["يصير أفطر وأنا مريض؟", "ينفع أفطر وأنا عيان؟", "بقدر أفطر إذا كنت مريض؟",
-                                  "داير أفطر وأنا عيان، بجوز لي؟", "مراتي قلتلها انتي طالق وانا متعصب"])
-def test_a_personal_case_in_a_dialect_is_referred(text):
-    assert classify.check(text).kind == classify.PERSONAL_CASE
+                                  "داير أفطر وأنا عيان، بجوز لي؟", "فاتتني صلاة الصبح وصحيت الساعة ١٠ أقرأ سرًا أو جهرًا؟"])
+def test_a_first_person_question_with_a_known_ruling_is_answered_not_referred(text):
+    assert classify.check(text).kind is None
 
 
 @pytest.mark.parametrize("text", ["ما حكم الانتحار؟", "هل يجوز للمريض أن يفطر؟", "ما حكم قول الرجل لزوجته أنت طالق؟",
@@ -60,10 +64,10 @@ def _model(answer_lang="", views=False, feeling="", personal=False, understood="
     return Muhawir(VIEWS if views else CORPUS, ModelGenerator([("m", call)]))
 
 
-def test_another_language_gets_a_choice_between_arabic_and_english():
+def test_another_language_gets_a_choice_between_arabic_english_and_urdu():
     res = _model(answer_lang="other").ask("أريد أحاديث عن الصيام بالإسبانية")
     assert res.status == CHAT and res.message == TEXT["ar"]["choose_lang"]
-    assert res.choices == [TEXT["ar"]["choose_ar"], TEXT["ar"]["choose_en"]]
+    assert res.choices == [TEXT["ar"]["choose_ar"], TEXT["ar"]["choose_en"], TEXT["ar"]["choose_ur"]]
 
 
 def test_an_english_message_gets_the_choice_in_english():
@@ -74,13 +78,13 @@ def test_an_english_message_gets_the_choice_in_english():
 def test_an_agreed_ruling_does_not_say_it_presents_the_scholars_views():
     res = _model().ask("ما حكم سقي النخلة؟")
     assert res.status == ANSWERED, res.why
-    assert res.note == TEXT["ar"]["ruling_note_agreed"] and not res.referral
+    assert res.note == "" and not res.referral
 
 
 def test_a_ruling_with_views_keeps_the_scholars_views_note_and_the_card():
     res = _model(views=True).ask("ما حكم سقي النخلة؟")
     assert res.status == ANSWERED, res.why
-    assert res.views and res.note == TEXT["ar"]["ruling_note"] and res.referral
+    assert res.views and res.note == "" and res.referral
 
 
 # --- the understanding step reads distress and personal cases in any dialect, beyond the word lists ---------
@@ -93,7 +97,7 @@ def test_distress_the_word_list_does_not_hold_gets_the_caring_reply_from_the_und
 
 
 def test_a_personal_case_the_word_list_does_not_hold_is_referred_from_the_understanding_step():
-    text = "أبويه كبير بالعمر وما يكدر يسقي النخلة، شنو عليه؟"
+    text = "أخويه استولى على نصيبي من تركة أبينا، شنو أسوي؟"
     assert classify.check(text).kind is None
     res = _model(personal=True).ask(text)
     assert res.status == REFERRED and res.message.startswith(TEXT["ar"]["personal_case"])
@@ -308,3 +312,43 @@ def test_an_answer_that_covers_the_question_has_no_partial_notice():
 
     res = Muhawir(CORPUS, Judge(_model().generator.calls)).ask("ما حكم سقي النخلة؟")
     assert res.status == ANSWERED and TEXT["ar"]["partial_note"] not in res.note
+
+
+def test_the_relevance_judge_runs_once_while_the_support_check_runs():
+    """Judge-early: the verdict read during the support check is used when the check keeps every sentence."""
+    calls = []
+
+    class Judge(ModelGenerator):
+        def judge_relevance(self, question, claims, passages=None):
+            calls.append(len(claims))
+            return "yes"
+
+    res = Muhawir(CORPUS, Judge(_model().generator.calls)).ask("ما حكم سقي النخلة؟")
+    assert res.status == ANSWERED and len(calls) == 1
+
+
+def test_phrases_are_searched_in_parallel_with_the_same_result(monkeypatch):
+    from muhawir import pipeline
+    one = _model()
+    monkeypatch.setattr(pipeline, "SEARCH_THREADS", 1)
+    a = [p.id for p in one._gather("ما حكم سقي النخلة؟", "", ["سقي النخلة", "ماء النخل", "حكم الري"])[0]]
+    monkeypatch.setattr(pipeline, "SEARCH_THREADS", 4)
+    b = [p.id for p in one._gather("ما حكم سقي النخلة؟", "", ["سقي النخلة", "ماء النخل", "حكم الري"])[0]]
+    assert a == b
+
+
+def test_a_question_in_other_words_reuses_the_reply_kept_for_its_plain_form():
+    """Cache-by-meaning: the paraphrase costs the understanding step only; no search, writing or checking."""
+    pipeline_calls = []
+    engine = _model(understood="ما حكم سقي النخلة؟")
+    orig = engine._ask
+
+    def counting(*a, **k):
+        pipeline_calls.append(1)
+        return orig(*a, **k)
+
+    engine._ask = counting
+    first = engine.ask("هل يجوز سقي النخل؟")
+    second = engine.ask("ما رأي الشرع في ري النخلة؟")
+    assert first.status == ANSWERED and second.status == ANSWERED
+    assert len(pipeline_calls) == 1 and second.understood == "ما حكم سقي النخلة؟"

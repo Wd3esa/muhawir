@@ -74,6 +74,7 @@ _DOLLAR = re.compile(r"(?<=^# )\$\s*", re.MULTILINE)
 
 
 class ImportError_(ValueError):
+    """Raised when the source file does not have the structure this importer expects."""
     pass
 
 
@@ -99,6 +100,7 @@ def build(source_id: str, text: str, min_passages: int | None = None) -> tuple[d
     group: list[dict] = []
 
     def flush() -> None:
+        """Write the paragraphs gathered so far as one passage, then start a new group."""
         if not group:
             return
         pages = [pg for p in group for pg in p["pages"]]

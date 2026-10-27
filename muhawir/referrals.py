@@ -19,7 +19,9 @@ from .normalize import normalize
 
 FATWA_BODIES = [
     {"ar": "الرئاسة العامة للبحوث العلمية والإفتاء", "en": "General Presidency of Scholarly Research and Ifta",
-     "where_ar": "المملكة العربية السعودية", "where_en": "Saudi Arabia", "url": "https://www.alifta.gov.sa"},
+     "ur": "الرئاسة العامة للبحوث العلمية والإفتاء (ادارۂ تحقیقاتِ علمیہ و افتاء)",
+     "where_ar": "المملكة العربية السعودية", "where_en": "Saudi Arabia", "where_ur": "سعودی عرب",
+     "url": "https://www.alifta.gov.sa"},
 ]
 
 CARD = {
@@ -36,6 +38,13 @@ CARD = {
         "newcomer": ("Talk to someone", "Contact the mosque or Islamic centre nearest to you: they will welcome you, help you "
                                        "step by step, and answer your questions in person."),
     },
+    "ur": {
+        "fatwa": ("کس سے پوچھیں؟", "اپنے ملک کے سرکاری دارالافتاء سے پوچھیں، ان میں سے ایک یہ ہے:"),
+        "finance": ("کس سے پوچھیں؟", "جدید مالی معاملات پر سرکاری فتویٰ ادارے اور فقہی مجامع غور کرتے ہیں۔ اپنے ملک کے سرکاری "
+                                     "دارالافتاء سے پوچھیں، ان میں سے ایک یہ ہے:"),
+        "newcomer": ("کسی سے بات کریں", "اپنے قریب ترین مسجد یا اسلامی مرکز سے رابطہ کریں: وہ آپ کو خوش آمدید کہیں گے، قدم بہ قدم "
+                                         "آپ کی مدد کریں گے اور آمنے سامنے آپ کے سوالوں کے جواب دیں گے۔"),
+    },
 }
 
 # someone who wants to become Muslim (not a question about conversion in general)
@@ -43,11 +52,14 @@ _NEWCOMER = re.compile(
     r"\b(?:how (?:do|can|to) (?:i|you) (?:become|be) (?:a )?muslim|(?:i want|i'd like|i would like) to (?:become|be) "
     r"(?:a )?muslim|(?:convert|revert)(?:ing)? to islam|embrace islam)\b"
     # «كيف أسلم؟» (how do I become Muslim) but not «كيف أسلم عمر؟» (how did Umar become Muslim)
-    r"|(?:كيف|اريد ان|ابغي|ابغى|ابي|اود ان|احب ان)\s+(?:اسلم(?=\s*[؟?.!]?\s*$)|ادخل (?:في )?الاسلام|اعتنق الاسلام)",
+    r"|(?:كيف|اريد ان|ابغي|ابغى|ابي|اود ان|احب ان)\s+(?:اسلم(?=\s*[؟?.!]?\s*$)|ادخل (?:في )?الاسلام|اعتنق الاسلام)"
+    # Urdu: «میں مسلمان ہونا چاہتا ہوں»، «اسلام قبول کرنا چاہتی ہوں»
+    r"|مسلمان (?:ہونا|بننا) چا[ہه]ت[اےی]|اسلام قبول [کك]رنا چا[ہه]ت[اےی]",
     re.IGNORECASE)
 
 
 def wants_to_become_muslim(question: str) -> bool:
+    """True when the message says the person wants to become a Muslim."""
     return bool(_NEWCOMER.search(question or "") or _NEWCOMER.search(normalize(question or "")))
 
 

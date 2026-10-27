@@ -47,6 +47,7 @@ def book_structure(text: str) -> bool:
 
 @dataclass(frozen=True)
 class Claim:
+    """One sentence of an answer with the passages it cites and its layout fields."""
     text: str
     passage_ids: tuple[str, ...]
     school: str = ""  # set for a scholar's or school's view; must be named in the cited passage
@@ -56,6 +57,7 @@ class Claim:
 
 @dataclass(frozen=True)
 class Rejected:
+    """A claim dropped by the code checks, with the reason."""
     claim: Claim
     reason: str
 
@@ -77,6 +79,7 @@ def school_names(school: str) -> list[str]:
 
 
 def quotes_in(text: str) -> list[str]:
+    """The Arabic quotations in a text."""
     return [q for m in _QUOTES.finditer(text) for q in [next(g for g in m.groups() if g)] if _ARABIC.search(q)]
 
 
@@ -236,6 +239,7 @@ def wrong_collector(claim_text: str, source_ids: set[str]) -> list[str]:
 
 def verify(claims: list[Claim], corpus: Corpus,
            allowed_ids: set[str]) -> tuple[list[Claim], list[Rejected]]:
+    """Check each claim against the passages it cites, in code; returns the claims kept and those rejected with the reason."""
     kept: list[Claim] = []
     rejected: list[Rejected] = []
     for claim in claims:

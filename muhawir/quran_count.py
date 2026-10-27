@@ -19,6 +19,9 @@ _ASKS_COUNT = re.compile(
     r"كم\s*(?:مر[ةه]|مرات|عدد)|عدد\s*(?:مرات|ورود|تكرار|ذكر)|كم\s*(?:وردت?|ذكرت?|تكررت?|جاءت?|جات|جت|اجت|انذكرت?|اتذكرت?)|"
     r"\bhow\s+(?:many\s+times|often)\b", re.IGNORECASE)
 _IN_QURAN = re.compile(r"القرآن|القران|المصحف|سور[ةه]\s|\bqur'?an\b|\bkoran\b", re.IGNORECASE)
+# a question that names a word but another book («في صحيح البخاري») is not about the Quran
+_OTHER_SOURCE = re.compile(r"حديث|الحديث|البخاري|مسلم|السنة|السنه|تفسير|الطبري|ابن\s|كتاب|\bhadith\b|\bbukhari\b|\bmuslim\b|\bbook\b",
+                           re.IGNORECASE)
 _ROOT = re.compile(r"جذر|مشتقات|مادة|تصاريف|اشتقاق|\broot\b|\bderivatives?\b", re.IGNORECASE)
 _QUOTED_WORD = re.compile(r"[«\"“'(﴿]([^»\"”')﴾]{2,40})[»\"”')﴾]")
 _NAMED_WORD = re.compile(
@@ -26,7 +29,7 @@ _NAMED_WORD = re.compile(
     re.IGNORECASE)
 # after the asking words with no «كلمة»: «كم مرة ذكرت الصلاة في القرآن»
 _AFTER_ASK = re.compile(
-    r"(?:وردت?|ذكرت?|تكررت?|جاءت?|جات|جت|اجت|انذكرت?|اتذكرت?|ذكر|ورود|تكرار)\s+([؀-ۿ ]{2,40}?)(?=\s+(?:في|ف)\s)")
+    r"(?:وردت?|ذكرت?|تكررت?|جاءت?|جات|جت|اجت|انذكرت?|اتذكرت?|ذكر|ورود|تكرار)\s+([؀-ۿ ]{2,40}?)(?=\s+(?:في|ف)\s|\s*[؟?.،,]|\s*$)")
 _SURAH = re.compile(r"(?:في|ف)\s+سور[ةه]\s+([؀-ۿ ]{2,30}?)(?=\s*(?:[؟?.،,]|$|\s+(?:في|من)\s))")
 _FILLER = frozenset({"كلمه", "لفظ", "لفظه", "اسم", "الكلمه", "اللفظ", "جذر", "الجذر", "ماده", "مشتقات", "الجلاله", "word", "the",
                      "root"})
@@ -37,6 +40,7 @@ SHOWN = 30  # places listed with their verse; the count covers them all
 
 @dataclass
 class Place:
+    """One occurrence of a word in a verse."""
     verse_id: str
     location: str
     word: str  # the word as written in the verse
@@ -45,6 +49,7 @@ class Place:
 
 @dataclass
 class Count:
+    """The result of counting a word: exact occurrences, occurrences joined to prefixes or pronouns, and what was assumed."""
     word: str
     surah: str
     exact: list[Place] = field(default_factory=list)
@@ -68,7 +73,11 @@ def asked(question: str) -> tuple[str, str, bool] | None:
     q = re.sub(r"[-_*~^|/\\+=#@&%$!(){}\[\]<>]+", " ", q)
     q = " ".join(q.split())
     q = re.sub(r"\bب(القرآن|القران|المصحف)\b", r"في \1", q)  # «… رمضان بالقرآن» = «في القرآن»
-    if not (_ASKS_COUNT.search(q) and _IN_QURAN.search(q)):
+    if not _ASKS_COUNT.search(q):
+        return None
+    # «كم مرة وردت كلمة الرشد» without «في القرآن»: a word asked about this way is the Quran's word, unless another
+    # book is named
+    if not _IN_QURAN.search(q) and not ((_NAMED_WORD.search(q) or _AFTER_ASK.search(q)) and not _OTHER_SOURCE.search(q)):
         return None
     surah = ""
     m = _SURAH.search(q)
@@ -97,8 +106,21 @@ class QuranIndex:
             written = [w for w in text.split() if normalize(w)]
             self.verses.append((vid, location, [normalize(w) for w in written], written))
 
+    def vowelled_forms(self) -> dict[str, str]:
+        """Each word of the mushaf (plain form) that is written one way only, with that written form. A word the
+        mushaf writes in two ways (another case ending, another vowel pattern) is left out: it is not known which one
+        a text means."""
+        if getattr(self, "_forms", None) is None:
+            seen: dict[str, set[str]] = {}
+            for _vid, _location, plain, written in self.verses:
+                for key, form in zip(plain, written):
+                    seen.setdefault(key, set()).add(form)
+            self._forms = {k: next(iter(v)) for k, v in seen.items() if len(v) == 1}
+        return self._forms
+
     @classmethod
     def from_corpus(cls, corpus) -> "QuranIndex":
+        """Build the index from the verses of the corpus (the database or the in-memory list)."""
         con = getattr(corpus, "con", None)
         if con is not None:
             rows = con.execute("SELECT id, location, text FROM passages WHERE kind = 'quran' ORDER BY rid").fetchall()
@@ -108,6 +130,7 @@ class QuranIndex:
         return cls(rows)
 
     def count(self, words: str, surah: str = "", root_asked: bool = False) -> Count:
+        """Count a word or phrase in the whole Quran or in one surah, listing each place."""
         target = normalize(words).split()
         result = Count(words, surah, root_asked=root_asked)
         verses = [v for v in self.verses if not surah or _in_surah(v[1], surah)]
@@ -214,6 +237,7 @@ def by_reading(places: list[Place]) -> list[tuple[str, int]]:
 
 
 def times_ar(n: int) -> str:
+    """The number of times in Arabic, with the right form for the number."""
     if n == 1:
         return "مرة واحدة"
     if n == 2:
@@ -222,6 +246,7 @@ def times_ar(n: int) -> str:
 
 
 def verses_ar(n: int) -> str:
+    """The number of verses in Arabic, with the right form for the number."""
     if n == 1:
         return "آية واحدة"
     if n == 2:
@@ -230,6 +255,7 @@ def verses_ar(n: int) -> str:
 
 
 def times_en(n: int) -> str:
+    """The number of times in English."""
     return "once" if n == 1 else ("twice" if n == 2 else f"{n} times")
 
 

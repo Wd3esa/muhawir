@@ -27,10 +27,12 @@ MIN_WORDS = 2
 
 
 def asks_for_reason(question: str) -> bool:
+    """True when the question asks why a verse was revealed."""
     return bool(_ASKS.search(normalize(question)))
 
 
 class AsbabIndex:
+    """Knows which verses and surahs the corpus has occasions of revelation (asbab al-nuzul) for."""
     def __init__(self, corpus, retriever) -> None:
         self.corpus, self.retriever = corpus, retriever
         self.covered: set[tuple[int, int]] = set()
@@ -66,6 +68,7 @@ class AsbabIndex:
 
     @property
     def active(self) -> bool:
+        """True when the corpus has at least one occasion of revelation."""
         return bool(self.covered or self.surahs_covered)
 
     def _surah(self, q: str) -> tuple[int, str] | None:
