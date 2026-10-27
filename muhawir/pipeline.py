@@ -55,7 +55,10 @@ CACHE_SECONDS = 24 * 3600
 STORE_SECONDS = int(os.environ.get("MUHAWIR_STORE_DAYS", "30") or 0) * 24 * 3600
 STORE_SIZE = 5000
 # counts since the server started, shown by /api/health (numbers only: never a question or an answer)
-STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_meaning": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0}
+STATS = {"questions": 0, "counted": 0, "verse_shown": 0, "from_memory": 0, "from_meaning": 0, "from_disk": 0, "waited_for_same": 0, "written": 0, "written_seconds": 0.0,
+         # Second-search: how often the second search runs, how often it turns «not found» into an answer, and its seconds;
+         # «no_passage» counts the runs after a first search that found no passage at all (the rest found some, none usable)
+         "second_search": 0, "second_search_saved": 0, "second_search_no_passage": 0, "second_search_seconds": 0.0}
 _stats_lock = threading.Lock()
 
 
@@ -1601,8 +1604,15 @@ class Muhawir:
         if isinstance(written, Response):  # the model could not be reached, or the check could not run
             return written
         if (written is None or not written.kept) and not personal and not self.generator.strict_retrieval:
+            started = time.time()
+            _stat("second_search")
+            if written is None:
+                _stat("second_search_no_passage")
             with _timed("second_search"):
                 written = self._retry(question, original, queries or [], style, lang, extra, written)
+            _stat("second_search_seconds", time.time() - started)
+            if getattr(written, "retried", False):
+                _stat("second_search_saved")
             if isinstance(written, Response):
                 return written
         if written is None:
