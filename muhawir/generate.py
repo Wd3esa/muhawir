@@ -279,7 +279,7 @@ UNDERSTAND_PROMPT = """أمامك رسالة من مستخدم يحاور مسا
    وأكثر الناس لا يكتبون علامات الترقيم: الرسالة التي تطلب معلومة سؤال وإن لم تنتهِ بعلامة استفهام ولم تبدأ بأداة سؤال.
    وإن كانت آخر رسالة للمساعد تنتهي بسؤال أو عرض (مثل «هل تريد أن تعرف…؟» أو خيارات يعرضها) وكانت الرسالة ردًا عليه
    (مثل «نعم»، «ايوه»، «كمّل»، «الثاني»، «الأول»، «لا»)، فاكتب في question السؤال الكامل الذي يعنيه الرد بموضوعه من المحادثة،
-   وإن رفض العرض ولم يسأل شيئًا آخر فاترك question فارغًا.
+   وإن رفض العرض ولم يسأل شيئًا آخر فاترك question فارغًا واجعل kind "declined".
    إن لم يكن في الرسالة سؤال ولا اعتراض ولا موضوع يمكن الجواب عنه (مثل شتيمة وحدها) فاترك question فارغًا.
 2. translate: إن كان المطلوب ترجمة كلمة أو عبارة أو نص كتبه المستخدم نفسه في رسالته (مثل: «ترجم كلمة التوحيد»، «التوحيد بالإنجليزية؟»، «what is صلاة in English»)
    فاكتب هنا النص المطلوب ترجمته بحروفه كما هو، وإلا اتركه فارغًا "".
@@ -441,7 +441,7 @@ UNDERSTAND_SCHEMA = {
                    "feeling": {"type": "string", "enum": ["crisis", "sad", ""]},
                    "personal": {"type": "boolean"},
                    "kind": {"type": "string", "enum": ["what", "why", "how", "ruling", "objection", "contemporary", "about",
-                                                       "quote", ""]},
+                                                       "quote", "declined", ""]},
                    "unsure": {"type": "boolean"},
                    "reexplain": {"type": "boolean"},
                    "recall": {"type": "string"},
@@ -875,7 +875,7 @@ class ModelGenerator:
             translate = translate.strip()[:500] if isinstance(translate, str) else ""
             reexplain = data.get("reexplain") in (True, "true")
             kind = data.get("kind")
-            kind = kind if isinstance(kind, str) and (kind in KIND_GUIDE or kind in ("about", "quote")) else ""
+            kind = kind if isinstance(kind, str) and (kind in KIND_GUIDE or kind in ("about", "quote", "declined")) else ""
             feeling = data.get("feeling") if data.get("feeling") in ("crisis", "sad") else ""
             personal = data.get("personal") in (True, "true")
             unsure = data.get("unsure") in (True, "true")

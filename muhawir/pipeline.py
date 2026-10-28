@@ -1501,6 +1501,10 @@ class Muhawir:
                             return Response(UNAVAILABLE, TEXT[lang_ok]["unavailable"], synthetic=self.corpus.synthetic)
                         return Response(TRANSLATED, out, synthetic=self.corpus.synthetic,
                                         note=TEXT[lang_ok]["translation_label"])
+                    if u.get("kind") == "declined" and not u["question"]:
+                        # Declined-offer: «لا» to Muhawir's own question («هل تريد أن تعرف…؟») is a turn of the
+                        # conversation: a short friendly reply, not «my answer seems unclear»
+                        return Response(CHAT, TEXT[reply_lang]["offer_declined"], synthetic=self.corpus.synthetic)
                     if not u["question"] and _still_a_question(question, turns):
                         u = {**u, "question": question}
                     if not u["question"]:  # no question in the message (e.g. only an insult): no judgement, an invitation
