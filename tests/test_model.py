@@ -648,3 +648,24 @@ def test_the_suggested_question_covers_every_kind_the_answer_listed():
     assert "فلا تقترح السؤال عن واحد منها دون غيره" in generate.SYSTEM_PROMPT
     from muhawir.pipeline import as_question
     assert as_question("هل تريد أن تعرف الفرق بين ربا الفضل وربا النسيئة؟") == "ما الفرق بين ربا الفضل وربا النسيئة؟"
+
+
+def test_a_busy_provider_is_waited_for_as_long_as_it_asks_within_a_limit():
+    from types import SimpleNamespace
+    from muhawir import generate
+    waits, tries = [], []
+
+    class Busy(Exception):
+        response = SimpleNamespace(status_code=429, headers={"retry-after": "9"})
+
+    def call(system, user, schema):
+        tries.append(1)
+        if len(tries) < 3:
+            raise Busy()
+        return "{}"
+    assert generate.with_retry(call, "s", "u", {}, sleep=waits.append) == "{}"
+    assert waits == [9.0, 9.0]  # longer than the fixed 2 and 6 seconds, as asked
+    Busy.response = SimpleNamespace(status_code=429, headers={"retry-after": "300"})
+    tries.clear(); waits.clear()
+    generate.with_retry(call, "s", "u", {}, sleep=waits.append)
+    assert waits == [generate.MAX_BUSY_WAIT] * 2
