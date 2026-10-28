@@ -19,7 +19,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, quran_count, referrals, sahihayn, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import Generator, is_example
@@ -44,6 +44,7 @@ QUOTE_CANDIDATES = 10  # matches read for each quoted hadith
 QUOTE_MIN_COVERAGE = 0.8  # a hadith passage must hold nearly all the quoted words to be the one quoted
 SIMPLER = {"extended": "youth", "youth": "kids", "kids": "kids", "newcomer": "newcomer"}  # for "I did not understand"
 
+QUOTE = "quote"  # the message was a text found word for word in the sources: where it is, with no answer written
 ANSWERED, ABSTAINED, REFERRED, DECLINED, INVALID, CHAT, UNAVAILABLE, TRANSLATED = (
     "answered", "abstained", "referred", "declined", "invalid", "chat", "unavailable", "translated")
 # replies kept in memory for a repeated question (Muhawir.ask): answers, referrals, refusals and «not found» only;
@@ -356,6 +357,7 @@ class Response:
     referral: dict = field(default_factory=dict)  # who to ask, when Muhawir refers the user on (see referrals.py)
     choices: list[str] = field(default_factory=list)  # buttons that each send their text as the next message
     by_code: bool = False  # counted or quoted by code with no model (a word count, a verse shown): nothing to detail
+    quote: dict = field(default_factory=dict)  # QUOTE: where the text is in the sources (quote_check.lookup)
 
     def to_dict(self) -> dict:
         """The response as a plain dict, ready for JSON."""
@@ -1296,7 +1298,7 @@ class Muhawir:
         return lookup(passage.id, lang) if lookup else ""
 
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
-            history: list[dict] | None = None) -> Response:
+            history: list[dict] | None = None, answer_it: bool = False) -> Response:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
         the answer itself still comes from retrieved passages alone. A referred reply names who to ask.
 
@@ -1304,11 +1306,14 @@ class Muhawir:
         reply from memory: no model call, no cost, at once. Each question costs 10 to 20 model calls (about one US
         cent); visitors and reviewers repeat the suggested questions and the test list (6 October 2026: the prepaid
         credit ran out). Kept in memory and, when the server gives a store, on disk (AnswerStore) so that it outlives a
-        restart, until the code, the prompt or the sources change."""
+        restart, until the code, the prompt or the sources change.
+
+        `answer_it` («اسأل عنه» under a quotation): a text the understanding step reads as a bare quotation is answered
+        as a question instead of being located."""
         _stat("questions")
         key = None if history else (normalize(as_question(question or "")), style, lang)
-        if not (key and key[0] and CACHE_SIZE):
-            return self._answer_new(question, style, lang, history, None)
+        if not (key and key[0] and CACHE_SIZE) or answer_it:
+            return self._answer_new(question, style, lang, history, None, answer_it)
         kept = self._kept(key)
         if kept:
             return kept
@@ -1355,11 +1360,12 @@ class Muhawir:
             _stat("waited_for_same" if waited else "from_disk")
         return kept
 
-    def _answer_new(self, question: str, style: str, lang: str, history: list[dict] | None, key) -> Response:
+    def _answer_new(self, question: str, style: str, lang: str, history: list[dict] | None, key,
+                    answer_it: bool = False) -> Response:
         started = time.time()
         token = _steps.set({})
         try:
-            res = self._ask_once(question, style, lang, history)
+            res = self._ask_once(question, style, lang, history, answer_it)
         finally:
             steps = _steps.get()
             _steps.reset(token)
@@ -1387,9 +1393,10 @@ class Muhawir:
                 except Exception:  # the disk is full or locked: the reply is still given
                     log.warning("answer store: could not save a reply", exc_info=True)
 
-    def _ask_once(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
+    def _ask_once(self, question: str, style: str, lang: str, history: list[dict] | None,
+                  answer_it: bool = False) -> Response:
         question = as_question(question)
-        res = self._respond(question, style, lang, history)
+        res = self._respond(question, style, lang, history, answer_it)
         if res.status in (ANSWERED, ABSTAINED, REFERRED):
             fix = self._misquoted(question)
             if fix:
@@ -1407,7 +1414,8 @@ class Muhawir:
             res.referral = referrals.card(kind, reply_lang)
         return res
 
-    def _respond(self, question: str, style: str, lang: str, history: list[dict] | None) -> Response:
+    def _respond(self, question: str, style: str, lang: str, history: list[dict] | None,
+                 answer_it: bool = False) -> Response:
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
         if _URDU.search(question or ""):  # an Urdu question gets its fixed replies in Urdu, whatever the page language
@@ -1474,6 +1482,12 @@ class Muhawir:
                         res = Response(CHAT, t_["choose_lang"], synthetic=self.corpus.synthetic)
                         res.choices = [t_["choose_ar"], t_["choose_en"], t_["choose_ur"]]
                         return res
+                    if u.get("kind") == "quote" and not answer_it and gate.kind is None:
+                        # Quote-in-box: the understanding step read the message as a bare text to locate, asking
+                        # nothing. Found word for word: where it is, with no answer written; otherwise it is answered
+                        found = quote_check.lookup(self.retriever, self.corpus, question, explain_miss=False)
+                        if found["status"] == "exact":
+                            return Response(QUOTE, "", synthetic=self.corpus.synthetic, quote=found)
                     if u.get("kind") == "about" and gate.kind is None:
                         # About-Muhawir: a question on Muhawir itself or the form of its last reply («لماذا ترد بهذه
                         # الطريقة؟») is a turn of the conversation, not a search: said by the system, with no religious content
