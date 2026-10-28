@@ -1022,17 +1022,10 @@ class Muhawir:
         said = set(tokenize(f"{original} {question}"))
         extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
-        emit = _progress.get()  # taken here: the searches below run in other threads
-
         def found(query: str) -> list:
             hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
                     and h.coverage >= MODEL_MIN_COVERAGE
                     and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
-            if emit is not None and hits:  # Source-names: the books this search reached, shown as the status line
-                try:
-                    emit("source", list(dict.fromkeys(self.corpus.source_of(h.passage).name for h in hits)))
-                except Exception:
-                    log.debug("source names not sent", exc_info=True)
             return hits
         # Search-parallel: each phrase is searched at the same time (the vector scan and the query embedding run
         # outside Python's lock), in the order of the phrases, so the result is the same as one after the other
@@ -1055,8 +1048,12 @@ class Muhawir:
         # and a hadith a fatwa quotes comes from its own book, before the fatwa
         offered = self._with_quoted_hadiths(offered)
         # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
-        return [p for p in offered if bayyinat.is_answer_part(p)
-                and not _confused(p, f"{original} {question}")], queries
+        passages = [p for p in offered if bayyinat.is_answer_part(p)
+                    and not _confused(p, f"{original} {question}")]
+        # Report only the selected answer context, after merging, limiting and filtering all searches.
+        if passages:
+            progress("source", list(dict.fromkeys(self.corpus.source_of(p).name for p in passages)))
+        return passages, queries
 
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
