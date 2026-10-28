@@ -380,3 +380,11 @@ def test_a_clear_question_put_in_other_words_is_not_asked_back():
     # 28 October 2026: «ما رأي بن باز في البيتكوين» was answered under «إذا كنت تقصد: ما رأي ابن باز…»
     res = _model(understood="ما حكم سقي النخلة في الصيف؟").ask("حكم سقي النخله")
     assert res.understood and res.unsure is False
+
+
+def test_no_to_muhawirs_own_question_gets_a_short_friendly_reply():
+    # 28 October 2026: «لا» to «هل تريد أن تعرف…؟» was answered «يبدو أن جوابي لم يكن واضحًا…»
+    res = _model(understood="", kind="declined").ask("لا", history=[
+        {"role": "user", "text": "ما حكم سقي النخلة؟"},
+        {"role": "assistant", "text": "النخلة تحتاج إلى ماء كثير. هل تريد أن تعرف متى تُسقى؟"}])
+    assert res.status == CHAT and res.message == TEXT["ar"]["offer_declined"]

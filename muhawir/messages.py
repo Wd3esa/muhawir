@@ -30,6 +30,7 @@ TEXT = {
                          "إذا كتبت نصًا موجودًا بلفظه في المصادر، كآية أو حديث، عرضت لك موضعه وما قبله وما بعده، "
                          "وإن أردت معناه أو حكمه أو صحته فاسألني عنه بما تريد، أو اضغط «اسأل عنه». "
                          "وإذا لم أجد في المصادر جوابًا قلت ذلك بصراحة. ما الذي تريد أن نتحاور فيه؟",
+        "offer_declined": "حسنًا، وإن خطر لك سؤال آخر فأنا هنا.",
         "no_question_after_answer": "يبدو أن جوابي لم يكن واضحًا أو لم يكن ما تريده. هل أشرحه لك بطريقة أبسط؟ أو اكتب سؤالك بطريقة أخرى، وسأحاول من جديد.",
         "did_you_mean": "يبدو أن لوحة المفاتيح كانت على الإنجليزية. هل تقصد: «{guess}»؟",
         "no_question": "أنا هنا لأحاورك وأجيبك عن أسئلتك عن الإسلام من المصادر المعتمدة. ما الذي تحب أن تعرفه؟",
@@ -86,6 +87,7 @@ TEXT = {
                          "or a hadith, I show where it is and what comes before and after it; if you want its meaning, ruling "
                          "or authenticity, ask me about it or tap «Ask about it». When the sources hold no answer, I say so "
                          "plainly. What would you like to talk about?",
+        "offer_declined": "All right. If anything else comes to mind, I'm here.",
         "no_question_after_answer": "It seems my answer was not clear, or not what you wanted. Shall I explain it more simply? Or ask your question another way and I will try again.",
         "did_you_mean": "It looks like the keyboard was set to English. Did you mean «{guess}»?",
         "no_question": "I am here to talk with you and answer your questions about Islam from the approved sources. What would you like to know?",
@@ -144,6 +146,7 @@ TEXT = {
                          "اگر آپ کوئی ایسا متن لکھیں جو مصادر میں ہوبہو موجود ہو، جیسے آیت یا حدیث، تو میں اس کا مقام اور اس سے پہلے اور بعد کا متن دکھاتا ہوں؛ "
                          "اس کا معنی، حکم یا صحت جاننی ہو تو اس کے بارے میں پوچھیں یا «اس کے بارے میں پوچھیں» دبائیں۔ "
                          "اگر مصادر میں جواب نہ ملے تو میں صاف بتا دیتا ہوں۔ آپ کس بارے میں بات کرنا چاہیں گے؟",
+        "offer_declined": "ٹھیک ہے، اگر کوئی اور سوال ذہن میں آئے تو میں حاضر ہوں۔",
         "no_question_after_answer": "لگتا ہے میرا جواب واضح نہیں تھا یا وہ نہیں تھا جو آپ چاہتے تھے۔ کیا میں اسے آسان انداز میں سمجھاؤں؟ یا اپنا سوال کسی اور طرح لکھیں، میں دوبارہ کوشش کروں گا۔",
         "did_you_mean": "لگتا ہے کی بورڈ انگریزی پر تھا۔ کیا آپ کا مطلب ہے: «{guess}»؟",
         "no_question": "میں یہاں آپ سے بات کرنے اور معتبر مصادر سے اسلام کے بارے میں آپ کے سوالوں کے جواب دینے کے لیے ہوں۔ آپ کیا جاننا چاہتے ہیں؟",
