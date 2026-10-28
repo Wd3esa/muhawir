@@ -767,6 +767,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   font-size:16px;
   color:var(--accent)
 }
+.follow-up-turn { margin-top:14px; }
+.follow-up-question { margin:0 0 8px; font-weight:600; }
 .follow-up {
   display:block;
   margin-top:12px;
@@ -1886,7 +1888,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 // 1. Text: one entry per language; the page picks UI[lang] and fills every data-t element from it.
 const UI = {
   ar: { lang: "اللغة", usageWarn: "استخدمت {pct}% من حد الأسئلة ({used} من {limit}). يتجدد بعد {wait}.", minutes: "{n} دقيقة",  voiceMode: "الوضع الصوتي", voiceModeStop: "إيقاف الوضع الصوتي", vmOn: "الوضع الصوتي يعمل: تكلّم بعد النغمة، وسأقرأ لك الجواب ومصادره ثم أستمع لسؤالك التالي. للإيقاف اضغط الزر نفسه أو Escape.", vmListening: "أستمع إليك… تكلّم الآن.", vmReading: "أقرأ الجواب.", vmNotHeard: "لم أسمعك. تكلّم بعد النغمة.", vmOff: "توقف الوضع الصوتي.", vmNoMic: "هذا المتصفح لا يتيح التحدث إليه. جرّب Chrome أو Edge أو Safari.", vmTranslation: "ترجمة معاني الآية:", vmRecitation: "تلاوة الآية:",  tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
-        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
+        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", replyPlaceholder: "ردّ على مُحاور…", replyYes: "نعم", replyNo: "لا، شكرًا", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", appearance: "المظهر", voiceSettings: "الصوت", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
@@ -1901,7 +1903,7 @@ const UI = {
         topics: "موضوعات الآية بحسب المصدر", chapter: "الباب", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", usageWarn: "You have used {pct}% of your question limit ({used} of {limit}). It resets in {wait}.", minutes: "{n} min",  voiceMode: "Voice mode", voiceModeStop: "Stop voice mode", vmOn: "Voice mode is on: speak after the tone; I will read the answer and its sources, then listen for your next question. To stop, press the same button or Escape.", vmListening: "Listening… speak now.", vmReading: "Reading the answer.", vmNotHeard: "I did not hear you. Speak after the tone.", vmOff: "Voice mode stopped.", vmNoMic: "This browser cannot listen to speech. Try Chrome, Edge or Safari.", vmTranslation: "Translation of the meaning of the verse:", vmRecitation: "Recitation of the verse:",  tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
-        qlabel: "Your question", placeholder: "Ask a question…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
+        qlabel: "Your question", placeholder: "Ask a question…", replyPlaceholder: "Reply to Muhawir…", replyYes: "Yes", replyNo: "No, thanks", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
@@ -1917,7 +1919,7 @@ const UI = {
         topics: "Topics listed by the source", chapter: "Chapter", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
         status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } },
   ur: { appearance:"ظاہری شکل", voiceSettings:"آواز", answerLayout:"جواب کی شکل", layoutBook:"کتاب کا صفحہ", layoutPlain:"سادہ جواب", lang: "زبان", usageWarn: "آپ سوالوں کی حد کا {pct}% استعمال کر چکے ہیں ({limit} میں سے {used})۔ یہ {wait} بعد دوبارہ شروع ہوگی۔", minutes: "{n} منٹ",  voiceMode: "آواز موڈ", voiceModeStop: "آواز موڈ بند کریں", vmOn: "آواز موڈ چل رہا ہے: ٹون کے بعد بولیں؛ میں جواب اور اس کے مصادر پڑھ کر سناؤں گا، پھر آپ کا اگلا سوال سنوں گا۔ بند کرنے کے لیے یہی بٹن یا Escape دبائیں۔", vmListening: "سن رہا ہوں… اب بولیں۔", vmReading: "جواب پڑھ رہا ہوں۔", vmNotHeard: "میں آپ کو سن نہیں سکا۔ ٹون کے بعد بولیں۔", vmOff: "آواز موڈ بند ہو گیا۔", vmNoMic: "یہ براؤزر آواز نہیں سن سکتا۔ Chrome، Edge یا Safari آزمائیں۔", vmTranslation: "آیت کے معانی کا ترجمہ:", vmRecitation: "آیت کی تلاوت:",  tagline: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے، اور ضرورت ہو تو کسی ماہر کی طرف رہنمائی کرتا ہے۔",
-        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
+        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", replyPlaceholder: "مُحاور کو جواب دیں…", replyYes: "جی ہاں", replyNo: "نہیں، شکریہ", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
         newChat: "نئی گفتگو", historyHeading: "آپ کی گفتگوئیں", historySearch: "اپنی گفتگوؤں میں تلاش کریں", historyEmpty: "جو گفتگو آپ شروع کریں گے وہ یہاں نظر آئے گی۔", noMatches: "اس نام کی کوئی گفتگو نہیں۔", privacyNote: "تاریخچہ اسی براؤزر میں محفوظ رہتا ہے۔ سوال پوچھنے پر سوال اور اس کا قریبی سیاق جواب کی تیاری کے لیے محاور کی سروس اور ماڈل فراہم کنندہ کو بھیجا جاتا ہے۔ آپ تاریخچہ حذف کر سکتے ہیں۔", favorite: "پسندیدہ میں شامل کریں", unfavorite: "پسندیدہ سے نکالیں", deleteChat: "گفتگو حذف کریں", deleteAll: "تمام گفتگوئیں حذف کریں", deleteAllConfirm: "کیا آپ اس براؤزر میں محفوظ تمام گفتگوئیں حذف کرنا چاہتے ہیں؟", openHistory: "گفتگو کا تاریخچہ کھولیں", closeHistory: "گفتگو کا تاریخچہ بند کریں", showHistory: "گفتگو کا تاریخچہ دکھائیں", hideHistory: "گفتگو کا تاریخچہ چھپائیں", historyLabel: "گفتگو کا تاریخچہ", recent: "حالیہ گفتگوئیں", trustLabel: "معتبر مصادر",
         welcomeDescription: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے۔", settings: "آپ وضاحت کس انداز میں چاہتے ہیں؟", welcomeKicker: "پوچھیے اور مصادر سے تصدیق کیجیے",
         topicQuran: "قرآن", topicFiqh: "فقہ", topicAqidah: "عقیدہ", promptQuran: "میں قرآن میں تدبر کیسے کروں؟", promptFiqh: "فرض اور سنت میں کیا فرق ہے؟", promptAqidah: "توحید کا کیا مطلب ہے؟", assistant: "محاور",
@@ -2408,6 +2410,7 @@ function renderConversation(conversation) {
 
 function selectConversation(conversation) {
   activeConversation = conversation;
+  syncPlaceholder();
   setQuestionText("");
   renderConversation(conversation);
   document.querySelectorAll(".voice-choice select").forEach((choice) => {
@@ -2568,7 +2571,7 @@ function applyLang() {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "en" ? "ltr" : "rtl";
   document.querySelectorAll("[data-t]").forEach((n) => { n.textContent = t[n.dataset.t]; });
-  $("q").placeholder = t.placeholder;
+  syncPlaceholder();
   $("composerVoice").setAttribute("aria-label", t.voiceMode);
   $("composerVoice").title = t.voiceMode;
   syncExplanationPicker();
@@ -2767,7 +2770,7 @@ function listenButton(res, status) {
   const text = rawText.replace(/﴿[^﴾]*(?:﴾|$)/g, { ar: "(آية)", ur: "(آیت)" }[speakLang] || "(verse)");
   const group = el("span", "listen-group");
   const row = el("span", "listen-controls");
-  const btn = makeActionButton(UI[lang].listen, "listen");
+  const btn = makeActionButton((UI[speakLang] || UI[lang]).listen, "listen");
   const label = btn.querySelector(".action-label");
   const icon = btn.querySelector(".action-icon");
   const choice = el("label", "voice-choice");
@@ -2810,24 +2813,24 @@ function listenButton(res, status) {
     });
     stopReadAloud();
   });
-  const note = el("small", "listen-note", UI[lang].azureNotice);
+  const note = el("small", "listen-note", (UI[speakLang] || UI[lang]).azureNotice);
   note.dataset.itemKey = "azureNotice";
   const reset = () => {
     delete btn.dataset.playing;
     btn.setAttribute("aria-pressed", "false");
     btn.dataset.labelKey = "listen";
-    label.textContent = UI[lang].listen;
-    btn.setAttribute("aria-label", UI[lang].listen);
-    btn.title = UI[lang].listen;
+    label.textContent = (UI[speakLang] || UI[lang]).listen;
+    btn.setAttribute("aria-label", (UI[speakLang] || UI[lang]).listen);
+    btn.title = (UI[speakLang] || UI[lang]).listen;
     icon.innerHTML = ACTION_ICONS.listen;
   };
   const setPlaying = () => {
     btn.dataset.playing = "1";
     btn.setAttribute("aria-pressed", "true");
     btn.dataset.labelKey = "stop";
-    label.textContent = UI[lang].stop;
-    btn.setAttribute("aria-label", UI[lang].stop);
-    btn.title = UI[lang].stop;
+    label.textContent = (UI[speakLang] || UI[lang]).stop;
+    btn.setAttribute("aria-label", (UI[speakLang] || UI[lang]).stop);
+    btn.title = (UI[speakLang] || UI[lang]).stop;
     icon.innerHTML = ACTION_ICONS.stop;
   };
   const browserFallback = async (playback) => {
@@ -3101,13 +3104,25 @@ function rewordKind(typed, understood) {
   return mistyped ? "changed" : "added";
 }
 
+// Reply-language: the words around a reply (its status line, its buttons) are in the language the reply is written in,
+// as its letters tell, whatever the page language: an English question on the Arabic page gets English all through
+function replyLangOf(res) {
+  const text = [res.message, ...(res.claims || []).map((c) => c.text), res.follow_up].filter(Boolean).join(" ");
+  if (/[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]/.test(text)) return "ur";
+  if (/[\u0600-\u06FF]/.test(text)) return "ar";
+  return /[A-Za-z]{2,}/.test(text) ? "en" : lang;
+}
+
 function renderAnswer(res, style, context) {
   if (res.status === "quote") return renderQuote(res, context);
   plainWords(res);
   const vowelTargets = [];
   const open = style === "extended";
-  const t = UI[lang];
+  const replyLang = replyLangOf(res);
+  const t = UI[replyLang] || UI[lang];
   const msg = el("div", "msg");
+  msg.lang = replyLang;
+  if (replyLang !== lang) msg.dir = replyLang === "en" ? "ltr" : "rtl";
   if (res.status === "answered") {
     msg.dataset.sourcedAnswer = "true";
     applyAnswerLayout(msg);
@@ -3309,10 +3324,21 @@ function renderAnswer(res, style, context) {
     while (msg.childNodes.length > generalFrom) general.append(msg.childNodes[generalFrom]);
   }
   let next = null;
-  if (res.follow_up) {  // Muhawir's suggestion to continue the dialogue: a tap asks it
-    next = el("button", "follow-up", res.follow_up);
-    next.type = "button"; next.dir = "auto";
-    next.addEventListener("click", () => { setQuestionText(res.follow_up); $("ask").requestSubmit(); });
+  if (res.follow_up) {
+    // Reply-chips: Muhawir ends with a question, as in a conversation. The question is shown as Muhawir's words, with
+    // «نعم» (asks it) and «لا» under it; the box below says «ردّ على مُحاور…», and whatever is typed there is read as
+    // the reply to it (the question is kept in the conversation sent with the next message)
+    next = el("div", "follow-up-turn");
+    const asked = el("p", "follow-up-question", /[؟?]\s*$/.test(res.follow_up) ? res.follow_up : "");
+    asked.dir = "auto";
+    const row = el("div", "confirm-choices reply-chips");
+    row.setAttribute("role", "group");
+    const yes = el("button", "", t.replyYes), no = el("button", "", t.replyNo);
+    yes.type = no.type = "button";
+    yes.addEventListener("click", () => { row.remove(); setQuestionText(res.follow_up); $("ask").requestSubmit(); });
+    no.addEventListener("click", () => { row.remove(); if (context?.conversation) context.conversation.awaitingReply = false; syncPlaceholder(); });
+    row.append(yes, no);
+    next.append(asked, row);
     if (!general) msg.append(next);
   }
   if ((res.choices || []).length) {  // e.g. «بالعربية» / «In English» for a language Muhawir does not answer in
@@ -3837,6 +3863,12 @@ function searchPhrase(text) {
 }
 
 // 9. The question box and the chat viewport (keeping the last line visible when a phone keyboard opens).
+// Reply-chips: the question box says «ردّ على مُحاور…» while Muhawir's last reply in this conversation asks something
+function syncPlaceholder() {
+  const t = UI[lang] || UI.ar;
+  $("q").placeholder = activeConversation?.awaitingReply ? t.replyPlaceholder : t.placeholder;
+}
+
 function remember(conversation, role, text) {
   if (!text) return;
   conversation.turns.push({ role, text: text.slice(0, 600) });
@@ -4018,6 +4050,8 @@ $("ask").addEventListener("submit", async (e) => {
   spokenTurn = false;
   stopListening();
   const conversation = activeConversation;
+  conversation.awaitingReply = false;
+  syncPlaceholder();
   const override = nextAsk;  // «وضّح أكثر» asks once in the detailed style; the chosen style stays as it was
   nextAsk = null;
   const style = override?.style || $("style").value;
@@ -4067,8 +4101,11 @@ $("ask").addEventListener("submit", async (e) => {
       remember(conversation, "assistant", (res.quote?.matches?.[0]?.excerpt) || "");
     } else if (rememberable(res)) {
       remember(conversation, "user", res.understood || question);
-      remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text)].filter(Boolean).join(" "));
+      remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text), res.follow_up]
+        .filter(Boolean).join(" "));
     }
+    conversation.awaitingReply = Boolean(res.follow_up || (res.choices || []).length);
+    syncPlaceholder();
     logAnswer(conversation, context, res);
     syncRegenerateButtons();
   } catch (error) {

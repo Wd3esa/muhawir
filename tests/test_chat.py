@@ -255,16 +255,6 @@ def test_kinds_question_is_shown_as_a_list_even_if_the_model_did_not_mark_it():
     assert Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("ماذا تحتاج النخلة في الصيف؟").as_list is True
 
 
-def test_a_question_for_the_types_or_sections_of_something_is_recognised():
-    from muhawir.pipeline import _asks_for_kinds
-    for q in ("أنواع الزكاة", "ما هي أنواع الزكاة؟", "اشرح الزكاة وأنواعها", "ما أقسام الطلاق؟", "ما هي الأنواع؟",
-              "وما بأنواعها", "الأقسام", "ما هي انواع الصلاة"):
-        assert _asks_for_kinds(q), q
-    for q in ("ما نوع الصلاة؟", "ما حكم القسم بغير الله؟", "أقسم بالله أن لا أفعل", "ماذا تحتاج النخلة؟", "", "ما تنوع الأقوال؟"):
-        assert not _asks_for_kinds(q), q
-    assert _asks_for_kinds("", "أنواع الزكاة") and not _asks_for_kinds("", "")
-
-
 def _types_model(kind, claims, as_list=False, understood="ما أنواع ما تحتاجه النخلة في الصيف؟"):
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
@@ -277,14 +267,10 @@ def _types_model(kind, claims, as_list=False, understood="ما أنواع ما �
     return Muhawir(CORPUS, ModelGenerator([("m", call)]))
 
 
-def test_a_types_question_is_shown_as_a_list_whatever_kind_the_model_gave_it():
+def test_a_types_question_is_shown_as_a_list_when_the_model_reads_it_so():
     claims = ["الماء.", "الشمس."]
-    for kind in ("", "what", "why", "how"):  # «أنواع» is enough: the model called it «what», or nothing
-        res = _types_model(kind, claims).ask("ما أنواع ما تحتاجه النخلة في الصيف؟")
-        assert res.status == ANSWERED and res.as_list is True, kind
-    # the user's own words count too, when the rewritten question lost the word
-    res = _types_model("what", claims, understood="ماذا تحتاج النخلة في الصيف؟").ask("اشرح النخلة وأنواعها")
-    assert res.as_list is True
+    assert _types_model("how", claims).ask("ما أنواع ما تحتاجه النخلة في الصيف؟").as_list is True
+    assert _types_model("what", claims, as_list=True).ask("ما أنواع ما تحتاجه النخلة في الصيف؟").as_list is True
 
 
 def test_a_list_needs_more_than_one_sentence_and_a_question_that_asks_for_one():
@@ -453,10 +439,3 @@ def test_a_rating_is_counted_and_asks_no_model():
     assert client.post("/api/feedback", json={"verdict": "anything"}).status_code == 422
 
 
-def test_a_contemporary_financial_topic_alone_is_always_referred():
-    # live site, 6 October 2026: «العملات الرقميه» was referred one time and «not found» the next
-    from muhawir import classify
-    for topic in ("العملات الرقميه", "العملات الرقمية؟", "البيتكوين", "فوائد البنوك", "التأمين", "Bitcoin"):
-        assert classify.check(topic).kind == classify.OUT_OF_SCOPE, topic
-    for other in ("الزكاة", "الصيام", "الربا", "تعلم التداول", "المقاطعة"):
-        assert classify.check(other).kind is None, other

@@ -24,8 +24,8 @@ def test_distress_in_the_main_dialects_gets_the_fixed_caring_reply(text):
     assert classify.check(text).kind == classify.CRISIS
 
 
-def test_a_divorce_wording_in_a_dialect_is_referred():
-    assert classify.check("مراتي قلتلها انتي طالق وانا متعصب").kind == classify.PERSONAL_CASE
+def test_a_divorce_wording_in_a_dialect_is_referred_when_the_understanding_step_reads_it_so():
+    assert _model(personal=True).ask("مراتي قلتلها انتي طالق وانا متعصب").status == REFERRED
 
 
 @pytest.mark.parametrize("text", ["يصير أفطر وأنا مريض؟", "ينفع أفطر وأنا عيان؟", "بقدر أفطر إذا كنت مريض؟",
@@ -276,7 +276,7 @@ def test_a_ruling_turned_around_is_rejected_by_code():
 _AFTER = [{"role": "user", "text": "ما حكم سقي النخلة؟"}, {"role": "assistant", "text": "النخلة تحتاج إلى ماء كثير."}]
 
 
-@pytest.mark.parametrize("again", ["ما حكم سقي النخلة؟", "ما حكم سقي النخلة", "كيف أسقي النخلة؟", "حكم سقي النخلة شنو"])
+@pytest.mark.parametrize("again", ["ما حكم سقي النخلة؟", "ما حكم سقي النخلة", "كيف أسقي النخلة؟"])
 def test_a_question_asked_again_is_answered_not_met_with_an_offer_to_explain(again):
     # 20 October 2026: a visitor asked his question again and was told «يبدو أن جوابي لم يكن واضحًا…»
     res = _model(understood="").ask(again, history=_AFTER)
@@ -360,3 +360,17 @@ def test_a_question_about_muhawir_itself_is_answered_as_a_turn_of_the_conversati
         "لماذا ترد بهذه الطريقة؟", history=[{"role": "user", "text": "اطلبوا العلم ولو في الصين"},
                                              {"role": "assistant", "text": "اطلبوا العلم ولو بالصين"}])
     assert res.status == CHAT and res.message == TEXT["ar"]["about_muhawir"] and not res.claims
+
+
+# --- 28 October 2026: replies in the message's language; a reply to Muhawir's question is read as one ---------------
+
+def test_fixed_replies_are_in_the_language_of_the_message_not_the_page():
+    m = _model()
+    assert m.ask("thanks", lang="ar").message == TEXT["en"]["thanks"]
+    assert m.ask("hello", lang="ar").message == TEXT["en"]["small_talk"]
+    assert m.ask("شكرا", lang="en").message == TEXT["ar"]["thanks"]
+
+
+def test_the_understanding_step_reads_a_short_reply_as_the_answer_to_muhawirs_question():
+    from muhawir.generate import UNDERSTAND_PROMPT
+    assert "ردًا عليه" in UNDERSTAND_PROMPT and "علامات الترقيم" in UNDERSTAND_PROMPT

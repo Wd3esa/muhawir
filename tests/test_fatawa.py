@@ -47,9 +47,9 @@ def test_wrong_or_truncated_file_is_refused():
 
 
 def test_named_buy_now_pay_later_companies_and_instalment_rulings_are_contemporary():
+    # read by the understanding step from the meaning (28 October 2026), not by a list of words
     for q in ("هل تابي وتمارا ربوية بناءً على المصادر المتاحة", "ما حكم الشراء بالتقسيط؟", "Is Tabby halal?"):
-        assert classify.check(q).kind == classify.OUT_OF_SCOPE, q
-    assert classify.check("كم عدد الأقساط؟").kind is None
+        assert classify.check(q).kind is None, q
     assert classify.names_company("تابي شركة") and not classify.names_company("بيع التقسيط")
 
 
@@ -67,6 +67,9 @@ def _engine(claims):
 
     def call(system, user, schema=None):
         calls.append((system, user))
+        if '"question"' in json.dumps(schema or {}):  # the understanding step reads a contemporary financial matter
+            asked = user.rsplit("<<<", 1)[-1].split(">>>")[0]
+            return json.dumps({"question": asked, "kind": "contemporary", "queries": ["بيع التقسيط"]}, ensure_ascii=False)
         if "queries" in json.dumps(schema or {}):
             return '{"queries": ["بيع التقسيط"]}'
         return json.dumps({"abstain": False, "claims": claims}, ensure_ascii=False)

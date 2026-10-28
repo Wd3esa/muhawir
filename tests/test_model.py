@@ -76,7 +76,14 @@ def test_all_models_failing_says_unavailable_not_abstain():
 
 
 def test_personal_case_with_model_is_referred_and_prompt_says_so():
-    call = fake({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+    draft = fake({"abstain": False, "claims": [{"text": "ماء كثير.", "passage_ids": ["test-a:1"]}]})
+
+    def call(system, user, schema=None):
+        if '"question"' in json.dumps(schema or {}):  # the understanding step reads a personal case
+            return json.dumps({"question": "هل يلزم سقي النخلة في الصيف؟", "personal": True, "queries": ["النخلة"]},
+                              ensure_ascii=False)
+        return draft(system, user, schema)
+    call.calls = draft.calls
     res = Muhawir(CORPUS, ModelGenerator([("m", call)])).ask("هل يلزمني أن أسقي النخلة في الصيف في حالتي؟")
     assert res.status == REFERRED
     assert any("حالة شخصية" in user for _system, user in call.calls)
