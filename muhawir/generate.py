@@ -702,6 +702,16 @@ RETRY_WAIT = 2.0
 # 429 from a hosted free model often means "too many concurrent requests", which passes in a few seconds:
 # wait longer between more tries before giving up
 BUSY_WAITS = (2.0, 6.0, 12.0)
+MAX_BUSY_WAIT = 20.0
+
+
+def _retry_after(response) -> float | None:
+    """The seconds a busy provider asks to wait (the Retry-After header), or None when it does not say."""
+    try:
+        value = response.headers.get("retry-after") if response is not None else None
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time.sleep) -> str:
@@ -728,6 +738,11 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
                 if not busy_waits:
                     raise
                 wait = busy_waits.pop(0)
+                # Busy-wait: the provider says how long to wait (Retry-After, in seconds): that is used when it is
+                # longer than the fixed wait, up to MAX_BUSY_WAIT, so the next try is not refused again at once
+                asked = _retry_after(getattr(exc, "response", None))
+                if asked is not None:
+                    wait = min(max(wait, asked), MAX_BUSY_WAIT)
             else:
                 if not other_retries:
                     raise
@@ -1205,7 +1220,10 @@ def get_generator() -> Generator:
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
             os.environ.get("OPENAI_COMPAT2_REASONING", ""))))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
-        calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"])))
+        # the last fallback: a short wait, so a question whose models all fail ends in seconds, not minutes
+        # (28 October 2026: two 60-second timeouts on the check left a visitor waiting three minutes)
+        calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"],
+                                            float(os.environ.get("GEMINI_TIMEOUT") or 20))))
     if not calls:
         raise RuntimeError("LLM_PROVIDER=model needs ANTHROPIC_API_KEY, or GEMINI_API_KEY with "
                            "GEMINI_MODEL, or OPENAI_COMPAT_BASE_URL with OPENAI_COMPAT_MODEL")
