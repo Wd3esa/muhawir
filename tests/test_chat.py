@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+from muhawir.messages import TEXT
 from muhawir import generate
 from muhawir.corpus import load_corpus
 from muhawir.generate import ModelGenerator
@@ -109,7 +110,7 @@ def test_thanks_and_dua_get_a_thanks_reply():
     m, _ = model()
     for text in ("جزاك الله خير وفتح الله عليك", "جزاك الله خيرًا", "شكرًا", "بارك الله فيكم", "Thank you"):
         res = m.ask(text)
-        assert res.status == CHAT and res.message.startswith(("وإياك", "You are welcome")), text
+        assert res.status == CHAT and res.message in (TEXT["ar"]["thanks"], TEXT["en"]["thanks"]), text
     assert m.ask("السلام عليكم").message.startswith("أهلًا")
 
 

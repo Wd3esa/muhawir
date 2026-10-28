@@ -1042,22 +1042,8 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
   border-color:var(--accent);
   color:var(--accent-ink)
 }
-.general-info {
-  margin-top:12px;
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:10px 14px
-}
-.general-info > summary {
-  cursor:pointer;
-  font-weight:600;
-  color:var(--accent, inherit);
-  min-height:32px;
-  line-height:1.8
-}
-.general-info[open] > summary {
-  margin-bottom:8px
-}
+.general-info { margin-top:12px; }
+.general-info > summary { display:none; }
 .views {
   border:1px dashed var(--line);
   border-radius:12px;
@@ -3155,11 +3141,12 @@ function renderAnswer(res, style, context) {
   // shown; a follow-up («ولماذا؟») only says what was understood. The answer is already here: no new request.
   let understoodLine = null;
   const change = rewordKind(context?.question || "", res.understood || "");
-  const confirmFirst = change === "changed" && !(context?.history || []).length && !context?.restored
+  const confirmFirst = res.unsure && change === "changed" && !(context?.history || []).length && !context?.restored
     && ["answered", "referred", "abstained"].includes(res.status);
   // a first question put in other words is not repeated back: the line is for a corrected typo and for follow-ups
   const firstReworded = change === "added" && !(context?.history || []).length;
-  if (res.understood && change !== "same" && !firstReworded) {
+  // shown only when the understanding step was not sure what was meant: a clear question is not repeated back
+  if (res.understood && res.unsure && change !== "same" && !firstReworded) {
     understoodLine = el("p", "understood");
     understoodLine.dir = "auto";
     const label = el("span", "understood-label", (confirmFirst ? t.didYouMean : t.understoodAs) + " ");
@@ -3381,7 +3368,23 @@ function renderAnswer(res, style, context) {
     }
     msg.append(box);
   }
-  if (general) msg.append(general);
+  if (general) {
+    // Referral-offer: the general rulings are offered as Muhawir's question, «هل تريد معرفة الأحكام العامة…؟», with
+    // «نعم» and «لا، شكرًا»; «نعم» shows them in place (they are already in the reply: no new request)
+    const offer = el("div", "follow-up-turn");
+    const asked = el("p", "follow-up-question", t.generalInfo);
+    asked.dir = "auto";
+    const row = el("div", "confirm-choices reply-chips");
+    row.setAttribute("role", "group");
+    const yes = el("button", "", t.replyYes), no = el("button", "", t.replyNo);
+    yes.type = no.type = "button";
+    yes.addEventListener("click", () => { general.open = true; });
+    no.addEventListener("click", () => offer.remove());
+    row.append(yes, no);
+    offer.append(asked, row);
+    general.addEventListener("toggle", () => { if (general.open) offer.remove(); });
+    msg.append(offer, general);
+  }
   const sourcesHome = general || msg;  // a folded answer keeps its sources with it
   const shelf = el("div", "source-shelf");
   // Source-on-tap: the sources stay folded inside their icon; a number or the icon opens them
@@ -4101,10 +4104,13 @@ $("ask").addEventListener("submit", async (e) => {
       remember(conversation, "assistant", (res.quote?.matches?.[0]?.excerpt) || "");
     } else if (rememberable(res)) {
       remember(conversation, "user", res.understood || question);
-      remember(conversation, "assistant", [res.message, ...(res.claims || []).map((c) => c.text), res.follow_up]
-        .filter(Boolean).join(" "));
+      // a referral keeps its offer of the general rulings, so a typed «نعم» is read as the reply to it
+      const offered = res.status === "referred" && (res.claims || []).length ? (UI[replyLangOf(res)] || UI[lang]).generalInfo : "";
+      remember(conversation, "assistant", [(res.message || "").split("\n")[0], offered || (res.claims || []).map((c) => c.text).join(" "),
+        res.follow_up].filter(Boolean).join(" "));
     }
-    conversation.awaitingReply = Boolean(res.follow_up || (res.choices || []).length);
+    conversation.awaitingReply = Boolean(res.follow_up || (res.choices || []).length
+      || (res.status === "referred" && (res.claims || []).length));
     syncPlaceholder();
     logAnswer(conversation, context, res);
     syncRegenerateButtons();

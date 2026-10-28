@@ -2,6 +2,8 @@
 quoted with their authors, Muhawir gives no ruling of its own on the product asked about, and refers on."""
 import json
 
+from muhawir.messages import TEXT
+
 import pytest
 
 from muhawir import classify, fatawa
@@ -80,7 +82,7 @@ def test_instalment_question_quotes_the_fatwa_and_refers_with_the_finance_card()
     sentence = "سُئل الشيخ ابن باز عن البيع بالتقسيط مع زيادة الثمن فأجاب بأنه لا حرج في ذلك إذا كان الأجل معلوما."
     engine, calls = _engine([{"text": sentence, "passage_ids": ["z:1"]}])
     res = engine.ask("ما حكم الشراء بالتقسيط؟")
-    assert res.status == REFERRED and res.message.startswith("لا أحكم بنفسي")
+    assert res.status == REFERRED and res.message.startswith(TEXT["ar"]["contemporary_info"])
     assert [c["text"] for c in res.claims] == [sentence]
     assert res.referral["kind"] == "finance"
     assert any("مسألة مالية معاصرة" in user for _system, user in calls)  # the writing step is told how to quote

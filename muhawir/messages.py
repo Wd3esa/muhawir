@@ -11,10 +11,9 @@ TEXT = {
                    "يمكنك سؤال مختص في العلم الشرعي.",
         "no_reason": {"ayah": "لم يُذكر لهذه الآية ({where}) سبب نزول في مصدر أسباب النزول المعتمد لدي: «{source}».",
                       "surah": "لم يُذكر ل{where} سبب نزول في مصدر أسباب النزول المعتمد لدي: «{source}»."},
-        "out_of_scope": "حكم المعاملات المالية المعاصرة (مثل البنوك والعملات الرقمية والتداول والتأمين) يحتاج اجتهادًا من هيئات الفتوى والمجامع الفقهية، "
-                        "وهو خارج ما أقدّمه. أنصحك بالرجوع إلى هيئة فتوى معتمدة في بلدك أو إلى قرارات المجامع الفقهية.",
+        "out_of_scope": "لا أستطيع الحكم في المعاملات المالية المعاصرة، يمكنك مراجعة جهة الفتوى في بلدك.",
         "unavailable": "الخدمة غير متاحة مؤقتًا، فلم أستطع البحث والإجابة الآن. حاول مرة أخرى بعد قليل.",
-        "small_talk": "أهلًا بك. اكتب سؤالك عن الإسلام، وسأبحث لك عنه في المصادر المعتمدة.",
+        "small_talk": "أهلًا وسهلًا! يسعدني الحديث معك، عمّ تحب أن نتكلم؟",
         "translation_label": "ترجمة لغوية، وليست جوابًا من المصادر.",
         "verse_translation_label": "ترجمة معاني الآية كما هي في الترجمة المعتمدة ({where})، لا ترجمة من مُحاور.",
         "misquoted_verse": "تنبيه: نص الآية في المصحف ({where}): ﴿{verse}﴾، وليس «{quoted}».",
@@ -34,12 +33,11 @@ TEXT = {
         "no_question_after_answer": "يبدو أن جوابي لم يكن واضحًا أو لم يكن ما تريده. هل أشرحه لك بطريقة أبسط؟ أو اكتب سؤالك بطريقة أخرى، وسأحاول من جديد.",
         "did_you_mean": "يبدو أن لوحة المفاتيح كانت على الإنجليزية. هل تقصد: «{guess}»؟",
         "no_question": "أنا هنا لأحاورك وأجيبك عن أسئلتك عن الإسلام من المصادر المعتمدة. ما الذي تحب أن تعرفه؟",
-        "thanks": "وإياك، بارك الله فيك. إن كان لديك سؤال آخر فاكتبه.",
-        "personal_case": "سؤالك عن حالة شخصية، والحكم فيها يحتاج فتوى من مختص يسمع تفاصيلها. "
-                         "أنصحك بسؤال جهة فتوى مؤهلة في بلدك.",
+        "thanks": "العفو! سعدت بالحديث معك، وإن خطر لك أي سؤال فأنا هنا.",
+        "personal_case": "لا أستطيع الإجابة في مثل هذه الحالات، يمكنك مراجعة مختص.",
+        "contemporary_quoted": "هذا ما ورد في المصادر من أقوال العلماء، منقولًا عنهم كما ورد:",
         "personal_case_info": "هذه معلومات عامة من المصادر، وليست حكمًا في حالتك:",
-        "contemporary_info": "لا أحكم بنفسي على معاملة أو منتج بعينه، فهذا يحتاج فتوى ممن يعرف تفاصيل العقد. "
-                             "هذا ما وجدته في المصادر من فتاوى العلماء وأقوالهم، منقولًا عنهم كما ورد:",
+        "contemporary_info": "لا أستطيع الحكم في هذه المعاملة بعينها، يمكنك مراجعة جهة الفتوى في بلدك.",
         "judging_people": "لا أحكم على أشخاص أو جماعات بعينهم، فهذا خارج ما أقدّمه. "
                           "يمكنني أن أعرض لك ما تقوله المصادر المعتمدة عن المفاهيم نفسها.",
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
@@ -66,11 +64,9 @@ TEXT = {
                    "You may ask a qualified scholar.",
         "no_reason": {"ayah": "The reasons-of-revelation source I rely on, «{source}», records no reason of revelation for this ayah ({where}).",
                       "surah": "The reasons-of-revelation source I rely on, «{source}», records no reason of revelation for {where}."},
-        "out_of_scope": "Rulings on contemporary financial matters (such as banking, cryptocurrencies, trading and insurance) need "
-                        "ijtihad by fatwa bodies and fiqh academies, and are outside what I offer. Please consult a recognised "
-                        "fatwa body in your country or the resolutions of the fiqh academies.",
+        "out_of_scope": "I can't give rulings on contemporary financial dealings; you can consult the fatwa body in your country.",
         "unavailable": "The service is temporarily unavailable, so I could not search and answer right now. Please try again shortly.",
-        "small_talk": "Welcome. Ask your question about Islam, and I will look for it in the approved sources.",
+        "small_talk": "Hello, and welcome! Glad to talk with you. What would you like to talk about?",
         "translation_label": "A language translation, not an answer from the sources.",
         "verse_translation_label": "The meaning of the verse as given in the approved translation ({where}), not Muhawir's own translation.",
         "misquoted_verse": "Note: the verse reads in the Quran ({where}): ﴿{verse}﴾, not «{quoted}».",
@@ -93,13 +89,11 @@ TEXT = {
         "no_question_after_answer": "It seems my answer was not clear, or not what you wanted. Shall I explain it more simply? Or ask your question another way and I will try again.",
         "did_you_mean": "It looks like the keyboard was set to English. Did you mean «{guess}»?",
         "no_question": "I am here to talk with you and answer your questions about Islam from the approved sources. What would you like to know?",
-        "thanks": "You are welcome, may Allah bless you. If you have another question, go ahead.",
-        "personal_case": "Your question is about a personal situation. A ruling on it needs a fatwa "
-                         "from a qualified scholar who hears the details. Please ask a qualified "
-                         "fatwa body in your country.",
+        "thanks": "You're welcome! I enjoyed talking with you, and I'm here whenever something else comes to mind.",
+        "personal_case": "I can't answer cases like this; you can consult a specialist.",
+        "contemporary_quoted": "Here is what the scholars said in the sources, quoted as it is:",
         "personal_case_info": "This is general information from the sources, not a ruling on your case:",
-        "contemporary_info": "I do not judge a specific transaction or product myself: that needs a fatwa from someone who "
-                             "knows the details of the contract. Here is what the scholars said in the sources, quoted as it is:",
+        "contemporary_info": "I can't give a ruling on this particular dealing; you can consult the fatwa body in your country.",
         "judging_people": "I do not pass judgement on specific people or groups; that is outside what "
                           "I offer. I can show what the approved sources say about the concepts themselves.",
         "override_attempt": "I cannot change how I work: I answer only from approved sources and do not "
@@ -130,10 +124,9 @@ TEXT = {
                    "آپ کسی مستند عالمِ دین سے پوچھ سکتے ہیں۔",
         "no_reason": {"ayah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں اس آیت ({where}) کا کوئی سببِ نزول مذکور نہیں۔",
                       "surah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں {where} کا کوئی سببِ نزول مذکور نہیں۔"},
-        "out_of_scope": "جدید مالی معاملات (جیسے بینک، ڈیجیٹل کرنسی، ٹریڈنگ اور انشورنس) کا حکم فتویٰ کے اداروں اور فقہی مجامع کے اجتہاد کا محتاج ہے، "
-                        "اور یہ میرے دائرے سے باہر ہے۔ براہِ کرم اپنے ملک کے کسی معتبر دارالافتاء یا فقہی مجامع کی قراردادوں سے رجوع کریں۔",
+        "out_of_scope": "میں جدید مالی معاملات پر حکم نہیں دے سکتا، آپ اپنے ملک کے دارالافتاء سے رجوع کر سکتے ہیں۔",
         "unavailable": "سروس عارضی طور پر دستیاب نہیں، اس لیے میں ابھی تلاش کر کے جواب نہیں دے سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
-        "small_talk": "خوش آمدید۔ اسلام کے بارے میں اپنا سوال لکھیے، میں اسے معتبر مصادر میں تلاش کروں گا۔",
+        "small_talk": "خوش آمدید! آپ سے بات کر کے خوشی ہوگی، آپ کس بارے میں بات کرنا چاہیں گے؟",
         "translation_label": "یہ لسانی ترجمہ ہے، مصادر سے جواب نہیں۔",
         "verse_translation_label": "آیت کے معانی کا ترجمہ معتبر ترجمے کے مطابق ({where})، محاور کا اپنا ترجمہ نہیں۔",
         "misquoted_verse": "تنبیہ: مصحف میں آیت ({where}) کے الفاظ یہ ہیں: ﴿{verse}﴾، نہ کہ «{quoted}»۔",
@@ -154,12 +147,11 @@ TEXT = {
         "no_question_after_answer": "لگتا ہے میرا جواب واضح نہیں تھا یا وہ نہیں تھا جو آپ چاہتے تھے۔ کیا میں اسے آسان انداز میں سمجھاؤں؟ یا اپنا سوال کسی اور طرح لکھیں، میں دوبارہ کوشش کروں گا۔",
         "did_you_mean": "لگتا ہے کی بورڈ انگریزی پر تھا۔ کیا آپ کا مطلب ہے: «{guess}»؟",
         "no_question": "میں یہاں آپ سے بات کرنے اور معتبر مصادر سے اسلام کے بارے میں آپ کے سوالوں کے جواب دینے کے لیے ہوں۔ آپ کیا جاننا چاہتے ہیں؟",
-        "thanks": "آپ کا بھی شکریہ، اللہ آپ کو برکت دے۔ اگر کوئی اور سوال ہو تو لکھیے۔",
-        "personal_case": "آپ کا سوال ایک ذاتی معاملے کے بارے میں ہے، اور اس کا حکم کسی ایسے مستند مفتی کے فتوے کا محتاج ہے جو اس کی تفصیل سنے۔ "
-                         "براہِ کرم اپنے ملک کے کسی معتبر دارالافتاء سے پوچھیں۔",
+        "thanks": "کوئی بات نہیں! آپ سے بات کر کے خوشی ہوئی، جب بھی کوئی سوال ذہن میں آئے میں حاضر ہوں۔",
+        "personal_case": "میں ایسے معاملات میں جواب نہیں دے سکتا، آپ کسی ماہر سے رجوع کر سکتے ہیں۔",
+        "contemporary_quoted": "مصادر میں علما کے اقوال میں سے جو ملا، وہ جوں کا توں منقول ہے:",
         "personal_case_info": "یہ مصادر سے عمومی معلومات ہیں، آپ کے معاملے کا حکم نہیں:",
-        "contemporary_info": "میں کسی خاص معاملے یا پروڈکٹ پر خود حکم نہیں لگاتا، اس کے لیے معاہدے کی تفصیل جاننے والے سے فتویٰ درکار ہے۔ "
-                             "مصادر میں علما کے فتاویٰ اور اقوال میں سے جو ملا، وہ جوں کا توں ان سے منقول ہے:",
+        "contemporary_info": "میں اس خاص معاملے پر حکم نہیں دے سکتا، آپ اپنے ملک کے دارالافتاء سے رجوع کر سکتے ہیں۔",
         "judging_people": "میں متعین افراد یا جماعتوں پر حکم نہیں لگاتا، یہ میرے دائرے سے باہر ہے۔ "
                           "میں آپ کو بتا سکتا ہوں کہ معتبر مصادر خود ان تصورات کے بارے میں کیا کہتے ہیں۔",
         "override_attempt": "میں اپنا طریقہ نہیں بدل سکتا: میں صرف معتبر مصادر سے جواب دیتا ہوں اور اپنی رائے سے فتویٰ نہیں دیتا۔ "

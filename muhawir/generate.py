@@ -295,6 +295,8 @@ UNDERSTAND_PROMPT = """أمامك رسالة من مستخدم يحاور مسا
    «لماذا ترد بهذه الطريقة؟»، «من أنت؟»، «كيف تعمل؟»، «من أين تأتي بأجوبتك؟»، «ليش ما جاوبتني؟»)، "quote" (الرسالة نص منقول وحده، آية أو حديث أو قول أو فقرة من كتاب، لا يسأل المستخدم فيه
    عن شيء ولا يطلب شيئًا، فالمقصود معرفة موضعه في المصادر؛ وعندها اكتب في question سؤالًا عامًا عنه مثل «ما معنى هذا النص وما مصدره؟».
    أما إن سأل عن النص أو طلب شيئًا معه، بأي صيغة ولو بلا علامة استفهام، مثل «صحة حديث …» أو «حديث … معناه»، فليس quote)، أو "" لغير ذلك.
+   unsure: true فقط إن كان في الرسالة لبس حقيقي لم تستطع حسمه، فكتبت في question أرجح المعنيين أو صحّحت كلمة لا تدري ما أراد بها
+   (مثل كلمة غير مفهومة أو تحتمل معنيين مختلفين). أما تصحيح إملاء واضح أو إكمال سؤال مفهوم أو صياغته صياغة أوضح فـ false.
    reexplain: true إن قال المستخدم إنه لم يفهم الجواب السابق، أو طلب شرحه بطريقة أبسط أو أوضح أو بطريقة أخرى (مثل: «ما فهمت»، «وضّح أكثر»، «بطريقة أسهل»)،
    أو وافق («نعم»، «أجل»، «yes») على عرض المساعد أن يشرح جوابه السابق بطريقة أبسط،
    وعندها اكتب في question السؤال السابق نفسه كاملًا. وإلا false.
@@ -424,11 +426,14 @@ UNDERSTAND_SCHEMA = {
                    "answer_lang": {"type": "string", "enum": ["ar", "en", "ur", "other", ""]},
                    "feeling": {"type": "string", "enum": ["crisis", "sad", ""]},
                    "personal": {"type": "boolean"},
-                   "kind": {"type": "string", "enum": ["what", "why", "how", "ruling", "objection", ""]},
+                   "kind": {"type": "string", "enum": ["what", "why", "how", "ruling", "objection", "contemporary", "about",
+                                                       "quote", ""]},
+                   "unsure": {"type": "boolean"},
                    "reexplain": {"type": "boolean"},
                    "recall": {"type": "string"},
                    "queries": {"type": "array", "items": {"type": "string"}}},
-    "required": ["question", "translate", "answer_lang", "feeling", "personal", "kind", "reexplain", "recall", "queries"],
+    "required": ["question", "translate", "answer_lang", "feeling", "personal", "kind", "unsure", "reexplain", "recall",
+                 "queries"],
     "additionalProperties": False,
 }
 
@@ -844,8 +849,9 @@ class ModelGenerator:
             kind = kind if isinstance(kind, str) and (kind in KIND_GUIDE or kind in ("about", "quote")) else ""
             feeling = data.get("feeling") if data.get("feeling") in ("crisis", "sad") else ""
             personal = data.get("personal") in (True, "true")
+            unsure = data.get("unsure") in (True, "true")
             return {"question": question, "queries": queries, "lang": answer_lang, "translate": translate,
-                    "reexplain": reexplain, "kind": kind, "feeling": feeling, "personal": personal}
+                    "reexplain": reexplain, "kind": kind, "feeling": feeling, "personal": personal, "unsure": unsure}
         return None
 
     def judge_relevance(self, question: str, claims: list[Claim], passages: dict[str, Passage] | None = None) -> str | None:

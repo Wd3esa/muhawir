@@ -345,6 +345,7 @@ class Response:
     note: str = ""
     views: list[dict] = field(default_factory=list)  # scholars' views as named in the sources
     understood: str = ""  # the follow-up question as rewritten for search, when it differs
+    unsure: bool = False  # the understanding step was not sure what was meant: the page asks «هل تقصد…؟» before the answer
     why: str = ""  # with MUHAWIR_DEBUG=1: why there is no answer (never contains the question)
     as_list: bool = False  # the answer lists types, kinds, conditions or steps: shown as a list
     follow_up: str = ""  # a short question Muhawir suggests to continue the dialogue (a tap asks it)
@@ -406,7 +407,7 @@ def _referral_kind(res: Response, question: str) -> str:
     texts = {lang: TEXT[lang] for lang in TEXT}
     if any(res.message.startswith(t["crisis"]) or res.message == t["care_note"] for t in texts.values()):
         return ""  # the fixed caring reply already points to people and the emergency number; no card
-    if any(res.message in (t["out_of_scope"], t["contemporary_info"]) for t in texts.values()):
+    if any(res.message == t["out_of_scope"] or res.message.startswith(t["contemporary_info"]) for t in texts.values()):
         return "finance"
     if res.status == REFERRED:
         return "fatwa"  # a case that needs a scholar. Nothing in the sources is not a referral: the sources were silent, and
@@ -1445,7 +1446,7 @@ class Muhawir:
                 return Response(ABSTAINED, TEXT[lang_ok]["no_reason"][missing["what"]].format(**missing),
                                 synthetic=self.corpus.synthetic)
         understand = getattr(self.generator, "understand", None)
-        understood, queries, previous, kind, feeling, personal = "", None, "", "", "", False
+        understood, queries, previous, kind, feeling, personal, unsure = "", None, "", "", "", False, False
         # «بالعربية» / «In English» tapped under «بأي لغة تريد الجواب؟»: the language is the one tapped, decided here
         # and not by the model, and the question is never sent back to that choice again
         chosen = _CHOICES.get(normalize(question)) if turns and turns[-1]["role"] == "assistant" \
@@ -1526,6 +1527,7 @@ class Muhawir:
                         lang = "ar"
                     if normalize(u["question"]) != normalize(question):
                         understood = u["question"]
+                        unsure = bool(u.get("unsure"))
                         # a counting question the fixed rules did not recognise in the user's own words (any dialect,
                         # any order of words) but the understanding step put plainly: counted by code all the same
                         counting = quran_count.asked(understood) if len(understood) <= MAX_QUESTION_CHARS else None
@@ -1558,6 +1560,7 @@ class Muhawir:
             res = Response(CHAT, TEXT[lang_ok]["comfort"], synthetic=self.corpus.synthetic)
         if understood and res.status not in (INVALID,):
             res.understood = understood
+            res.unsure = unsure
         return res
 
     def _ask(self, question: str, style: str, lang: str, original: str = "",
@@ -1716,7 +1719,8 @@ class Muhawir:
         if written.partial:  # said by the system: what the sources hold covers only part of the question (21 October 2026)
             note = f"{note}\n{t['partial_note']}" if note else t["partial_note"]
         if contemporary:  # quoted fatwas, never Muhawir's own ruling on the product; the card names who to ask
-            return Response(REFERRED, t["contemporary_info"], claims, cards, synthetic, note, views)
+            return Response(REFERRED, t["contemporary_info"] + "\n" + t["contemporary_quoted"], claims, cards, synthetic,
+                            note, views)
         if gate.kind == classify.PERSONAL_CASE:
             message = t["personal_case"] + "\n" + t["personal_case_info"]
             # the message already says this is no ruling on the case and to ask a qualified body:
