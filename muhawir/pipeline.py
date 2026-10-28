@@ -304,6 +304,9 @@ _LATIN = re.compile(r"[A-Za-z]{2,}")
 _URDU = re.compile(r"[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]")
 
 
+_ARABIZI = re.compile(r"[A-Za-z][2-9]|[2-9][A-Za-z]")
+
+
 def script_lang(text: str, fallback: str) -> str:
     """The language a text is written in, as far as its letters tell: Urdu, Arabic or English."""
     if _URDU.search(text or ""):
@@ -311,28 +314,19 @@ def script_lang(text: str, fallback: str) -> str:
     if _ARABIC.search(text or ""):
         return "ar"
     return "en" if _LATIN.search(text or "") else fallback
-# a question for the types or sections of something («أنواع الزكاة», «اشرح الزكاة وأنواعها», «أقسام الطلاق»), in any case
-# or with a joining letter or the article; the singular «نوع» and the verb «أقسم» are not it
-_ASKS_FOR_KINDS = re.compile(r"(?<!\w)[وفبل]?(?:ال)?(?:انواع|اقسام)")
 # fixed replies (greetings, offers to explain again): never taken as "the previous answer"
 _CANNED = {v for t in TEXT.values() for v in t.values() if isinstance(v, str)}
-# words that open a question («كم», «ما حكم», «هل», «how»): a message with one of them, or a question mark, is a question
-# («ما» and «لم» are left out: «ما فهمت» is no question, and is handled as a request to explain again)
-_ASK_WORDS = {"كم", "ماذا", "متى", "اين", "كيف", "لماذا", "هل", "ماهو", "ماهي", "حكم", "شنو", "ايش", "وش", "ليش",
-              "امتى", "فين", "وين", "قداش", "معنى", "what", "how", "why", "when", "where"}
-
-
 def _still_a_question(message: str, turns: list[dict]) -> bool:
     """The understanding step found no question, yet the message is one: a question asked again word for word
-    (20 October 2026: a visitor repeated his question and was told «يبدو أن جوابي لم يكن واضحًا…»), or a message
-    with a question mark or a question word. It is answered, not met with an offer to explain again."""
+    (20 October 2026: a visitor repeated his question and was told «يبدو أن جوابي لم يكن واضحًا…»), or one that ends
+    with a question mark. Anything else is the understanding step's to read (most people write without punctuation,
+    so its prompt says a request for information is a question with or without one)."""
     said = normalize(message)
     if not said:
         return False
     if any(t["role"] == "user" and normalize(t["text"]) == said for t in turns):
         return True
-    words = said.split()
-    return "؟" in message or "?" in message or (len(words) >= 2 and bool(set(words) & _ASK_WORDS))
+    return "؟" in message or "?" in message
 ALL_MODELS_FAILED = "every model call failed"
 DEBUG = os.environ.get("MUHAWIR_DEBUG") == "1"  # adds the reason for not answering to each response
 log = logging.getLogger(__name__)
@@ -563,11 +557,6 @@ def _compares_to_daily_life(text: str) -> bool:
     tell where an everyday example stops explaining a word and starts saying what an act is like."""
     plain = normalize(text)
     return plain.startswith("مثلا") and bool(_COMPARES.search(plain))
-
-
-def _asks_for_kinds(*questions: str) -> bool:
-    """The question asks for the types or sections of something, so its answer is a list of them."""
-    return any(_ASKS_FOR_KINDS.search(normalize(q)) for q in questions if q)
 
 
 _BOTH_BOOKS = re.compile(r"^(و?)(?:روى|رواه|أخرج)\s+(?:الإمام\s+)?(?:البخاري\s+و(?:الإمام\s+)?مسلم|مسلم\s+والبخاري)\s+")
@@ -1418,15 +1407,19 @@ class Muhawir:
                  answer_it: bool = False) -> Response:
         question = (question or "").strip()
         lang_ok = lang if lang in LANGS else "ar"
-        if _URDU.search(question or ""):  # an Urdu question gets its fixed replies in Urdu, whatever the page language
-            lang_ok = "ur"
-        if lang_ok == "ar" and keyboard.latin_only(question):
+        page_lang = lang_ok
+        # Reply-language: every reply, the fixed ones too (a greeting, thanks, comfort, «no question»), is in the language
+        # the message is written in, whatever the page language; Arabic written in Latin letters with digits («3ayez»)
+        # stays in the page language
+        if not _ARABIZI.search(question or ""):
+            lang_ok = script_lang(question or "", lang_ok)
+        if page_lang == "ar" and keyboard.latin_only(question):
             # Arabic typed with the keyboard on English («hgvfh» → «الربا»): offered back as «هل تقصد: «الربا»؟» with
             # a button that asks it, only when every word of it is in the sources (an English question stays English)
             guess = keyboard.to_arabic(question).strip()
             hits = self.retriever.search(guess, k=1)
             if hits and hits[0].coverage >= 0.99:
-                res = Response(CHAT, TEXT[lang_ok]["did_you_mean"].format(guess=guess), synthetic=self.corpus.synthetic)
+                res = Response(CHAT, TEXT[page_lang]["did_you_mean"].format(guess=guess), synthetic=self.corpus.synthetic)
                 res.follow_up = guess
                 return res
         if question and classify.check(question[:MAX_QUESTION_CHARS * 2]).kind == classify.CRISIS:
@@ -1585,6 +1578,10 @@ class Muhawir:
             own = classify.check(original)
             if own.kind:
                 gate = own
+        if kind == "contemporary" and gate.kind is None:
+            # the understanding step read a contemporary financial matter (a product, a company, a deal): quoted
+            # fatwas and who to ask, never Muhawir's own ruling
+            gate = classify.Gate(classify.OUT_OF_SCOPE, "understood as a contemporary financial matter")
         if personal and gate.kind is None:
             # the understanding step read a case of the user's own in words no fixed rule holds (any dialect):
             # general information and who to ask, as for a case the rules found
@@ -1691,7 +1688,7 @@ class Muhawir:
                             else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
         if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
             answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
-        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how" or _asks_for_kinds(question, original)
+        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how"
         answer = fit_style(answer, style, listing)
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:

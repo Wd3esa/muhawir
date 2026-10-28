@@ -1,8 +1,8 @@
 """Fixed rules that stop a question before retrieval or generation.
 
-Only the cases the evaluation list marks as level D (personal fatwa or case),
-judging specific people, and attempts to override the rules are detected
-here. Levels A to C are not guessed by rules: telling them apart needs the
+Only thoughts of self-harm, judging specific people and attempts to override the rules are detected here, as
+floors that hold with no model. A personal case and a contemporary financial matter are read by the understanding
+step. Levels A to C are not guessed by rules: telling them apart needs the
 approved material itself, which is not in the repository yet.
 
 Note: these rules were written with the draft evaluation list visible, so
@@ -45,22 +45,6 @@ def is_small_talk(question: str) -> bool:
 def is_thanks(question: str) -> bool:
     """True when the whole message is only thanks."""
     return bool(_THANKS_ONLY.match(normalize(question)))
-
-_PERSONAL = [re.compile(p) for p in (
-    # Only what a scholar must hear the details of. A first-person question about worship, purity, fasting, zakat, an
-    # oath's expiation or food has a known ruling and is answered from the sources (an own illness or journey, «هل علي»,
-    # «يلزمني», «حلفت» are no longer referred); what stays is the wording of a divorce (whether it took place depends
-    # on the words and the intention) and a question that says its own details change the answer. Disputes over an
-    # inheritance or a right between people, and a contemporary matter with private facts, are told apart by the
-    # understanding step, which sets `personal`.
-    # The list rests on the books of adab al-fatwa, not on inference: ibn as-Salah, Adab al-Mufti pp. 115-116 and ibn Hamdan,
-    # Sifat al-Mufti p. 198 (no fatwa on oaths, confessions and wording unless one knows the speaker's usage); ibn al-Qayyim,
-    # I'lam al-Muwaqqi'in 1/25-26 (the fact must be known) and 6/92 (ask before ruling on a breach of an oath); an-Nawawi,
-    # Adab al-Fatwa pp. 45-46 (a ruling with kinds is answered by giving each kind its ruling) and pp. 44-45, 63-65 (what
-    # one does not know one holds back from: «I do not know», pointing to another mufti only if there is one).
-    r"\bفي حالتي\b", r"\bطلقت\b", r"\bقلت ?لها (انتي|انت|انتِ) طالق\b",
-    r"\bin my case\b", r"\bmy divorce\b",
-)]
 
 # matched on normalized text (أ/إ → ا, ؤ → و, ة → ه, ى → ي, no diacritics)
 _CRISIS = [re.compile(p) for p in (
@@ -109,24 +93,13 @@ class Gate:
     rule: str = ""     # the pattern that matched, for logs and tests
 
 
-# Rulings on contemporary financial products need ijtihad by fatwa bodies and fiqh academies. Muhawir never
-# judges them itself: it quotes the published fatwas in its sources, attributed to their authors, says plainly
-# that this is no ruling on the product asked about, and refers to the official fatwa body (EVALUATION.md, Q25, Q26).
-_OUT_OF_SCOPE = [re.compile(p) for p in (
-    r"\b(تابي|تمارا|tabby|tamara)\b",  # buy-now-pay-later companies, named
-    r"\b(التقسيط|بالتقسيط|تقسيط|الاقساط|اقساط)\b.*\b(حكم|حلال|حرام|يجوز|جائز|ربا|الربا|ربوي|ربويه)\b",
-    r"\b(حكم|حلال|حرام|يجوز|جائز|ربا|الربا|ربوي|ربويه)\b.*\b(التقسيط|بالتقسيط|تقسيط|الاقساط|اقساط)\b",
-    r"\b(buy now,? pay later|bnpl|instal?ments?)\b.*\b(halal|haram|permissible|allowed|riba|interest)\b",
-    r"\b(حكم|حلال|حرام|يجوز|جائز)\b.*\b(البنوك?|بنكي[هة]?|المصارف|فوا[يئ]د|عملات رقمي[هة]|العملات الرقمي[هة]|الرقمي[هة]|بيتكوين|البيتكوين|كريبتو|التداول|تداول|الفوركس|فوركس|الاسهم|اسهم|التامين|تامين)\b",
-    r"\b(البنوك?|بنكي[هة]?|المصارف|فوا[يئ]د|عملات رقمي[هة]|العملات الرقمي[هة]|بيتكوين|البيتكوين|كريبتو|التداول|تداول|الفوركس|فوركس|الاسهم|التامين)\b.*\b(حلال|حرام|يجوز|جائز)\b",
-    r"\b(is|are)\b.*\b(bank interest|crypto|bitcoin|forex|stock trading|insurance)\b.*\b(halal|haram|permissible|allowed)\b",
-    # the topic alone, with no question («العملات الرقمية», "bitcoin"): the model would turn it into a question of its
-    # own, a ruling one or a «what is» one, so the same words got a referral one time and «not found» the next
-    r"^(ما )?(حكم )?(عملات رقميه|العملات الرقميه|العمله الرقميه|عمله رقميه|بيتكوين|البيتكوين|بتكوين|كريبتو|الكريبتو"
-    r"|الفوركس|فوركس|التداول|تداول الاسهم|تداول العملات|الاسهم|فوا[يئ]د البنوك|فوا[يئ]د البنك|الفوا[يئ]د البنكيه|التامين"
-    r"|التامين التجاري|التقسيط|البيع بالتقسيط)( في الاسلام)?$",
-    r"^(crypto|cryptocurrency|cryptocurrencies|bitcoin|forex|bank interest|insurance|stock trading)( in islam)?$",
-)]
+# Rulings on contemporary financial products need ijtihad by fatwa bodies and fiqh academies. Muhawir never judges
+# them itself: it quotes the published fatwas in its sources, attributed to their authors, says plainly that this is no
+# ruling on the product asked about, and refers to the official fatwa body (EVALUATION.md, Q25, Q26). Which questions
+# are such matters, and which are a personal case for a specialist, is read by the understanding step from the meaning
+# of the message (generate.UNDERSTAND_PROMPT: kind "contemporary", personal), not from lists of words (28 October 2026).
+# The lists left here are floors that must hold with no model: thoughts of self-harm, attempts to override the rules
+# and judging a named person.
 
 
 # the product a contemporary financial question names, and the words a passage must contain to speak about it.
@@ -177,8 +150,7 @@ def mentions_suicide(question: str) -> bool:
 def check(question: str) -> Gate:
     """Check a question against the safety patterns in a fixed order and return the first kind that matches."""
     text = normalize(question)
-    for kind, patterns in ((CRISIS, _CRISIS), (OVERRIDE, _OVERRIDE), (JUDGING_PEOPLE, _JUDGING),
-                           (PERSONAL_CASE, _PERSONAL), (OUT_OF_SCOPE, _OUT_OF_SCOPE)):
+    for kind, patterns in ((CRISIS, _CRISIS), (OVERRIDE, _OVERRIDE), (JUDGING_PEOPLE, _JUDGING)):
         for pattern in patterns:
             if pattern.search(text):
                 return Gate(kind, pattern.pattern)

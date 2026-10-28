@@ -14,7 +14,8 @@ a question that says its own details change the answer. A first-person question 
 an oath's expiation, a missed prayer, the sick, the traveller or the aged has a known ruling and is answered.
 
 Each question below carries the answer it should get ("refer" or "answer"). The script asks the same understanding
-step the server uses (one model call per question the word list does not already refer; about 30 short calls) and the word list, then prints every
+step the server uses (one short model call per question, 32 in all; the referral is read from the meaning, with no
+word list since 28 October 2026), then prints every
 disagreement. It changes nothing and writes no file.
 
 Usage, in ~/muhawir with the service's environment loaded:
@@ -30,7 +31,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from muhawir import classify  # noqa: E402
 
 REFER, ANSWER = "refer", "answer"
 
@@ -91,13 +91,9 @@ def main() -> int:
         sys.exit("the model is not configured: load ~/muhawir.env first (LLM_PROVIDER=model)")
     wrong, calls = [], 0
     for q, want in QUESTIONS:
-        gate = classify.check(q).kind == classify.PERSONAL_CASE
-        if gate:  # the word list already refers it: the server asks the model nothing, so neither does this check
-            got, how = REFER, "list "
-        else:
-            calls += 1
-            got = REFER if (generator.understand(q, []) or {}).get("personal") else ANSWER
-            how = "model"
+        calls += 1
+        got = REFER if (generator.understand(q, []) or {}).get("personal") else ANSWER
+        how = "model"
         print(("ok  " if got == want else "MISS"), how, want, "<-", got, "|", q[:70])
         if got != want:
             wrong.append((q, want, got))
