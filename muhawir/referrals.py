@@ -26,22 +26,20 @@ FATWA_BODIES = [
 
 CARD = {
     "ar": {
-        "fatwa": ("من تسأل؟", "اسأل جهة الفتوى الرسمية في بلدك، ومن هذه الجهات:"),
-        "finance": ("من تسأل؟", "القضايا المالية المعاصرة تبحثها جهات الفتوى الرسمية والمجامع الفقهية. اسأل جهة الفتوى الرسمية في بلدك، ومن هذه الجهات:"),
+        "fatwa": ("من تسأل؟", "جهة الفتوى الرسمية في بلدك، مثل:"),
+        "finance": ("من تسأل؟", "جهة الفتوى الرسمية في بلدك، مثل:"),
         "newcomer": ("تحدّث مع أحد", "تواصل مع أقرب مسجد أو مركز إسلامي إليك، فهم يرحبون بك ويساعدونك خطوة خطوة، "
                                     "ويجيبون عن أسئلتك وجهًا لوجه."),
     },
     "en": {
-        "fatwa": ("Who to ask", "Ask the official fatwa body in your country, for example:"),
-        "finance": ("Who to ask", "Contemporary financial matters are studied by official fatwa bodies and fiqh academies. "
-                                  "Ask the official fatwa body in your country, for example:"),
+        "fatwa": ("Who to ask", "The official fatwa body in your country, for example:"),
+        "finance": ("Who to ask", "The official fatwa body in your country, for example:"),
         "newcomer": ("Talk to someone", "Contact the mosque or Islamic centre nearest to you: they will welcome you, help you "
                                        "step by step, and answer your questions in person."),
     },
     "ur": {
-        "fatwa": ("کس سے پوچھیں؟", "اپنے ملک کے سرکاری دارالافتاء سے پوچھیں، ان میں سے ایک یہ ہے:"),
-        "finance": ("کس سے پوچھیں؟", "جدید مالی معاملات پر سرکاری فتویٰ ادارے اور فقہی مجامع غور کرتے ہیں۔ اپنے ملک کے سرکاری "
-                                     "دارالافتاء سے پوچھیں، ان میں سے ایک یہ ہے:"),
+        "fatwa": ("کس سے پوچھیں؟", "آپ کے ملک کا سرکاری دارالافتاء، جیسے:"),
+        "finance": ("کس سے پوچھیں؟", "آپ کے ملک کا سرکاری دارالافتاء، جیسے:"),
         "newcomer": ("کسی سے بات کریں", "اپنے قریب ترین مسجد یا اسلامی مرکز سے رابطہ کریں: وہ آپ کو خوش آمدید کہیں گے، قدم بہ قدم "
                                          "آپ کی مدد کریں گے اور آمنے سامنے آپ کے سوالوں کے جواب دیں گے۔"),
     },

@@ -374,3 +374,9 @@ def test_fixed_replies_are_in_the_language_of_the_message_not_the_page():
 def test_the_understanding_step_reads_a_short_reply_as_the_answer_to_muhawirs_question():
     from muhawir.generate import UNDERSTAND_PROMPT
     assert "ردًا عليه" in UNDERSTAND_PROMPT and "علامات الترقيم" in UNDERSTAND_PROMPT
+
+
+def test_a_clear_question_put_in_other_words_is_not_asked_back():
+    # 28 October 2026: «ما رأي بن باز في البيتكوين» was answered under «إذا كنت تقصد: ما رأي ابن باز…»
+    res = _model(understood="ما حكم سقي النخلة في الصيف؟").ask("حكم سقي النخله")
+    assert res.understood and res.unsure is False
