@@ -140,7 +140,7 @@ def test_busy_and_rate_limits_do_not_call_engine(monkeypatch):
 
 
 def test_answer_slot_is_released_after_failure(monkeypatch):
-    def fail(*a):
+    def fail(*a, **k):
         raise RuntimeError("fake failure")
     monkeypatch.setattr(server, "engine", SimpleNamespace(ask=fail))
     monkeypatch.setattr(server, "_ask_calls", __import__('collections').deque())

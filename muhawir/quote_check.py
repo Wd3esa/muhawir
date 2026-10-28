@@ -28,33 +28,6 @@ FUZZY_MAX_STARTS = 150     # places tried in one passage
 FUZZY_SLACK = 2            # words the passage may add inside the span of the quotation
 _WORD = re.compile(r"\S+")
 
-# Quote-in-box: a message typed or pasted in the question box is looked up as a quotation, with no model, only when it
-# is long enough to point to one passage and asks nothing. Most people write without punctuation, so the test is on
-# words: a first word that asks, requests or names what is asked about («ما، هل، اذكر، صحة، حديث…»), or a last word
-# that asks about the text («صحيح، معناه، تفسيره…»), makes it a question. The lookup decides the rest: only a bare text
-# found in the sources word for word is shown as a quotation; a nearly matching one is answered as a question.
-QUOTE_IN_BOX_WORDS = 6
-_ASK_FIRST = {normalize(w) for w in (
-    "ما", "ماذا", "من", "متى", "اين", "أين", "كيف", "كم", "لماذا", "لم", "هل", "أي", "اي", "ماهو", "ماهي", "حكم",
-    "معنى", "تفسير", "شرح", "شنو", "ايش", "إيش", "وش", "ليش", "ليه", "إيه", "شو", "منو", "وين", "ليه",
-    "اذكر", "أذكر", "اشرح", "عدد", "عدّد", "بين", "بيّن", "وضح", "وضّح", "فسر", "فسّر", "أعطني", "اعطني", "عطني",
-    "أريد", "اريد", "ابغى", "أبغى", "ابي", "أبي", "ودي", "ممكن", "لو", "أخبرني", "اخبرني", "قل", "علمني", "علّمني",
-    "صحة", "صحه", "مدى", "درجة", "درجه", "تخريج", "مصدر", "حديث", "الحديث", "آية", "اية", "الآية", "قول", "مقولة",
-    "عبارة", "دليل", "سبب", "فضل", "عن",
-    "what", "who", "when", "where", "how", "why", "is", "are", "does", "do", "can", "explain", "tell", "list", "give")}
-_ASK_LAST = {normalize(w) for w in (
-    "صحيح", "صحيحه", "صحيحة", "صحته", "ضعيف", "معناه", "معناها", "تفسيره", "تفسيرها", "شرحه", "شرحها", "حكمه", "حكمها",
-    "درجته", "درجتها", "سنده", "مصدره", "مصدرها", "true", "authentic", "mean", "meaning")}
-
-
-def looks_like_quote(text: str) -> bool:
-    """True when a message may be a quotation to look up rather than a question: enough words, and none of them at
-    the start or the end asks or requests anything. The lookup then decides whether it is one."""
-    words = normalize(text).split()
-    if len(words) < QUOTE_IN_BOX_WORDS:
-        return False
-    return words[0] not in _ASK_FIRST and words[-1] not in _ASK_LAST and "هل" not in words[-3:]
-
 
 @dataclass(frozen=True)
 class QuoteMatch:
@@ -201,3 +174,32 @@ def find_quote(retriever, quote: str, limit: int = 8, candidates: int = 12) -> l
     found.sort(key=lambda item: (item[0].status != "exact", KIND_ORDER.get(item[1].passage.kind, 2),
                                  item[1].passage.source_id not in PRIMARY_HADITH, -item[0].coverage, item[2]))
     return [(m, h) for m, h, _r in found[:limit]]
+
+
+def lookup(retriever, corpus, text: str, explain_miss: bool = True) -> dict:
+    """Where a quotation is in the sources: {"status": "exact" | "close" | "not_found" | "too_generic", "matches"}.
+    Each match names its book and place, the passage cut around the words, and the passages before and after it."""
+    matches, seen = [], {}
+    for match, hit in find_quote(retriever, text):
+        passage = hit.passage
+        source = corpus.source_of(passage)
+        # the same wording twice in one book (a verse quoted at the head of two successive pages of a commentary) is one
+        # finding with its other places listed, not two cards
+        same = (source.id, normalize(match.excerpt))
+        if same in seen:
+            seen[same]["also"].append(passage.location)
+            continue
+        before, after = corpus.neighbours(passage.id)
+        seen[same] = {"status": match.status, "coverage": match.coverage, "excerpt": match.excerpt,
+                      "passage_id": passage.id, "location": passage.location, "kind": passage.kind,
+                      "grade": passage.grade, "source_name": source.name, "source_url": source.url, "also": [],
+                      "window": window(passage.text, match.start, match.end),
+                      "before": {"location": before.location, "text": edge(before.text, tail=True)} if before else None,
+                      "after": {"location": after.location, "text": edge(after.text)} if after else None}
+        matches.append(seen[same])
+    matches = matches[:3]
+    if not matches:
+        # a phrase of common words is in the wording of many passages: say so, not «not found»
+        generic = explain_miss and is_generic(retriever, text)
+        return {"status": "too_generic" if generic else "not_found", "matches": []}
+    return {"status": matches[0]["status"], "matches": matches}

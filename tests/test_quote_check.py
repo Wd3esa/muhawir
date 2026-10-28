@@ -169,45 +169,49 @@ def test_one_letter_apart_words_need_four_letters():
     assert not quote_check._same_word("في", "من") and not quote_check._same_word("على", "علي")
 
 
-# --- Quote-in-box: the question box looks a pasted quotation up first, with no model ----------------------------------
+# --- Quote-in-box: the understanding step decides whether a message is a bare quotation, with no word lists -------------
 
-def _no_answer(monkeypatch):
-    calls = []
-    monkeypatch.setattr(server.engine, "ask", lambda *a, **k: calls.append(a) or (_ for _ in ()).throw(AssertionError("answered")))
-    return calls
+def _engine(kind):
+    import json as _json
+    from muhawir.corpus import load_corpus
+    from muhawir.generate import ModelGenerator
+    from muhawir.pipeline import Muhawir
+    from pathlib import Path
+    seen = []
 
-
-def test_a_quotation_typed_in_the_question_box_is_located_without_the_model(monkeypatch):
-    _reset()
-    _no_answer(monkeypatch)
-    for path in ("/api/ask", "/api/ask_stream"):
-        r = client.post(path, json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الصيف"})
-        reply = r.json() if path == "/api/ask" else __import__("json").loads(r.text.strip().splitlines()[-1])["reply"]
-        assert reply["status"] == "quote" and reply["quote"]["matches"][0]["passage_id"] == "test-a:1"
-
-
-def test_a_question_without_punctuation_is_still_a_question():
-    for text in ("ما حكم النخلة شجرة تحتاج إلى ماء كثير",       # asks at the start
-                 "اذكر النخلة شجرة تحتاج إلى ماء كثير في الصيف",  # a request
-                 "النخلة شجرة تحتاج إلى ماء كثير في الصيف صحيح",  # asks about the text at the end
-                 "النخلة شجرة تحتاج إلى ماء كثير هل هو",          # «هل» near the end
-                 "صحة حديث اطلبوا العلم ولو في الصين",              # names what is asked about (28 October 2026)
-                 "حديث إنما الأعمال بالنيات وإنما لكل امرئ",
-                 "جواهر الكهف اذكر الكلمات الغريبة", "الربا"):     # short
-        assert not quote_check.looks_like_quote(text), text
-    assert quote_check.looks_like_quote("النخلة شجرة تحتاج إلى ماء كثير في الصيف")
+    def call(system, user, schema=None):
+        keys = _json.dumps(schema or {})
+        seen.append("understand" if '"question"' in keys else "other")
+        if '"question"' in keys:
+            return _json.dumps({"question": "ما معنى هذا النص وما مصدره؟", "translate": "", "answer_lang": "", "feeling": "",
+                                "personal": False, "kind": kind, "reexplain": False, "recall": "", "queries": ["النخلة"]},
+                               ensure_ascii=False)
+        if "verdict" in keys:
+            return '{"verdict": "yes"}'
+        return _json.dumps({"abstain": False, "claims": [{"text": "النخلة تحتاج إلى ماء كثير.", "passage_ids": ["test-a:1"]}]},
+                           ensure_ascii=False)
+    corpus = load_corpus(Path(__file__).resolve().parent.parent / "data" / "synthetic_corpus.json")
+    return Muhawir(corpus, ModelGenerator([("m", call)])), seen
 
 
-def test_ask_about_it_and_text_not_in_the_sources_go_to_the_answer():
-    _reset()
-    as_question = client.post("/api/ask", json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الصيف", "as_question": True}).json()
-    unknown = client.post("/api/ask", json={"question": "كلام طويل لا يوجد في أي مصدر محفوظ أبدا هنا"}).json()
-    assert as_question["status"] != "quote" and unknown["status"] != "quote"
+def test_a_bare_quotation_found_word_for_word_is_located_and_nothing_is_written():
+    engine, seen = _engine("quote")
+    res = engine.ask("النخلة شجرة تحتاج إلى ماء كثير في الصيف")
+    assert res.status == "quote" and res.quote["matches"][0]["passage_id"] == "test-a:1"
+    assert seen == ["understand"]  # the understanding step only: no writing, no checking
 
 
-def test_a_text_recalled_with_other_words_is_a_question_not_a_did_you_mean(monkeypatch):
-    _reset()
-    asked = []
-    monkeypatch.setattr(server.engine, "ask", lambda *a, **k: asked.append(a) or server.engine.__class__.ask(server.engine, *a, **k))
-    reply = client.post("/api/ask", json={"question": "النخلة شجرة تحتاج إلى ماء كثير في الشتاء وغيره"}).json()
-    assert reply["status"] != "quote" and asked
+def test_ask_about_it_answers_the_same_text():
+    engine, seen = _engine("quote")
+    res = engine.ask("النخلة شجرة تحتاج إلى ماء كثير في الصيف", answer_it=True)
+    assert res.status != "quote" and len(seen) > 1
+
+
+def test_a_quotation_not_found_word_for_word_is_answered_as_a_question():
+    engine, _ = _engine("quote")
+    assert engine.ask("النخلة شجرة تحتاج ماء في الشتاء والخريف أيضا").status != "quote"
+
+
+def test_a_question_about_a_text_is_answered_whatever_its_words():
+    engine, _ = _engine("ruling")
+    assert engine.ask("النخلة شجرة تحتاج إلى ماء كثير في الصيف").status != "quote"

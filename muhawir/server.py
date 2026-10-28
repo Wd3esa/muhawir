@@ -203,7 +203,7 @@ def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]
     """Answer a question: check the visitor's rate, take an answer slot (waiting briefly if all are busy), then run the pipeline."""
     address = _admit(request)
     try:
-        reply = _quoted(body) or _run_ask(body)
+        reply = _run_ask(body)
         usage = usage_of(address)
         if usage:
             reply["usage"] = usage
@@ -225,7 +225,7 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
         _progress.set(lambda stage, data=None: events.put({"stage": stage, **({"data": data} if data else {})}))
         try:
             events.put({"stage": "understanding"})
-            reply = _quoted(body) or _run_ask(body)
+            reply = _run_ask(body)
             usage = usage_of(address)
             if usage:
                 reply["usage"] = usage
@@ -256,22 +256,6 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
-def _quoted(body: Ask) -> dict | None:
-    """Quote-in-box: a pasted verse, hadith or saying found in the sources word for word is answered with
-    where it is, at once and with no model; anything else (None) goes on to the answer. See quote_check.looks_like_quote."""
-    if body.as_question or not quote_check.looks_like_quote(body.question):
-        return None
-    try:
-        found = quote_lookup(body.question.strip(), explain_miss=False)
-    except Exception:  # the lookup must never stop a question from being answered
-        log.warning("quote lookup failed", exc_info=True)
-        return None
-    best = found["matches"][0] if found["matches"] else None
-    if best is None or best["status"] != "exact":  # a text recalled with other words is a question about it
-        return None
-    return {"status": "quote", "message": "", "quote": found}
-
-
 def _run_ask(body: Ask) -> dict:
     # Charge the global request budget only for a request admitted to a model slot.
     with _ask_lock:
@@ -282,7 +266,7 @@ def _run_ask(body: Ask) -> dict:
             raise HTTPException(status_code=429, detail="Too many questions; please try again shortly", headers={"Retry-After": "60"})
         _ask_calls.append(now)
     return engine.ask(body.question, body.style, body.lang,
-                      [t.model_dump() for t in body.history]).to_dict()
+                      [t.model_dump() for t in body.history], answer_it=body.as_question).to_dict()
 
 
 @app.post("/api/ask_again")
@@ -523,37 +507,7 @@ def verify_text(body: QuoteCheck, request: Request = None) -> dict:  # type: ign
     text = body.text.strip()
     if len(normalize(text).split()) < quote_check.MIN_QUOTE_WORDS:
         raise HTTPException(status_code=422, detail="Quotation too short to look up")
-    return quote_lookup(text)
-
-
-def quote_lookup(text: str, explain_miss: bool = True) -> dict:
-    """Where a quotation is in the sources: {"status": "exact" | "close" | "not_found" | "too_generic", "matches"}.
-    Each match names its book and place, the passage cut around the words, and the passages before and after it."""
-    matches, seen = [], {}
-    for match, hit in quote_check.find_quote(engine.retriever, text):
-        passage = hit.passage
-        source = engine.corpus.source_of(passage)
-        # the same wording twice in one book (a verse quoted at the head of two successive pages of a commentary) is one
-        # finding with its other places listed, not two cards
-        same = (source.id, normalize(match.excerpt))
-        if same in seen:
-            seen[same]["also"].append(passage.location)
-            continue
-        before, after = engine.corpus.neighbours(passage.id)
-        seen[same] = {"status": match.status, "coverage": match.coverage, "excerpt": match.excerpt,
-                      "passage_id": passage.id, "location": passage.location, "kind": passage.kind,
-                      "grade": passage.grade, "source_name": source.name, "source_url": source.url, "also": [],
-                      "window": quote_check.window(passage.text, match.start, match.end),
-                      "before": {"location": before.location, "text": quote_check.edge(before.text, tail=True)} if before else None,
-                      "after": {"location": after.location, "text": quote_check.edge(after.text)} if after else None}
-        matches.append(seen[same])
-    matches = matches[:3]
-    if not matches and not explain_miss:
-        return {"status": "not_found", "matches": []}
-    if not matches:
-        # a phrase of common words is in the wording of many passages: say so, not «not found»
-        return {"status": "too_generic" if quote_check.is_generic(engine.retriever, text) else "not_found", "matches": []}
-    return {"status": matches[0]["status"], "matches": matches}
+    return quote_check.lookup(engine.retriever, engine.corpus, text)
 
 
 @app.get("/api/context/{passage_id}")
