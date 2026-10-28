@@ -669,3 +669,12 @@ def test_a_busy_provider_is_waited_for_as_long_as_it_asks_within_a_limit():
     tries.clear(); waits.clear()
     generate.with_retry(call, "s", "u", {}, sleep=waits.append)
     assert waits == [generate.MAX_BUSY_WAIT] * 2
+
+
+def test_the_writing_step_answers_every_part_and_names_whose_view_it_is():
+    # 28 October 2026: «العادة السرية ومشاهدة الإباحية» detailed one part, offered the other as a follow-up, put
+    # «الحديث المروي» and «ابن باز» beside «الشافعي» as views, and quoted a fatwa on fasting
+    from muhawir.generate import QUERY_RULES, SYSTEM_PROMPT
+    assert "أكثر من مسألة" in SYSTEM_PROMPT and "أكثر من مسألة" in QUERY_RULES
+    assert "اسم صاحب القول وحده" in SYSTEM_PROMPT and "مسألة مجاورة" in SYSTEM_PROMPT
+    assert "فاجمعهما بـ«أو»" in SYSTEM_PROMPT
