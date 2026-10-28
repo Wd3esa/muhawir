@@ -1874,7 +1874,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 // 1. Text: one entry per language; the page picks UI[lang] and fills every data-t element from it.
 const UI = {
   ar: { lang: "اللغة", usageWarn: "استخدمت {pct}% من حد الأسئلة ({used} من {limit}). يتجدد بعد {wait}.", minutes: "{n} دقيقة",  voiceMode: "الوضع الصوتي", voiceModeStop: "إيقاف الوضع الصوتي", vmOn: "الوضع الصوتي يعمل: تكلّم بعد النغمة، وسأقرأ لك الجواب ومصادره ثم أستمع لسؤالك التالي. للإيقاف اضغط الزر نفسه أو Escape.", vmListening: "أستمع إليك… تكلّم الآن.", vmReading: "أقرأ الجواب.", vmNotHeard: "لم أسمعك. تكلّم بعد النغمة.", vmOff: "توقف الوضع الصوتي.", vmNoMic: "هذا المتصفح لا يتيح التحدث إليه. جرّب Chrome أو Edge أو Safari.", vmTranslation: "ترجمة معاني الآية:", vmRecitation: "تلاوة الآية:",  tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
-        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", replyPlaceholder: "ردّ على مُحاور…", replyYes: "نعم", replyNo: "لا، شكرًا", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
+        qlabel: "سؤالك", placeholder: "اكتب سؤالك هنا…", replyPlaceholder: "ردّ على مُحاور…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "مساعد يجيب عن أسئلتك الدينية من مصادرها", settings: "كيف تحب الشرح؟", appearance: "المظهر", voiceSettings: "الصوت", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
@@ -1889,7 +1889,7 @@ const UI = {
         topics: "موضوعات الآية بحسب المصدر", chapter: "الباب", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", usageWarn: "You have used {pct}% of your question limit ({used} of {limit}). It resets in {wait}.", minutes: "{n} min",  voiceMode: "Voice mode", voiceModeStop: "Stop voice mode", vmOn: "Voice mode is on: speak after the tone; I will read the answer and its sources, then listen for your next question. To stop, press the same button or Escape.", vmListening: "Listening… speak now.", vmReading: "Reading the answer.", vmNotHeard: "I did not hear you. Speak after the tone.", vmOff: "Voice mode stopped.", vmNoMic: "This browser cannot listen to speech. Try Chrome, Edge or Safari.", vmTranslation: "Translation of the meaning of the verse:", vmRecitation: "Recitation of the verse:",  tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
-        qlabel: "Your question", placeholder: "Ask a question…", replyPlaceholder: "Reply to Muhawir…", replyYes: "Yes", replyNo: "No, thanks", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
+        qlabel: "Your question", placeholder: "Ask a question…", replyPlaceholder: "Reply to Muhawir…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources.", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
@@ -1905,7 +1905,7 @@ const UI = {
         topics: "Topics listed by the source", chapter: "Chapter", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
         status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } },
   ur: { appearance:"ظاہری شکل", voiceSettings:"آواز", answerLayout:"جواب کی شکل", layoutBook:"کتاب کا صفحہ", layoutPlain:"سادہ جواب", lang: "زبان", usageWarn: "آپ سوالوں کی حد کا {pct}% استعمال کر چکے ہیں ({limit} میں سے {used})۔ یہ {wait} بعد دوبارہ شروع ہوگی۔", minutes: "{n} منٹ",  voiceMode: "آواز موڈ", voiceModeStop: "آواز موڈ بند کریں", vmOn: "آواز موڈ چل رہا ہے: ٹون کے بعد بولیں؛ میں جواب اور اس کے مصادر پڑھ کر سناؤں گا، پھر آپ کا اگلا سوال سنوں گا۔ بند کرنے کے لیے یہی بٹن یا Escape دبائیں۔", vmListening: "سن رہا ہوں… اب بولیں۔", vmReading: "جواب پڑھ رہا ہوں۔", vmNotHeard: "میں آپ کو سن نہیں سکا۔ ٹون کے بعد بولیں۔", vmOff: "آواز موڈ بند ہو گیا۔", vmNoMic: "یہ براؤزر آواز نہیں سن سکتا۔ Chrome، Edge یا Safari آزمائیں۔", vmTranslation: "آیت کے معانی کا ترجمہ:", vmRecitation: "آیت کی تلاوت:",  tagline: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے، اور ضرورت ہو تو کسی ماہر کی طرف رہنمائی کرتا ہے۔",
-        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", replyPlaceholder: "مُحاور کو جواب دیں…", replyYes: "جی ہاں", replyNo: "نہیں، شکریہ", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
+        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", replyPlaceholder: "مُحاور کو جواب دیں…", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
         newChat: "نئی گفتگو", historyHeading: "آپ کی گفتگوئیں", historySearch: "اپنی گفتگوؤں میں تلاش کریں", historyEmpty: "جو گفتگو آپ شروع کریں گے وہ یہاں نظر آئے گی۔", noMatches: "اس نام کی کوئی گفتگو نہیں۔", privacyNote: "تاریخچہ اسی براؤزر میں محفوظ رہتا ہے۔ سوال پوچھنے پر سوال اور اس کا قریبی سیاق جواب کی تیاری کے لیے محاور کی سروس اور ماڈل فراہم کنندہ کو بھیجا جاتا ہے۔ آپ تاریخچہ حذف کر سکتے ہیں۔", favorite: "پسندیدہ میں شامل کریں", unfavorite: "پسندیدہ سے نکالیں", deleteChat: "گفتگو حذف کریں", deleteAll: "تمام گفتگوئیں حذف کریں", deleteAllConfirm: "کیا آپ اس براؤزر میں محفوظ تمام گفتگوئیں حذف کرنا چاہتے ہیں؟", openHistory: "گفتگو کا تاریخچہ کھولیں", closeHistory: "گفتگو کا تاریخچہ بند کریں", showHistory: "گفتگو کا تاریخچہ دکھائیں", hideHistory: "گفتگو کا تاریخچہ چھپائیں", historyLabel: "گفتگو کا تاریخچہ", recent: "حالیہ گفتگوئیں", trustLabel: "معتبر مصادر",
         welcomeDescription: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے۔", settings: "آپ وضاحت کس انداز میں چاہتے ہیں؟", welcomeKicker: "پوچھیے اور مصادر سے تصدیق کیجیے",
         topicQuran: "قرآن", topicFiqh: "فقہ", topicAqidah: "عقیدہ", promptQuran: "میں قرآن میں تدبر کیسے کروں؟", promptFiqh: "فرض اور سنت میں کیا فرق ہے؟", promptAqidah: "توحید کا کیا مطلب ہے؟", assistant: "محاور",
@@ -3312,20 +3312,13 @@ function renderAnswer(res, style, context) {
   }
   let next = null;
   if (res.follow_up) {
-    // Reply-chips: Muhawir ends with a question, as in a conversation. The question is shown as Muhawir's words, with
-    // «نعم» (asks it) and «لا» under it; the box below says «ردّ على مُحاور…», and whatever is typed there is read as
-    // the reply to it (the question is kept in the conversation sent with the next message)
+    // Reply-by-typing: Muhawir ends with a question, as in a conversation. The question is shown as Muhawir's words and
+    // the box below says «ردّ على مُحاور…»: whatever is typed there is read as the reply to it (the question is kept in
+    // the conversation sent with the next message). No buttons: the reply is typed, as to a person
     next = el("div", "follow-up-turn");
     const asked = el("p", "follow-up-question", /[؟?]\s*$/.test(res.follow_up) ? res.follow_up : "");
     asked.dir = "auto";
-    const row = el("div", "confirm-choices reply-chips");
-    row.setAttribute("role", "group");
-    const yes = el("button", "", t.replyYes), no = el("button", "", t.replyNo);
-    yes.type = no.type = "button";
-    yes.addEventListener("click", () => { row.remove(); setQuestionText(res.follow_up); $("ask").requestSubmit(); });
-    no.addEventListener("click", () => { row.remove(); if (context?.conversation) context.conversation.awaitingReply = false; syncPlaceholder(); });
-    row.append(yes, no);
-    next.append(asked, row);
+    next.append(asked);
     if (!general) msg.append(next);
   }
   if ((res.choices || []).length) {  // e.g. «بالعربية» / «In English» for a language Muhawir does not answer in
@@ -3369,20 +3362,12 @@ function renderAnswer(res, style, context) {
     msg.append(box);
   }
   if (general) {
-    // Referral-offer: the general rulings are offered as Muhawir's question, «هل تريد معرفة الأحكام العامة…؟», with
-    // «نعم» and «لا، شكرًا»; «نعم» shows them in place (they are already in the reply: no new request)
+    // Referral-offer: the general rulings are offered as Muhawir's question, «هل تريد معرفة الأحكام العامة…؟», answered
+    // by typing in the box like any reply; they stay folded here (opened with the sources)
     const offer = el("div", "follow-up-turn");
     const asked = el("p", "follow-up-question", t.generalInfo);
     asked.dir = "auto";
-    const row = el("div", "confirm-choices reply-chips");
-    row.setAttribute("role", "group");
-    const yes = el("button", "", t.replyYes), no = el("button", "", t.replyNo);
-    yes.type = no.type = "button";
-    yes.addEventListener("click", () => { general.open = true; });
-    no.addEventListener("click", () => offer.remove());
-    row.append(yes, no);
-    offer.append(asked, row);
-    general.addEventListener("toggle", () => { if (general.open) offer.remove(); });
+    offer.append(asked);
     msg.append(offer, general);
   }
   const sourcesHome = general || msg;  // a folded answer keeps its sources with it
