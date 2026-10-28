@@ -678,3 +678,9 @@ def test_the_writing_step_answers_every_part_and_names_whose_view_it_is():
     assert "أكثر من مسألة" in SYSTEM_PROMPT and "أكثر من مسألة" in QUERY_RULES
     assert "اسم صاحب القول وحده" in SYSTEM_PROMPT and "مسألة مجاورة" in SYSTEM_PROMPT
     assert "فاجمعهما بـ«أو»" in SYSTEM_PROMPT
+
+
+def test_every_answer_opens_with_a_summary_of_all_its_parts_and_agreed_evidence_is_grouped_by_kind():
+    from muhawir.generate import SYSTEM_PROMPT
+    assert "خلاصة قصيرة تجيب عن السؤال كله، بكل مسائله" in SYSTEM_PROMPT
+    assert "«من القرآن»، «من السنة»" in SYSTEM_PROMPT
