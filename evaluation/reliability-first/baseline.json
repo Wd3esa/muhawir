@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-30",
+  "production_commit": "a5f6fb20f3e608e55a29c41e6cfbaaf412635abb",
+  "status": "code_reference_fixed; live_environment_and_corpus_fingerprints_pending",
+  "source_file_sha256": {
+    "muhawir/__init__.py": "7fd497765bfd08c026a28682596aba7af647de0f40ccea9dda9c6ff78a600282",
+    "muhawir/aqeedah.py": "414fb2d165c9991a8b95a4ecadab046577bb4554cc5e90cd383d8bae1b14a8a4",
+    "muhawir/asbab.py": "1186840c063913aab7473c1e9040a26188b36f7ca5cd93df5b40ae245120f43e",
+    "muhawir/attribution.py": "133c6e95144f2132300395d41c190d1fb3ccdbf0ee59957cd535948e36529386",
+    "muhawir/bayyinat.py": "6494d291a59f948d0570c033ee975f515079e17be1778015947a5a23f1e5f8af",
+    "muhawir/bidaya.py": "697a299a0f622fd01ef7d413fee4c18a9c75d58a1d6070ecf5e9d640472ef8ae",
+    "muhawir/build_data.py": "32bf6caf0b6579a5e264d2f9e7531f249829723d9dc6c116994ea2cfb7bca9e8",
+    "muhawir/classify.py": "ae9ab76ae5c582065e72703ca67d5251bc35667a5009ed72e2c4a5a03d477b47",
+    "muhawir/corpus.py": "eb98cc60311970238b3692183e2a5a77d37f960caeefd90d9932b98d63b34eb4",
+    "muhawir/extra_sources.py": "4262a0ba09bf07c3dd3b8f3a392654549a900b9a8d7f27da2288b797616038b2",
+    "muhawir/extract.py": "c7c8cbf793f8230ea72eb37e5d92e2e20967fd1379dc8ad4459cc61f582fd8d0",
+    "muhawir/fatawa.py": "fa7aa3e1396a2e710ae99408304e757b262a04ae25d5aae1be54d6d052f3c677",
+    "muhawir/generate.py": "1a778e5ec6029a188094826b3df36d2cb890f4bcd1a8a255e66333b4fa5c3e7f",
+    "muhawir/gharib.py": "55ccaadc1721c26ac883083c8f55509e93a90c7aa4b4bc2f9b16f61524112f9b",
+    "muhawir/ibnkathir.py": "469d3f9e11d132361457cc99f6d7e55c92dfdf8040f1d3f4f09db17c99edcecb",
+    "muhawir/keyboard.py": "7786287b978406758ce31e61fab7ad35bb727527a165fc01914b8b29279a1864",
+    "muhawir/maqasid.py": "b6dc4d46ed885e79486ea3b25dd85184c915c8630d2dbc97fd200f561a93202a",
+    "muhawir/messages.py": "7333ebaaae3dcebc1120740d11b5f0c417f083fbabcb292a633153cad6fcf8ac",
+    "muhawir/normalize.py": "a863ce289d3a2ffd3b9fb8f9bd91b8f672d2ebe23bec69b74fcaf9ae8529c1a3",
+    "muhawir/pipeline.py": "6710f0f89af24cdc77e8cf6968c2f11e64db30d79a7cda8e9f7c11544d625984",
+    "muhawir/quote_check.py": "e45047ef098945ad88058f049adee33a4af8ed1e27a00a74753d4abdd32af952",
+    "muhawir/quran_count.py": "38e04ce16674a9807346d12f0e0c57e4d22081986318acab210388b7ee041832",
+    "muhawir/quranpedia.py": "cfdf600bba8a7ce52abfd4e23e8f2a7f7141c4fd6e5c470dc2e7d986fa7aaea6",
+    "muhawir/referrals.py": "45e48d04bf363661c4889cf92abacb83b53a893d69b5073d0f71bcc537afd471",
+    "muhawir/retrieve.py": "6014ab3d76be7980e2c5dcb78457afc09f067d4aa753bb901aadbe71c0609644",
+    "muhawir/sahihayn.py": "ec43e0cd070dc0f801c3b2cb5a37d27136428070b4519ec63f5123b28299efa9",
+    "muhawir/sections.py": "5e24175a5212851d0ce354d0386579c48e9c225c777f4134abc58fda03d50dc1",
+    "muhawir/server.py": "ec8d3cf57c33bcaaf0909eaf400e8e01a7814af25c0043fb8146f226ec4d4282",
+    "muhawir/sira.py": "0b4b04dd7e4e473f1c7284aa1405fec1a954ba5f5c9189e2ce95ad4e1671762f",
+    "muhawir/store.py": "5c0049ace7efa0c4fc7ef71874e17616586e35afd311298939f6b1edb2fe68ee",
+    "muhawir/tashkeel.py": "40e08079016da0633247cb4ee7adcfc87a0952e657102dbbcb4a6ef3b75da779",
+    "muhawir/tashkeel_worker.py": "118f1b1821308c3093e2859643301d7fc5131824d54d62a0e22554e14c6c7980",
+    "muhawir/telemetry.py": "698878ac1cd17e2252119d3e59d161cc27c9b048177cff91a902420a43b7d7a6",
+    "muhawir/translation.py": "7f8d30cea72d49893108197132b43c3dcbf192582518baa12b6451cb95c4f83d",
+    "muhawir/tts.py": "0898fc1c1093ed46e2e1e46ae0b9fde5beb7f41525b24aea5b9f6e1e7c711628",
+    "muhawir/vectors.py": "b15e5d180aa70da68501ae5f40a3a73917bfbf6e84b35b43924c135d0b5c5cdd",
+    "muhawir/verify.py": "3095ec6f4b39673b7a51bdb3e9dce21a99fe7bd9c5adadfc8f81e5a5890282df",
+    "muhawir/wordforms.py": "829d9b8fd41d83e756b5b93fc5ff0a3198d0bd6a2569cb07809fd75f88f23332"
+  },
+  "system_prompt_sha256": "cab2b8cfecbdd6ed86b6673d5102ff57c0fc1b59a96d74d8170a6e273c199726",
+  "reported_server": {
+    "logical_cpus": 4,
+    "memory_gib_approx": 23,
+    "vector_index": "usearch",
+    "passages": 193246,
+    "ann_expansion_search": 1024,
+    "parallel_checks": 4,
+    "ask_concurrency": 4,
+    "note": "Operator observations, not a new live attestation; capture source/vector hashes and selected non-secret settings before the next paid comparison."
+  },
+  "full_pipeline_pilot": {
+    "request_id": "aee47c208efc448a9cfce2c609d674cd",
+    "client_seconds": 14.143239417,
+    "server_seconds": 14.138451007,
+    "model_calls": 14,
+    "reported_cost_usd": "0.010036776",
+    "cache": "none",
+    "unknown_cost_calls": 0,
+    "remaining_background_work": 0,
+    "limitation": "Earlier deployment before #46/#47; diagnostic history, not a measured baseline for current production."
+  },
+  "draft_pair": {
+    "input_file_sha256": "123ab1c86448537377b874323c6fa41e3d7d1bb635fef195d6ac11f806ee1f2d",
+    "order": [
+      "current",
+      "candidate"
+    ],
+    "question_clusters": 1,
+    "trials_per_variant": 1,
+    "retrieval": "raw question only; no model-generated expansions",
+    "system_prompt_sha256": {
+      "current": "cab2b8cfecbdd6ed86b6673d5102ff57c0fc1b59a96d74d8170a6e273c199726",
+      "candidate": "15aacd347cb898456ac938110a41ad66b9bc1eab7eb34d750792c8b10e046c9b"
+    },
+    "user_prompt_sha256": "820683c8900d618dfe015c4bbc7015fa307764a8de5bdf2da4c25357834c45bd",
+    "results": {
+      "current": {
+        "seconds": 4.087832992,
+        "provider": "CoreWeave",
+        "returned_model": "deepseek/deepseek-v4.1-flash",
+        "input_tokens": 17220,
+        "output_tokens": 833,
+        "cached_tokens": 0,
+        "reported_cost_usd": "0.00278005",
+        "claim_count": 8
+      },
+      "candidate": {
+        "seconds": 4.204490605,
+        "provider": "CoreWeave",
+        "returned_model": "deepseek/deepseek-v4.1-flash",
+        "input_tokens": 16151,
+        "output_tokens": 960,
+        "cached_tokens": 4864,
+        "reported_cost_usd": "0.002101038",
+        "claim_count": 10
+      }
+    },
+    "decision": "Do not activate #48 from this one pair. Cache differs, candidate has more claims, no end-to-end verification measurement."
+  },
+  "new_paid_calls_authorized_by_this_file": 0,
+  "production_changes": false
+}
