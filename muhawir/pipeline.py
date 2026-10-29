@@ -1024,13 +1024,16 @@ class Muhawir:
         said = set(tokenize(f"{original} {question}"))
         extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
+        prepare = getattr(self.retriever, "prepare_queries", None)
+        if callable(prepare):
+            prepare(queries)
         def found(query: str) -> list:
             hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
                     and h.coverage >= MODEL_MIN_COVERAGE
                     and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
             return hits
-        # Search-parallel: each phrase is searched at the same time (the vector scan and the query embedding run
-        # outside Python's lock), in the order of the phrases, so the result is the same as one after the other
+        # Local embeddings are prepared together above; BM25/ANN searches still run
+        # in parallel, and pool.map preserves phrase order for the round-robin merge.
         if len(queries) > 1 and SEARCH_THREADS > 1:
             with ThreadPoolExecutor(max_workers=min(SEARCH_THREADS, len(queries))) as pool:
                 lists = list(pool.map(found, queries))

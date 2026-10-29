@@ -255,12 +255,21 @@ class _LazyQueryEmbedder:
         self.client: GeminiEmbeddingClient | LocalEmbedder | None = None
         self._init_lock = threading.Lock()
 
-    def __call__(self, question: str) -> Sequence[float]:
+    def _client(self):
         if self.client is None:
             with self._init_lock:
                 if self.client is None:
                     self.client = LocalEmbedder.from_name(self.model_name) if is_local(self.model_name) else GeminiEmbeddingClient()
-        return self.client.embed_query(self.model_name, question)
+        return self.client
+
+    def __call__(self, question: str) -> Sequence[float]:
+        return self._client().embed_query(self.model_name, question)
+
+    def embed_many(self, questions: Sequence[str]) -> np.ndarray:
+        """Local query batching only; never turn prefetch into remote embedding calls."""
+        if not is_local(self.model_name):
+            raise ValueError("query batching requires a local model")
+        return self._client().embed(questions)
 
 
 def load_vectors(data_dir: str | Path = DATA_DIR) -> VectorIndex | None:
@@ -309,6 +318,7 @@ class HybridRetriever:
         self.ann_rerank_factor = ann_rerank_factor
         self._query_cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._query_lock = threading.Lock()
+        self._batch_lock = threading.Lock()
         self._warned = False
         self._disabled = False
         self._warn_reason: str | None = None
@@ -349,19 +359,61 @@ class HybridRetriever:
             if embedder is None:
                 embedder = _LazyQueryEmbedder(self.vectors.model_name)
                 self.vectors.query_embedder = embedder
-        vector = np.asarray(embedder(question), dtype=np.float32).reshape(-1)
+        vector = self._normalize_query(embedder(question))
+        self._cache_queries([(question, vector)])
+        return vector
+
+    def _normalize_query(self, values) -> np.ndarray:
+        assert self.vectors is not None
+        vector = np.array(values, dtype=np.float32, copy=True).reshape(-1)
         if vector.shape != (self.vectors.matrix.shape[1],) or not np.isfinite(vector).all():
             raise ValueError("query embedding has an invalid shape or value")
         norm = float(np.linalg.norm(vector))
-        if norm == 0:
-            raise ValueError("query embedding is zero")
+        if norm == 0 or not np.isfinite(norm):
+            raise ValueError("query embedding has an invalid norm")
         vector /= norm
+        return vector
+
+    def _cache_queries(self, pairs) -> None:
         with self._query_lock:
-            self._query_cache[question] = vector
-            self._query_cache.move_to_end(question)
+            for question, vector in pairs:
+                self._query_cache[question] = vector
+                self._query_cache.move_to_end(question)
             while len(self._query_cache) > QUERY_CACHE_SIZE:
                 self._query_cache.popitem(last=False)
-        return vector
+
+    def prepare_queries(self, questions: Sequence[str]) -> None:
+        """Prefill local query embeddings for one gather; search order/scoring stay unchanged.
+
+        Skip cached/duplicate phrases. Publish only a wholly validated batch, and
+        leave the existing individual path available if batching fails. The batch
+        lock coalesces overlapping prefetches without holding the cache lock while
+        encoding. An unusually large gather uses the existing bounded cache path.
+        """
+        if self._disabled or self.vectors is None or not is_local(self.vectors.model_name):
+            return
+        unique = list(dict.fromkeys(questions))
+        if len(unique) < 2 or len(unique) > QUERY_CACHE_SIZE:
+            return
+        with telemetry.span("query_batch_prepare"), self._batch_lock:
+            with self._query_lock:
+                missing = [q for q in unique if q not in self._query_cache]
+                embedder = self.vectors.query_embedder
+                if embedder is None:
+                    embedder = _LazyQueryEmbedder(self.vectors.model_name)
+                    self.vectors.query_embedder = embedder
+            encode = getattr(embedder, "embed_many", None)
+            if not missing or not callable(encode):
+                return
+            try:
+                rows = np.asarray(encode(missing), dtype=np.float32)
+                if rows.shape != (len(missing), self.vectors.matrix.shape[1]):
+                    raise ValueError("query batch has an invalid shape")
+                pairs = [(q, self._normalize_query(row)) for q, row in zip(missing, rows)]
+                self._cache_queries(pairs)
+            except Exception as exc:
+                log.warning("Query batch embedding failed (%s); using individual embeddings",
+                            type(exc).__name__)
 
     def _vector_ids(self, question: str, limit: int) -> list[str]:
         assert self.vectors is not None
