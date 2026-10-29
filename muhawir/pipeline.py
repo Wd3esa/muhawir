@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field, replace
 from . import attribution, bayyinat, bidaya, classify, keyboard, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
-from .generate import Generator, is_example
+from .generate import AnswerReview, Generator, is_example
 from .messages import LANGS, STYLES, TEXT, TRANSLATED_LANGS
 from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
@@ -831,7 +831,7 @@ class Muhawir:
         return [c for c in tidy if c.text]
 
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = "",
-                 early: dict | None = None):
+                 early: dict | None = None, reviewer=None):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
         second reading against the cited passages and the question. None when the second reading could not run."""
         shape = [Rejected(c, "starts with a conclusion of its own") for c in draft if _opens_with_conclusion(c.text)]
@@ -879,7 +879,7 @@ class Muhawir:
         check = getattr(self.generator, "check_support", None)
         if kept and check:
             by_id = {p.id: p for p in passages}
-            judge_now = getattr(self.generator, "judge_relevance", None)
+            judge_now = reviewer or getattr(self.generator, "judge_relevance", None)
             if early is not None and judge_now:
                 # Judge-early: the relevance judge reads the sentences while the support check reads them too; its
                 # verdict is used only if the check keeps every sentence unchanged, else it is asked again
@@ -1076,47 +1076,72 @@ class Muhawir:
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
         progress("checking")
         early: dict = {}
+        # Children use the same judge slot for relevance and clarity; no extra successful-path call.
+        judge = (getattr(self.generator, "judge_kids_answer", None) if style == "kids" else None) \
+            or getattr(self.generator, "judge_relevance", None)
         with _timed("check"):
-            result = self._checked(draft, corpus, allowed, passages, question, early)
+            result = self._checked(draft, corpus, allowed, passages, question, early, reviewer=judge)
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
+            if early.get("pool") is not None:
+                early["pool"].shutdown(wait=False)
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "support check could not run")
         kept, rejected = result
         can_review = bool(getattr(self.generator, "check_support", None))
         rewritten = False
 
-        def rewrite(feedback: str) -> None:
-            """One full rewrite from the feedback, checked again; kept only if it leaves more sentences."""
+        def rewrite(feedback: str) -> bool:
+            """One full checked rewrite. A simpler children's answer may have fewer sentences."""
             nonlocal kept, rejected, rewritten
             rewritten = True
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
                                                   **extra)
                 second = self._checked(self._tidy(redraft, allowed), corpus, allowed, passages, question) if redraft else None
-            if second is not None and len(second[0]) > len(kept):
+            if second is not None and second[0] and (style == "kids" or len(second[0]) > len(kept)):
                 kept, rejected = second
+                return True
+            return False
 
         if rejected and self._broken(kept, rejected, draft) and can_review:
             # the checks removed the start or most of the answer, so what is left would not read as one
             # answer: ask once for a full rewrite that avoids the rejected sentences, then check it again
             rewrite(_feedback(rejected))
-        judge = getattr(self.generator, "judge_relevance", None)
-        with _timed("relevance"):
-            if early.get("future") is not None and not rewritten and kept == early["claims"]:
-                verdict = early["future"].result()  # already read while the support check ran
-            else:
-                verdict = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
-        if early.get("pool") is not None:
-            early["pool"].shutdown(wait=False)
-        partial = verdict == "partly"
-        if partial and not rewritten and can_review:  # it answers only part of what was asked
-            rewrite(_feedback(rejected, incomplete=True))
-            # the rewrite may now cover the question: it is judged again, and a notice is kept only if it still does not
+
+        def review_answer(use_early: bool = False) -> AnswerReview:
             with _timed("relevance"):
-                again = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
-            partial = again != "yes"
+                if use_early and early.get("future") is not None and not rewritten and kept == early["claims"]:
+                    value = early["future"].result()  # only valid for the unchanged, checked sentences
+                else:
+                    value = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+            return value if isinstance(value, AnswerReview) else AnswerReview(verdict=value)
+
+        try:
+            review = review_answer(use_early=True)
+        finally:
+            if early.get("pool") is not None:
+                early["pool"].shutdown(wait=False)
+        verdict = review.verdict
+        partial = verdict == "partly"
+        unclear = style == "kids" and review.clarity == "rewrite"
+        if verdict != "no" and (partial or unclear) and not rewritten and can_review:
+            feedback = _feedback(rejected, incomplete=partial)
+            if unclear:
+                feedback += "\nالشرح السابق صعب للصغار. ملاحظات فحص الوضوح:\n" + review.feedback
+                feedback += "\nاكتب المعنى بكلمات مألوفة دون تكرار؛ يجوز أن يكون الجواب أقصر مع حفظ القيود والمصادر."
+            adopted = rewrite(feedback)
+            # The same rewrite budget serves broken support, incomplete coverage and clarity together.
+            if adopted or style != "kids":
+                review = review_answer()
+            verdict = review.verdict
+            partial = review.verdict == "partly" or (partial and review.verdict != "yes")
+            unclear = style == "kids" and (review.clarity == "rewrite" or (unclear and review.clarity != "clear"))
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
+        if unclear:
+            # Do not call this missing evidence or run another search: the sources are present, the wording failed.
+            return self._why(Response(UNAVAILABLE, t["simplify_unavailable"], synthetic=synthetic),
+                             "children's explanation remained unclear after the available rewrite")
         return _Written(passages, allowed, corpus, kept, rejected, partial=partial)
 
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
