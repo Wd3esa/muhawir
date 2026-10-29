@@ -537,6 +537,7 @@ MAX_PARALLEL_CHECKS = max(1, int(os.environ.get("MUHAWIR_PARALLEL_CHECKS") or 3)
 
 
 SEVERE_PROBLEMS = ("distortion", "dropped_condition")
+RELIGIOUS_EXAMPLE = "the example states religious information"
 
 
 def _severe(reason: str) -> bool:
@@ -801,7 +802,12 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
                     "search_retry" if system == RETRY_PROMPT else "other")
             with _usage_lock:
                 USAGE["attempt_" + step] += 1
-            with telemetry.span("model." + step):
+            # Preserve aggregate health counters; name secondary checks precisely in request traces.
+            detail = ("example" if system == EXAMPLE_PROMPT else
+                      "definition" if system == DEFINITION_PROMPT else
+                      "expand" if system == EXPAND_PROMPT else
+                      "translation" if schema is TRANSLATE_SCHEMA else step)
+            with telemetry.span("model." + detail):
                 return call(system, user, schema)
         except Exception as exc:
             status = getattr(getattr(exc, "response", None), "status_code", None)
@@ -1066,7 +1072,10 @@ class ModelGenerator:
         # except a sentence the first reading found to change the passage's meaning or drop a condition from it
         # («ربويًا بربوي» written «شيئًا بشيء», 19 October 2026): one such finding is enough, and the answer is
         # rewritten with the reason (a second reader that misses it must not outvote the one that found it)
-        doubtful = [i for i, r in enumerate(first) if not r[0][0] and not _severe(r[1][0])]
+        # An optional illustration that teaches religion is disallowed. A later permissive
+        # classifier must not rescue it; retrying malformed/failed checks still happens in read().
+        doubtful = [i for i, r in enumerate(first) if not r[0][0] and not _severe(r[1][0])
+                    and not (is_example(claims[i].text) and r[1][0] == RELIGIOUS_EXAMPLE)]
         again = read_all([claims[i] for i in doubtful]) if doubtful else []
         if again is None or any(r is None for r in again):
             return None
@@ -1094,7 +1103,7 @@ class ModelGenerator:
                 continue
             religious = data.get("religious") if isinstance(data, dict) else None
             if isinstance(religious, bool):
-                return [not religious], ["" if not religious else "the example states religious information"]
+                return [not religious], ["" if not religious else RELIGIOUS_EXAMPLE]
         return None
 
     def _check_once(self, claims: list[Claim], passages: dict[str, Passage],
