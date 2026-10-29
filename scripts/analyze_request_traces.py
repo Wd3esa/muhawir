@@ -73,10 +73,19 @@ def summarize(rows):
     groups = {}
     # Never mix saved answers, newly computed replies, rejections, or streaming vs JSON.
     for row in rows:
-        key = f'{row["endpoint"]}/{row["cache"]}/{row["http_status"]}/{row["status"]}'
+        key = f'{row["endpoint"]}/{row.get("style")}/{row.get("lang")}/{row.get("as_question")}/{row["cache"]}/{row["http_status"]}/{row["status"]}'
         groups.setdefault(key, []).append(row["duration_ns"])
+    per_request = []
+    for row in rows:
+        own = [event for event in row["events"] if event["kind"] == "model"]
+        own_known = [Decimal(event["reported_cost_usd"]) for event in own if event.get("reported_cost_usd") is not None]
+        per_request.append({"request_id": row["request_id"], "duration_s": row["duration_ns"] / 1e9,
+                            "status": row["status"], "cache": row["cache"], "observed_transport_calls": len(own),
+                            "known_reported_cost_usd": str(sum(own_known, Decimal(0))),
+                            "calls_with_unknown_cost": len(own) - len(own_known)})
     return {
         "code_revision": next(iter(revisions)),
+        "requests": per_request,
         "completed_requests": len(rows),
         "http_errors": sum(row["http_status"] >= 400 for row in rows),
         "statuses": dict(Counter(row["status"] for row in rows)),

@@ -201,7 +201,7 @@ def _admit(request) -> str:
 @app.post("/api/ask")
 def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]  # called directly in tests
     """Answer a question: check the visitor's rate, take an answer slot (waiting briefly if all are busy), then run the pipeline."""
-    trace = telemetry.start("ask")
+    trace = telemetry.start("ask", style=body.style, lang=body.lang, as_question=body.as_question)
     status, http_status = "error", 500
     with telemetry.bind(trace):
         try:
@@ -233,7 +233,7 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
     pipeline has reached (understanding, searching, writing, checking), so the page shows real progress at once;
     the last line is {"reply": ...}, the checked answer, or {"error": status} if it failed. No sentence is sent before
     every sentence has passed its check."""
-    trace = telemetry.start("ask_stream")
+    trace = telemetry.start("ask_stream", style=body.style, lang=body.lang, as_question=body.as_question)
     with telemetry.bind(trace):
         try:
             with telemetry.span("admission"):

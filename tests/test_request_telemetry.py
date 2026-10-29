@@ -123,6 +123,7 @@ def test_real_handlers_include_id_and_record_background_work(monkeypatch, caplog
     row = records(caplog)[0]
     assert reply["request_id"] == row["request_id"]
     assert row["cache"] == "disk"
+    assert row["style"] == "youth" and row["lang"] == "ar" and row["as_question"] is False
     assert {e["name"] for e in row["events"]} == {"admission", "fake_pipeline"}
     assert "secret question" not in caplog.text
 
@@ -148,7 +149,7 @@ def test_report_rejects_duplicate_ids_and_separates_cache(tmp_path):
     report = summarize(read_records(p))
     assert report["completed_requests"] == 3 and report["http_errors"] == 1
     assert len(report["groups"]) == 3
-    assert report["groups"]["ask/none/200/answered"]["p95_s"] == 10
+    assert report["groups"]["ask/None/None/None/none/200/answered"]["p95_s"] == 10
     p.write_text(p.read_text() + "\nmuhawir_trace " + json.dumps(row))
     with pytest.raises(ValueError, match="duplicate"):
         read_records(p)

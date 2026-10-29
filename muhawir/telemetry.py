@@ -28,11 +28,12 @@ CODE_REVISION = _code.hexdigest()
 
 
 class Trace:
-    def __init__(self, endpoint):
+    def __init__(self, endpoint, style=None, lang=None, as_question=None):
         self.id = uuid.uuid4().hex
         self.started = time.perf_counter_ns()
         self.started_unix_ns = time.time_ns()
         self.endpoint = endpoint
+        self.style, self.lang, self.as_question = style, lang, as_question
         self.events = []
         self.lock = threading.Lock()
         self.dropped = 0
@@ -74,17 +75,17 @@ class Trace:
                       "started_unix_ns": self.started_unix_ns,
                       "duration_ns": time.perf_counter_ns() - self.started,
                       "status": status, "http_status": http_status, "cache": self.cache,
+                      "style": self.style, "lang": self.lang, "as_question": self.as_question,
                       "events_dropped": self.dropped, "pending_work_at_response": self.pending_work,
                       "events": list(self.events)}
         # No content, user identifiers, URL, credentials, exception message or prompt hashes.
         log.warning("muhawir_trace %s", json.dumps(record, separators=(",", ":"), allow_nan=False))
 
 
-def start(endpoint):
+def start(endpoint, *, style=None, lang=None, as_question=None):
     if os.environ.get("MUHAWIR_TRACE") != "1":
         return None
-    trace = Trace(endpoint)
-    return trace
+    return Trace(endpoint, style, lang, as_question)
 
 
 @contextmanager
