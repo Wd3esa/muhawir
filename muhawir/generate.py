@@ -19,7 +19,8 @@ import os
 import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from .telemetry import ThreadPoolExecutor
+from . import telemetry
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -800,7 +801,8 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
                     "search_retry" if system == RETRY_PROMPT else "other")
             with _usage_lock:
                 USAGE["attempt_" + step] += 1
-            return call(system, user, schema)
+            with telemetry.span("model." + step):
+                return call(system, user, schema)
         except Exception as exc:
             status = getattr(getattr(exc, "response", None), "status_code", None)
             if status not in RETRY_STATUS:
@@ -1184,6 +1186,7 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
     """A model call for the Anthropic API that returns the model's JSON text."""
     import httpx
 
+    @telemetry.model_call("anthropic", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
         r = httpx.post(
@@ -1194,8 +1197,11 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
                   "messages": [{"role": "user", "content": user}],
                   "output_config": {"format": {"type": "json_schema", "schema": schema}}},
             timeout=timeout)
+        telemetry.response_metadata(r, {})
         r.raise_for_status()
-        return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+        data = r.json()
+        telemetry.response_metadata(r, data.get("usage") or {})
+        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     return call
 
 
@@ -1203,6 +1209,7 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     """A model call for the Gemini API that returns the model's JSON text."""
     import httpx
 
+    @telemetry.model_call("gemini", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
         r = httpx.post(
@@ -1212,8 +1219,13 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
                   "contents": [{"role": "user", "parts": [{"text": user}]}],
                   "generationConfig": {"responseMimeType": "application/json"}},
             timeout=timeout)
+        telemetry.response_metadata(r, {})
         r.raise_for_status()
-        parts = r.json()["candidates"][0]["content"]["parts"]
+        data = r.json()
+        usage = data.get("usageMetadata") or {}
+        telemetry.response_metadata(r, {"prompt_tokens": usage.get("promptTokenCount"),
+                                        "completion_tokens": usage.get("candidatesTokenCount")})
+        parts = data["candidates"][0]["content"]["parts"]
         return "".join(p.get("text", "") for p in parts)
     return call
 
@@ -1257,6 +1269,10 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
     extra = _reasoning_body(reasoning)
     extra_check = _reasoning_body(reasoning_check) if reasoning_check.strip() else extra
 
+    from urllib.parse import urlsplit
+    is_openrouter = urlsplit(base_url).hostname == "openrouter.ai"
+
+    @telemetry.model_call("openrouter" if is_openrouter else "openai_compatible", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one chat request to the endpoint and return the reply text (its timing is logged when MUHAWIR_TIMING is set)."""
         started = time.time()
@@ -1272,8 +1288,10 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
                                {"role": "user", "content": user}],
                   **(extra_check if system == CHECK_PROMPT else extra)},
             timeout=timeout)
+        telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
+        telemetry.response_metadata(r, data.get("usage") or {}, usd_cost=is_openrouter)
         _count(data.get("usage") or {})
         if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
             usage = data.get("usage") or {}

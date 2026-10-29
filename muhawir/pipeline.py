@@ -16,7 +16,8 @@ import re
 import threading
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from .telemetry import ThreadPoolExecutor
+from . import telemetry
 from dataclasses import asdict, dataclass, field, replace
 
 from . import attribution, bayyinat, bidaya, classify, keyboard, quote_check, quran_count, referrals, sahihayn, sections
@@ -84,13 +85,14 @@ _steps: "contextvars.ContextVar" = contextvars.ContextVar("muhawir_steps", defau
 @contextlib.contextmanager
 def _timed(step: str):
     """Step-timing: adds the seconds of one step to this answer's timing line (MUHAWIR_TIMING=1). Never the question."""
-    started = time.time()
+    started = time.perf_counter()
     try:
-        yield
+        with telemetry.span(step):
+            yield
     finally:
         steps = _steps.get()
         if steps is not None:
-            steps[step] = steps.get(step, 0.0) + time.time() - started
+            steps[step] = steps.get(step, 0.0) + time.perf_counter() - started
 
 
 def _stat(name: str, add: float = 1) -> None:
@@ -1360,6 +1362,7 @@ class Muhawir:
             hit = self._cache.get(key)
             if hit and time.time() - hit[0] < CACHE_SECONDS:
                 self._cache.move_to_end(key)
+                telemetry.cache_hit("waited_for_same" if waited else "memory")
                 _stat("waited_for_same" if waited else "from_memory")
                 return copy.deepcopy(hit[1])
         kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
@@ -1369,6 +1372,7 @@ class Muhawir:
                 self._cache.move_to_end(key)
                 while len(self._cache) > CACHE_SIZE:
                     self._cache.popitem(last=False)
+            telemetry.cache_hit("waited_for_same" if waited else "disk")
             _stat("waited_for_same" if waited else "from_disk")
         return kept
 

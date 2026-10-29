@@ -26,7 +26,7 @@ from .corpus import load_corpus
 from .generate import USAGE, get_generator
 from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir, _progress
 from .store import SqliteCorpus, SqliteRetriever
-from . import extract, quote_check, tts
+from . import extract, quote_check, tts, telemetry
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ DEFAULT_DB = ROOT.parent / "data" / "muhawir.db"
 
 
 NOT_IN_ANSWERS = frozenset({"server.py", "tts.py", "build_data.py", "tashkeel.py", "tashkeel_worker.py", "extract.py",
-                            "quote_check.py", "extra_sources.py"})
+                            "quote_check.py", "extra_sources.py", "telemetry.py"})
 
 
 def answers_version(sources: Path, generator) -> str:
@@ -201,15 +201,30 @@ def _admit(request) -> str:
 @app.post("/api/ask")
 def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]  # called directly in tests
     """Answer a question: check the visitor's rate, take an answer slot (waiting briefly if all are busy), then run the pipeline."""
-    address = _admit(request)
-    try:
-        reply = _run_ask(body)
-        usage = usage_of(address)
-        if usage:
-            reply["usage"] = usage
-        return reply
-    finally:
-        _ask_slots.release()
+    trace = telemetry.start("ask")
+    status, http_status = "error", 500
+    with telemetry.bind(trace):
+        try:
+            with telemetry.span("admission"):
+                address = _admit(request)
+            try:
+                reply = _run_ask(body)
+                usage = usage_of(address)
+                if usage:
+                    reply["usage"] = usage
+                status, http_status = reply.get("status", "unknown"), 200
+                if trace:
+                    reply["request_id"] = trace.id
+                return reply
+            finally:
+                _ask_slots.release()
+        except HTTPException as exc:
+            status, http_status = "rejected", exc.status_code
+            raise
+        finally:
+            if trace:
+                trace.finish(status, http_status)
+
 
 
 @app.post("/api/ask_stream")
@@ -218,28 +233,52 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
     pipeline has reached (understanding, searching, writing, checking), so the page shows real progress at once;
     the last line is {"reply": ...}, the checked answer, or {"error": status} if it failed. No sentence is sent before
     every sentence has passed its check."""
-    address = _admit(request)
+    trace = telemetry.start("ask_stream")
+    with telemetry.bind(trace):
+        try:
+            with telemetry.span("admission"):
+                address = _admit(request)
+        except BaseException as exc:
+            if trace:
+                trace.finish("rejected" if isinstance(exc, HTTPException) else "error",
+                             exc.status_code if isinstance(exc, HTTPException) else 500)
+            raise
     events: queue.Queue = queue.Queue()
 
     def work() -> None:
-        _progress.set(lambda stage, data=None: events.put({"stage": stage, **({"data": data} if data else {})}))
-        try:
-            events.put({"stage": "understanding"})
-            reply = _run_ask(body)
-            usage = usage_of(address)
-            if usage:
-                reply["usage"] = usage
-            events.put({"reply": reply})
-        except HTTPException as exc:
-            events.put({"error": exc.status_code})
-        except Exception:
-            log.exception("ask_stream failed")
-            events.put({"error": 500})
-        finally:
-            _ask_slots.release()
-            events.put(None)
+        with telemetry.bind(trace):
+            token = _progress.set(lambda stage, data=None: events.put({"stage": stage, **({"data": data} if data else {})}))
+            status, http_status = "error", 500
+            try:
+                events.put({"stage": "understanding"})
+                reply = _run_ask(body)
+                usage = usage_of(address)
+                if usage:
+                    reply["usage"] = usage
+                status, http_status = reply.get("status", "unknown"), 200
+                if trace:
+                    reply["request_id"] = trace.id
+                events.put({"reply": reply})
+            except HTTPException as exc:
+                status, http_status = "rejected", exc.status_code
+                events.put({"error": exc.status_code})
+            except Exception:
+                log.exception("ask_stream failed")
+                events.put({"error": 500})
+            finally:
+                _progress.reset(token)
+                _ask_slots.release()
+                if trace:
+                    trace.finish(status, http_status)
+                events.put(None)
 
-    threading.Thread(target=work, daemon=True).start()
+    try:
+        threading.Thread(target=work, daemon=True).start()
+    except BaseException:
+        _ask_slots.release()
+        if trace:
+            trace.finish("error", 500)
+        raise
 
     def lines():
         while True:

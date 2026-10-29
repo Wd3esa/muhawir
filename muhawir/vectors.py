@@ -25,7 +25,7 @@ from urllib.parse import quote
 import httpx
 import numpy as np
 
-from . import bayyinat
+from . import bayyinat, telemetry
 from .normalize import tokenize
 from .retrieve import Hit
 
@@ -223,9 +223,15 @@ class LocalEmbedder:
         # Each CPU encode already uses Torch's worker threads. Concurrent callers
         # on this shared model oversubscribe the small VM; serialize only encoding,
         # leaving BM25/ANN retrieval and answer-model work parallel.
-        with self._encode_lock if self.device == "cpu" else nullcontext():
-            vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
-                                        convert_to_numpy=True, show_progress_bar=False)
+        with telemetry.span("embedding_wait"):
+            guard = self._encode_lock if self.device == "cpu" else nullcontext()
+            guard.__enter__()
+        try:
+            with telemetry.span("embedding_encode"):
+                vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
+                                            convert_to_numpy=True, show_progress_bar=False)
+        finally:
+            guard.__exit__(None, None, None)
         return np.asarray(vectors, dtype=np.float32)
 
     def embed_query(self, _model: str, question: str) -> np.ndarray:
@@ -363,7 +369,8 @@ class HybridRetriever:
         if self.vectors.ann is not None:
             try:
                 count = min(len(self.vectors.ids), limit * self.ann_rerank_factor)
-                matches = self.vectors.ann.search(query, count=count)
+                with telemetry.span("ann"):
+                    matches = self.vectors.ann.search(query, count=count)
                 keys = [int(match.key) for match in matches]
                 if len(keys) == count and len(set(keys)) == len(keys) and all(
                     0 <= key < len(self.vectors.ids) for key in keys
@@ -397,7 +404,8 @@ class HybridRetriever:
 
     def search(self, question: str, k: int = 3) -> list[Hit]:
         """Hybrid search: BM25 and vector hits merged by rank; if the vector part fails the BM25 hits are returned."""
-        bm25_hits = self.sqlite_retriever.search(question, k * self.bm25_pool_factor)
+        with telemetry.span("bm25"):
+            bm25_hits = self.sqlite_retriever.search(question, k * self.bm25_pool_factor)
         if self._disabled or k <= 0:
             return [h for h in bm25_hits if bayyinat.is_answer_part(h.passage)][:k]
         try:
