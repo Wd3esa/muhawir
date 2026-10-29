@@ -57,6 +57,33 @@ both the old graph and its manifest when replacing them, and keep the fingerprin
 manifest bound to the exact source matrix, ID list and model. Reverting the service to
 `MUHAWIR_VECTOR_INDEX=exact` restores exhaustive vector retrieval without re-embedding.
 
+## CPU query-embedding contention
+
+After installing the validated graph and enabling USearch, one new answer took 17.92 s
+(search 5.6 s). Two simultaneous new questions completed in 16.22/27.34 s; four in
+22.95/26.66/29.69/36.91 s. All answered, with no PID change or restart during the four
+requests. The lifetime service memory peak rose to about 1.09 GiB. The four search
+stages took 15–20.6 s. Different questions and rewrites prevent interpreting the
+latency differences as a controlled scaling ratio. These bursts do not establish
+sustained capacity, a crash threshold, or a production percentile.
+
+An isolated diagnostic of 16 fixed Arabic phrases, on the same CPU with Torch's
+intra-op and inter-op thread counts both 4, measured embedding-only wall time
+2.09/6.91/10.21 s for 1/4/16 concurrent encoding calls. Retrieval with precomputed
+embeddings measured 2.86/1.57/1.01 s respectively. These were single sequential
+diagnostic runs, not repeated balanced trials, but they isolate encoding contention
+as an actionable suspect rather than implying that all search latency is ANN time.
+
+The shared local CPU embedder now serializes `encode` calls with an instance lock.
+An encoding call already uses Torch's threads; up to four question workers each
+issuing four phrase searches previously ran up to 16 encodings on that model.
+Only encoding holds the lock: BM25, ANN and answer-model verification remain parallel.
+GPU encoding is unchanged, and batch sizes, normalization, source vectors and query
+wording are unchanged. There is no additional answer-model call. Repeat the isolated
+diagnostic and new-question latency/concurrency measurements after deployment before
+claiming an end-to-end improvement. This lock is per model instance and per process;
+it does not coordinate multiple server workers.
+
 ## Reducing model calls without weakening the source check
 
 The understanding step previously ran twice in parallel for every ordinary question and used the second result only to add search phrases. It now runs once when the first result contains usable phrases. A failed call or a result without search phrases gets a second attempt; the original two-pass behaviour is available with `MUHAWIR_UNDERSTAND_SECOND_PASS=1`. The second reader still checks every claim separately, including its existing second reading of a non-severe rejection. This saves **one understanding request on the ordinary successful path**, not a fixed percentage of all model requests. The two old requests were parallel, so response latency is not guaranteed to fall by the duration of a full request.

@@ -15,6 +15,7 @@ import sys
 import time
 import threading
 from collections import OrderedDict
+from contextlib import nullcontext
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -194,6 +195,7 @@ class LocalEmbedder:
         self.model_id = model
         self.revision = revision or os.environ.get("MUHAWIR_LOCAL_EMBED_REVISION") or self._latest_revision(model)
         self.device = os.environ.get("MUHAWIR_EMBED_DEVICE", "cpu")
+        self._encode_lock = threading.Lock()
         self.model = SentenceTransformer(model, revision=self.revision, device=self.device)
         self.model.max_seq_length = LOCAL_MAX_TOKENS
         self.dimensions = int(self.embed(["بسم الله"]).shape[1])  # works across library versions
@@ -218,8 +220,12 @@ class LocalEmbedder:
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
         """Embed texts into normalised float32 vectors."""
-        vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
-                                    convert_to_numpy=True, show_progress_bar=False)
+        # Each CPU encode already uses Torch's worker threads. Concurrent callers
+        # on this shared model oversubscribe the small VM; serialize only encoding,
+        # leaving BM25/ANN retrieval and answer-model work parallel.
+        with self._encode_lock if self.device == "cpu" else nullcontext():
+            vectors = self.model.encode(list(texts), batch_size=16 if self.device == "cpu" else 64, normalize_embeddings=True,
+                                        convert_to_numpy=True, show_progress_bar=False)
         return np.asarray(vectors, dtype=np.float32)
 
     def embed_query(self, _model: str, question: str) -> np.ndarray:
