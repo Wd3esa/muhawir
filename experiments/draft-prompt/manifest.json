@@ -1,0 +1,83 @@
+{
+  "status": "unvalidated_candidate_not_loaded_by_application",
+  "baseline_commit": "a5f6fb20f3e608e55a29c41e6cfbaaf412635abb",
+  "baseline_file": "muhawir/generate.py",
+  "baseline_constant": "SYSTEM_PROMPT",
+  "baseline_sha256": "cab2b8cfecbdd6ed86b6673d5102ff57c0fc1b59a96d74d8170a6e273c199726",
+  "candidate_sha256": "15aacd347cb898456ac938110a41ad66b9bc1eab7eb34d750792c8b10e046c9b",
+  "baseline_characters": 15575,
+  "candidate_characters": 12855,
+  "removed_characters": 2720,
+  "removed_block_sha256": "f543fe87cd2dd301432ba80da75e518578cea789eaa3016968b7db9600c7adac",
+  "removed_block": "Two illustrative few-shot examples and their introduction; not source evidence supplied at runtime",
+  "rules": [
+    {
+      "rule": 1,
+      "sha256": "84b61f0c4dfab2c668196b9ae63943496c1b625f3a7007f5a32b6152e3f3fd6d",
+      "characters": 517,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 2,
+      "sha256": "95f816fb00a857d75b0f78af284b4e1856883fec51efefc481a95daa8c4a08be",
+      "characters": 2514,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 3,
+      "sha256": "9c655c5f5c9dbd5d374c3a8e99a567e5de9f8978a721e0a11b4fbb1a93011d42",
+      "characters": 1735,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 4,
+      "sha256": "9c1347f9245b9ceab708dfc4e8fd552c2ca8b5645ace49edc0dd00682c42461e",
+      "characters": 622,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 5,
+      "sha256": "4d0dce27d8bb2e1efeb5bdc9b2067d65a3df07a99981ab1248b781daa2bcaa31",
+      "characters": 151,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 6,
+      "sha256": "2e3a37bfe0c4008060a35d5aef4e28574cd800eec62831b0f832703b2db058fe",
+      "characters": 131,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 7,
+      "sha256": "788b927ac1695ef8e9689da66c1852b4174242e3c4a5756e67d45582f9e2e232",
+      "characters": 1466,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 8,
+      "sha256": "7311191330e599e5f56217c507f9e4f1fd832fcda9fc308fa52d630b2ce49625",
+      "characters": 1324,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 9,
+      "sha256": "039fd7f9a7bdd4636652a44d4b7e3b8a24ce3f029416c3bdf7a3b7197a6006a6",
+      "characters": 2804,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 10,
+      "sha256": "05d798b4ce2e544c0cf32fe967c609d25d93f05655ce4b0033a119b73fe0fdcd",
+      "characters": 1116,
+      "preservation": "verbatim"
+    },
+    {
+      "rule": 11,
+      "sha256": "640e33bfe6d9722537dccd2abc942e89972bb5515c47bf801e90a7d7a6d41bda",
+      "characters": 122,
+      "preservation": "verbatim"
+    }
+  ],
+  "quality_evaluation": "pending; byte preservation does not establish behavioral equivalence",
+  "paid_model_calls": 0
+}
