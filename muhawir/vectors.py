@@ -39,6 +39,7 @@ LOCAL_MODEL = os.environ.get("MUHAWIR_LOCAL_EMBED_MODEL", "BAAI/bge-m3")
 LOCAL_MAX_TOKENS = int(os.environ.get("MUHAWIR_EMBED_MAX_TOKENS", "512"))  # longer passages are cut
 RRF_K = 60
 QUERY_CACHE_SIZE = 256
+ANN_SEARCH_EXPANSION = 1024
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
 PREFERRED_MODELS = (
     "gemini-embedding-2",
@@ -457,6 +458,8 @@ def _load_ann(folder: Path, vectors: VectorIndex):
     index = Index.restore(str(folder / "vectors.usearch"), view=True)
     if index is None or len(index) != len(vectors.ids) or index.ndim != vectors.matrix.shape[1]:
         raise ValueError("USearch size or dimensions do not match source vectors")
+    # Restore otherwise uses the library default (64), not the build-time value.
+    index.expansion_search = ANN_SEARCH_EXPANSION
     return index
 
 
@@ -469,11 +472,14 @@ def build_ann(data_dir: str | Path = DATA_DIR) -> int:
     if vectors is None:
         raise ValueError("complete vectors.npy, IDs and model are required")
     matrix = vectors.matrix
-    index = Index(ndim=matrix.shape[1], metric="cos", dtype="f16", connectivity=16,
-                  expansion_add=128, expansion_search=96)
+    index = Index(ndim=matrix.shape[1], metric="cos", dtype="f16", connectivity=32,
+                  expansion_add=256, expansion_search=ANN_SEARCH_EXPANSION)
+    # Mix book clusters during insertion while preserving every source row's key.
+    # Only the disposable graph changes; the source matrix and IDs remain untouched.
+    order = np.random.default_rng(42).permutation(len(vectors.ids))
     for start in range(0, len(vectors.ids), 512):
-        stop = min(start + 512, len(vectors.ids))
-        index.add(np.arange(start, stop, dtype=np.uint64), np.asarray(matrix[start:stop], dtype=np.float32))
+        keys = order[start:start + 512]
+        index.add(keys.astype(np.uint64), np.asarray(matrix[keys], dtype=np.float32), threads=2)
     if len(index) != len(vectors.ids):
         raise ValueError("USearch build is incomplete")
     temporary = folder / "vectors.usearch.tmp"

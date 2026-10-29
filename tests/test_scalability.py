@@ -86,9 +86,40 @@ def test_ann_build_and_reopen_existing_vectors(tmp_path, monkeypatch):
     monkeypatch.setenv("MUHAWIR_VECTOR_INDEX", "usearch")
     loaded = vectors.load_vectors(tmp_path)
     assert loaded is not None and loaded.ann is not None
+    assert loaded.ann.expansion_search == 1024
+    assert loaded.ann.connectivity == 32
+    for key in range(4):
+        assert np.array_equal(np.asarray(loaded.ann.get(key)).reshape(-1), np.eye(4)[key])
+    assert np.array_equal(np.load(tmp_path / "vectors.npy"), np.eye(4))
+    assert json.loads((tmp_path / "vectors_ids.json").read_text()) == ["a", "b", "c", "d"]
     loaded.query_embedder = lambda question: [1., 0., 0., 0.]
     hybrid = vectors.HybridRetriever(SimpleNamespace(search=lambda *args: []), loaded)
     assert hybrid._vector_ids("a", 2)[0] == "a"
     # The same-size source matrix must still invalidate the index if any value changes.
     np.save(tmp_path / "vectors.npy", np.ones((4, 4), dtype=np.float16))
     assert vectors.load_vectors(tmp_path).ann is None
+
+
+def test_ann_restore_sets_search_expansion_instead_of_library_default(tmp_path, monkeypatch):
+    import sys
+
+    index = vectors.VectorIndex(["a", "b"], np.eye(2), "local:fake/model@abc")
+    restored = SimpleNamespace(ndim=2, expansion_search=64)
+    class FakeIndex:
+        def __len__(self):
+            return 2
+        ndim = restored.ndim
+        expansion_search = restored.expansion_search
+        @staticmethod
+        def restore(path, view):
+            assert view is True
+            return reopened
+    reopened = FakeIndex()
+    monkeypatch.setitem(sys.modules, "usearch", SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "usearch.index", SimpleNamespace(Index=FakeIndex))
+    monkeypatch.setattr(vectors, "_index_fingerprint", lambda *args: "matching")
+    (tmp_path / "vectors.usearch.json").write_text(json.dumps({
+        "sha256": "matching", "count": 2, "dimensions": 2,
+    }))
+    assert vectors._load_ann(tmp_path, index) is reopened
+    assert reopened.expansion_search == 1024

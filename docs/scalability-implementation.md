@@ -29,6 +29,34 @@ Use `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 .venv/bin/python scripts/benchmark_
 
 Gold-hit columns describe the first measured trial only; variation across trials is reported. The optional JSON preserves every trial's reference rank, missing reference IDs, full present-reference texts and full retrieved passages with their books and locations. Keep that report outside Git. Review the retrieved evidence and refresh the labels before deciding to enable ANN. Equal 3/20 hits do not establish that overall retrieval quality is acceptable. These isolated, warmed searches also do not measure the full multi-query question pipeline or production capacity under concurrency. No answer-model calls are made.
 
+## October 29 ANN diagnosis and candidate rebuild
+
+The original graph loaded with search expansion 64 even though its builder requested 96.
+Increasing search expansion recovered most missing neighbors, but at 4096 `f:322` was
+still absent from 160 results despite being the exact search's first neighbor. Its stored
+vector was identical to the source row, yet searching by that vector itself did not find
+its key. This establishes a failure to retrieve an existing vector, not a missing source
+or a simple change of rank; it does not identify the underlying library/graph defect.
+
+A separate graph built from the unchanged 193,246 vectors with shuffled insertion
+(seed 42), connectivity 32, addition expansion 256 and two build threads found that
+key first in self-search. After save/restore, with search expansion explicitly set to
+1024, its warmed hybrid top-10 sets matched exact search for **200/200 passages across
+20 questions**. Median retrieval was 79 ms versus 305 ms exact; p95 was 466 ms versus
+690 ms. Exact shortlist reranking gave the same set overlap and median 80 ms. This
+is a small, Arabic retrieval sample: it does not prove answer quality, multilingual
+recall, complete ranking equivalence, full-answer latency or concurrent-user capacity.
+The reference hit rate remained 3/20 at depth 10, with nine absent reference IDs.
+
+`build-ann` now uses those candidate build settings, preserving source-row keys through
+the shuffle. The loader explicitly reapplies search expansion 1024 after restore, so
+serialization cannot silently return to the library's smaller search default. These
+changes do not enable ANN automatically, repair an old graph, or modify embeddings.
+Keep `MUHAWIR_VECTOR_INDEX=exact` until a validated rebuilt graph is installed. Retain
+both the old graph and its manifest when replacing them, and keep the fingerprint
+manifest bound to the exact source matrix, ID list and model. Reverting the service to
+`MUHAWIR_VECTOR_INDEX=exact` restores exhaustive vector retrieval without re-embedding.
+
 ## Reducing model calls without weakening the source check
 
 The understanding step previously ran twice in parallel for every ordinary question and used the second result only to add search phrases. It now runs once when the first result contains usable phrases. A failed call or a result without search phrases gets a second attempt; the original two-pass behaviour is available with `MUHAWIR_UNDERSTAND_SECOND_PASS=1`. The second reader still checks every claim separately, including its existing second reading of a non-severe rejection. This saves **one understanding request on the ordinary successful path**, not a fixed percentage of all model requests. The two old requests were parallel, so response latency is not guaranteed to fall by the duration of a full request.
