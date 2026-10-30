@@ -1,0 +1,12 @@
+{
+  "status": "inactive_unvalidated_candidate",
+  "baseline_commit": "a5f6fb20f3e608e55a29c41e6cfbaaf412635abb",
+  "baseline_prompt_sha256": "cab2b8cfecbdd6ed86b6673d5102ff57c0fc1b59a96d74d8170a6e273c199726",
+  "candidate_sha256": "a45e722715871e54914026692754f4c73d34429a2647f307883124614943da5f",
+  "baseline_prefix_preserved_verbatim": true,
+  "baseline_characters": 15575,
+  "candidate_characters": 16177,
+  "change": "Append a non-repetition instruction; keep original examples, all rules, schema instruction and source context unchanged. No code-side semantic merging.",
+  "paid_evaluation": "not_run",
+  "new_paid_calls": 0
+}
