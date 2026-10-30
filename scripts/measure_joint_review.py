@@ -244,6 +244,12 @@ def run(plan, meter, emit):
                     out = j.evaluate(case["question"], claims, corpus, ids, call, allow_repair=False)
                     decision = ("accept" if out.status == "accepted_for_evaluation" else
                                 "unavailable" if out.status == "unavailable" else "reject")
+                    if out.status == "needs_sources":
+                        decision = "needs_sources"
+                    elif any(any(c["verdict"] == "uncertain" for c in r.data["claims"]) or
+                             any(c["status"] == "uncertain" for c in r.data["checks"].values())
+                             for r in out.reviews):
+                        decision = "uncertain"
                     detail = {"status": out.status, "error_type": out.error_type,
                               "reviews": [r.data for r in out.reviews]}
                 emit({"kind": "case_result", "case_id": case["id"], "family": case["family"], "lane": lane,
@@ -307,8 +313,8 @@ def summarize(path):
         counts = Counter()
         selected = [r for r in results if r["lane"] == lane]
         for result in selected:
-            if result["decision"] == "unavailable":
-                counts["unavailable"] += 1
+            if result["decision"] in ("unavailable", "uncertain", "needs_sources"):
+                counts[result["decision"]] += 1
             else:
                 correct = result["decision"] == result["expected"]
                 counts[("correct_" if correct else "false_") +

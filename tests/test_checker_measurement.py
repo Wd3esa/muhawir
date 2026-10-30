@@ -123,6 +123,18 @@ def test_an_unavailable_joint_judge_stops_batch_instead_of_counting_a_detection(
     assert status == "stopped_unavailable_judge_no_retry_batch" and meter.attempts == 1
 
 
+def test_semantic_uncertainty_is_not_counted_as_detection(monkeypatch):
+    case = toy_case()
+    monkeypatch.setattr(m, "validate", lambda p: None)
+    monkeypatch.setattr(m, "current_review", lambda *a: ("accept", {}))
+    review = j.Review(json.dumps({"claims": [{"verdict": "uncertain"}], "checks": {}}))
+    monkeypatch.setattr(j, "evaluate", lambda *a, **kw: j.Outcome("rejected", reviews=(review,)))
+    events = []
+    meter = m.Meter(lambda *a: pytest.fail("no transport needed"), events.append, Decimal("0.10"))
+    assert m.run({"cases": [case]}, meter, events.append) == "completed_diagnostic_not_release"
+    assert next(r for r in events if r["lane"] == "joint")["decision"] == "uncertain"
+
+
 def test_summary_keeps_unavailable_and_missing_controls_separate(tmp_path):
     rows = [{"kind": "plan", "plan": {"scope": "paired_checker_diagnostic_not_release",
                                            "reference_status": "assistant_proposed_exposed_controls"}},
