@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-30",
   "production_commit": "a5f6fb20f3e608e55a29c41e6cfbaaf412635abb",
-  "status": "code_reference_fixed; live_environment_and_corpus_fingerprints_pending",
+  "status": "code_reference_and_observed_data_hashes_recorded; live_selected_service_settings_pending",
   "source_file_sha256": {
     "muhawir/__init__.py": "7fd497765bfd08c026a28682596aba7af647de0f40ccea9dda9c6ff78a600282",
     "muhawir/aqeedah.py": "414fb2d165c9991a8b95a4ecadab046577bb4554cc5e90cd383d8bae1b14a8a4",
@@ -104,5 +104,32 @@
     "decision": "Do not activate #48 from this one pair. Cache differs, candidate has more claims, no end-to-end verification measurement."
   },
   "new_paid_calls_authorized_by_this_file": 0,
-  "production_changes": false
+  "production_changes": false,
+  "observed_data_capture": {
+    "input_sha256": "f61bd13b694aa825503f3003accd5b7ebdfb6b4ba6ba50759156a4047071c90a",
+    "git_commit": "a5f6fb20f3e608e55a29c41e6cfbaaf412635abb",
+    "fingerprints": {
+      "muhawir.db": {
+        "sha256": "f9314184d2cf2ced3322666699e129059ae50923d6f75da6dc8a4ada601e6daf",
+        "bytes": 732024832
+      },
+      "vectors.npy": {
+        "sha256": "3929be96abaa8d6ec74e5af5b62f8d7766637529930cc78466a174deb91a82ed",
+        "bytes": 395767936
+      },
+      "vectors_ids.json": {
+        "sha256": "2d0ff0a21aa77e6ee60f1c2b31b875b6cf025b8b159c1369e0aa2ac979643815",
+        "bytes": 3532751
+      },
+      "vectors_model.txt": {
+        "sha256": "f00edd3285d235211ef1d73d666218dd3d170cd9e6465d82a37e2685b6b99b40",
+        "bytes": 59
+      },
+      "vectors.usearch": {
+        "sha256": "291e0875b7660b21b8efc008ed3d3ec9b97b7f691f920811b54c03ded15cd751",
+        "bytes": 449174972
+      }
+    },
+    "scope": "Operator export: file hashes and stable size/mtime during reading; not an atomic multi-file snapshot or a semantic vector/corpus consistency check."
+  }
 }
