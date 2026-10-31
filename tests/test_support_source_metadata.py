@@ -1,4 +1,6 @@
 """Actual checker plumbing, synthetic bodies, fake providers. No semantic accuracy claim."""
+
+from support_fixtures import support_reply
 import json
 
 import pytest
@@ -22,7 +24,7 @@ def test_writer_and_actual_support_reader_receive_identical_catalog_captions(sou
     def call(system, user, schema):
         assert system == g.CHECK_PROMPT
         seen.append(user)
-        return json.dumps({"problem": ["none"]})
+        return json.dumps(support_reply(["none"], 'متن'))
     result = g.ModelGenerator([("fake-source-metadata", call)])._check_once(
         [Claim("جملة اختبار.", (passage.id,))], {passage.id: passage}, "سؤال تجريبي؟")
     assert result == ([True], [""])
@@ -51,7 +53,7 @@ def test_only_the_claims_own_sources_are_sent_to_the_support_reader():
     def call(system, user, schema):
         assert "الشيخ ابن باز" in user and "الشيخ ابن عثيمين" not in user
         assert "متن ثان" not in user
-        return '{"problem":["none"]}'
+        return json.dumps(support_reply(['none'], 'متن'))
     out = g.ModelGenerator([("fake-source-isolation", call)])._check_once(
         [Claim("جملة اختبار.", (baz.id,))], {baz.id: baz, uthaymeen.id: uthaymeen})
     assert out == ([True], [""])

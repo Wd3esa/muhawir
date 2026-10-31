@@ -1,4 +1,6 @@
 """Model-mode tests with fake model calls. No network, no API key."""
+
+from support_fixtures import support_reply
 import json
 from pathlib import Path
 
@@ -332,7 +334,7 @@ def _checker(answer, verdict):
             if isinstance(verdict, Exception):
                 raise verdict
             mine = verdict[texts.index(_claim_in(user))] if len(verdict) == len(texts) else None
-            return json.dumps({"supported": [mine] if mine is not None else verdict})
+            return json.dumps(support_reply([mine] if mine is not None else verdict, 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -379,7 +381,7 @@ def test_a_cut_off_reply_is_asked_for_again_for_that_sentence():
                 cut, state["first"] = state["first"], False
             if cut:
                 return '{"supported": [tru'
-            return json.dumps({"supported": ["لا تحتاج" not in _claim_in(user)]})
+            return json.dumps(support_reply(["لا تحتاج" not in _claim_in(user)], 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -413,7 +415,7 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if "problem" in keys:
-            return json.dumps({"supported": ["لا تحتاج إلى الماء" not in _claim_in(user)]})
+            return json.dumps(support_reply(["لا تحتاج إلى الماء" not in _claim_in(user)], 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -521,7 +523,7 @@ def _batch_checker(verdicts_by_call):
             seen.append(n)
             k = len(seen) - 1
             verdicts = verdicts_by_call[k] if k < len(verdicts_by_call) else [False] * n
-            return json.dumps({"supported": verdicts if len(verdicts) == n else verdicts[:n]})
+            return json.dumps(support_reply(verdicts if len(verdicts) == n else verdicts[:n], 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -582,7 +584,7 @@ def test_an_english_answer_sees_and_shows_the_approved_translation_of_a_verse():
             users.append(user)
             keys = json.dumps(schema or {})
             if "problem" in keys:
-                return '{"supported": [true]}'
+                return json.dumps(support_reply([True], 'ماء كثير'))
             if "verdict" in keys:
                 return '{"verdict": "yes"}'
             if "queries" in keys:

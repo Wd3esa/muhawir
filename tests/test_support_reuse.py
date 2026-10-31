@@ -1,4 +1,6 @@
 """Source-witness provenance and request-owned reuse; no network/provider calls."""
+
+from support_fixtures import support_reply
 from dataclasses import replace
 import json
 
@@ -31,7 +33,7 @@ def checker(monkeypatch, *, verdict='none'):
     seen = []
     def provider(system, user, schema):
         seen.append(user)
-        return json.dumps({'problem': [verdict]})
+        return json.dumps(support_reply([verdict], 'مثلا بمثل يدا بيد'))
     return ModelGenerator([('fake', provider)]), seen
 
 
@@ -67,7 +69,7 @@ def test_changed_check_inputs_are_never_reused(monkeypatch, change):
 
 
 def test_negative_results_retain_reasons_and_are_rechecked(monkeypatch):
-    gen, seen = checker(monkeypatch, verdict='meaning')
+    gen, seen = checker(monkeypatch, verdict='distortion')
     memo = {}
     assert gen.check_support([C], {P.id: P}, memo=memo) == [False]
     reason = gen.last_check_reasons[:]
@@ -84,7 +86,7 @@ def test_failure_is_not_reused(monkeypatch):
     memo = {}
     assert gen.check_support([C], {P.id: P}, memo=memo) is None
     assert not memo
-    gen.calls = [('valid', lambda *args: seen.append(1) or '{"problem":["none"]}')]
+    gen.calls = [('valid', lambda *args: seen.append(1) or json.dumps(support_reply(['none'], 'مثلا بمثل يدا بيد')))]
     assert gen.check_support([C], {P.id: P}, memo=memo) == [True]
     assert len(seen) == 1
 
@@ -115,7 +117,7 @@ def test_write_reuses_only_unchanged_accepted_claim_after_coverage_repair(monkey
     def provider(system, user, schema):
         if system == generate.CHECK_PROMPT:
             counts['support'] += 1
-            return '{"problem":["none"],"evidence":["مثلا بمثل يدا بيد"]}'
+            return json.dumps(support_reply(['none'], 'مثلا بمثل يدا بيد', evidence=['مثلا بمثل يدا بيد']))
         if system == generate.RELEVANCE_PROMPT:
             counts['review'] += 1
             return json.dumps({'verdict': 'partly' if counts['review'] == 1 else 'yes',
@@ -160,10 +162,10 @@ def test_mixed_rewrite_keeps_rejection_at_correct_position(monkeypatch):
     monkeypatch.setattr(generate, 'READ_EACH_SENTENCE', True)
     bad = replace(C, text='هذا استنتاج آخر ليس في المصدر.')
     def provider(system, user, schema):
-        return json.dumps({'problem': ['meaning' if bad.text in user else 'none']})
+        return json.dumps(support_reply(['distortion' if bad.text in user else 'none'], 'مثلا بمثل يدا بيد'))
     gen = ModelGenerator([('fake-mixed', provider)])
     memo = {}
     assert gen.check_support([C], {P.id: P}, memo=memo) == [True]
     assert gen.check_support([bad, C], {P.id: P}, memo=memo) == [False, True]
-    assert 'meaning' in gen.last_check_reasons[0] and gen.last_check_reasons[1] == ''
+    assert 'distortion' in gen.last_check_reasons[0] and gen.last_check_reasons[1] == ''
     assert len(memo) == 1

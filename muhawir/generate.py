@@ -485,6 +485,27 @@ CHECK_SCHEMA = {
     "additionalProperties": False,
 }
 
+
+def _valid_support_reply(data, count: int) -> bool:
+    """Enforce the requested schema locally; provider schema hints are not validation.
+
+    Missing/legacy/extra fields and invalid element types are unusable checks,
+    never an approval or a semantic rejection. Empty witnesses remain valid JSON
+    strings but cannot support an ordinary approved sentence.
+    """
+    if not isinstance(data, dict) or set(data) != set(CHECK_SCHEMA["required"]):
+        return False
+    if any(not isinstance(data[key], list) or len(data[key]) != count
+           for key in CHECK_SCHEMA["required"]):
+        return False
+    problems = CHECK_SCHEMA["properties"]["problem"]["items"]["enum"]
+    return (all(isinstance(value, bool) for value in data["on_topic"])
+            and all(isinstance(value, str) for value in data["evidence"])
+            and all(isinstance(value, str) and value in problems for value in data["problem"])
+            and all(isinstance(terms, list) and all(isinstance(term, str) for term in terms)
+                    for terms in data["missing"]))
+
+
 EXAMPLE_PROMPT = """أمامك جملة مثال كتبها مساعد ليوضح معنى لقارئ (غالبًا طفل) بموقف من الحياة اليومية. هل تتضمن معلومة دينية بأي صورة؟ أي شيء مما يأتي:
 كيف تُؤدّى عبادة، أو لمن تُعطى، أو كم مقدارها، أو متى تُؤدّى؛ حكم أو أمر أو نهي؛ ثواب أو عقاب؛ نسبة شيء إلى الله أو النبي ﷺ؛
 تشبيه أمر ديني بشيء من الدنيا؛ ذكر عبادة أو ركن بعينه (صلاة، زكاة، صوم، حج، شهادة…) على أنه المقصود بالمثال؛
@@ -1196,34 +1217,26 @@ class ModelGenerator:
             except Exception as exc:
                 log.warning("model %s failed (support check): %s", name, describe(exc))
                 continue
-            data = data if isinstance(data, dict) else {}
-            problems, flags = data.get("problem"), data.get("supported")
-            named = isinstance(problems, list) and len(problems) == len(claims)
-            if named:  # the reader must name the defect; "none" means the sentence says what its passage says
-                verdicts = [isinstance(p, str) and p.strip().lower() == "none" for p in problems]
-                reasons = ["" if ok else f"the second reading found: {p}" for ok, p in zip(verdicts, problems)]
-            elif isinstance(flags, list) and len(flags) == len(claims):
-                verdicts = [f is True or (isinstance(f, str) and f.strip().lower() == "true") for f in flags]
-                reasons = ["" if ok else "the second reading judged it unsupported" for ok in verdicts]
-            else:
+            if not _valid_support_reply(data, len(claims)):
                 log.warning("model %s gave an unusable support check", name)
                 continue
-            on_topic = data.get("on_topic")
-            if question and isinstance(on_topic, list) and len(on_topic) == len(claims):  # a passage on another matter
-                for i, t in enumerate(on_topic):
-                    if verdicts[i] and (t is False or (isinstance(t, str) and t.strip().lower() == "false")):
-                        verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
-            missing = data.get("missing")
-            if isinstance(missing, list) and len(missing) == len(claims):  # a key term the passages never mention
-                for i, m in enumerate(missing):
-                    terms = [x.strip() for x in m if isinstance(x, str) and x.strip()] if isinstance(m, list) else []
-                    if terms and verdicts[i]:
-                        verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
-            evidence = data.get("evidence")
-            if isinstance(evidence, list) and len(evidence) == len(claims):
-                for i, (c, ev) in enumerate(zip(claims, evidence)):
-                    if verdicts[i] and not _has_evidence(c, ev, passages):
-                        verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
+            problems = data["problem"]
+            verdicts = [problem == "none" for problem in problems]
+            reasons = ["" if ok else f"the second reading found: {problem}"
+                       for ok, problem in zip(verdicts, problems)]
+            for i, (claim, on_topic, missing, witness) in enumerate(zip(
+                    claims, data["on_topic"], data["missing"], data["evidence"])):
+                if not verdicts[i]:
+                    continue
+                if question and not on_topic:
+                    verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
+                    continue
+                terms = [term.strip() for term in missing if term.strip()]
+                if terms:
+                    verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
+                    continue
+                if not _has_evidence(claim, witness, passages):
+                    verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
             return verdicts, reasons
         return None
 
