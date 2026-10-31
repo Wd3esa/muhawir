@@ -328,3 +328,16 @@ def test_incomplete_accounting_cannot_become_a_general_improvement(change):
     if change == 'wrong_request': row['response']['request_id'] = 'wrong'
     report = tool.analyze_recording(events)[0]
     assert not report['accounting_verified'] and not report['general_improvement']
+
+
+def test_isolated_worker_keeps_late_background_calls_blocked_after_budget_exit(monkeypatch):
+    from muhawir import transport
+    sent = []
+    def post(url, **kw):
+        sent.append(1)
+        return httpx.Response(200, json={'usage': {'cost': '.001'}}, request=httpx.Request('POST', url))
+    monkeypatch.setattr(transport, 'post', post)
+    with tool.ModelHTTPBudget(10, Decimal('.1'), lambda _: None, retain_blocker_on_exit=True):
+        transport.post('https://openrouter.ai/api/v1/chat/completions')
+    with pytest.raises(tool.BudgetStopped): transport.post('https://openrouter.ai/api/v1/chat/completions')
+    assert len(sent) == 1

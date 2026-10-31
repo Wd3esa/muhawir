@@ -231,13 +231,14 @@ class BudgetStopped(RuntimeError):
 
 class ModelHTTPBudget:
     """Bound real model HTTP starts across parallel workers; unknown billing stops new starts."""
-    def __init__(self, limit, threshold, emit):
+    def __init__(self, limit, threshold, emit, *, retain_blocker_on_exit=False):
         if type(limit) is not int or not 1 <= limit <= 10000:
             raise ValueError('explicit model HTTP cap must be 1-10000')
         self.limit, self.threshold, self.emit = limit, threshold, emit
         self.sent, self.known_cost, self.stopped = 0, Decimal(0), False
         self.lock = threading.Lock()
         self.active = None
+        self.retain_blocker_on_exit = retain_blocker_on_exit
 
     def __enter__(self):
         from muhawir import transport
@@ -250,7 +251,7 @@ class ModelHTTPBudget:
                 self.sent += 1
                 sequence = self.sent
                 self.emit({'kind': 'model_http_started', 'sequence': sequence, 'case_variant': self.active,
-                           'request_body': kwargs.get('json')})
+                           'request_body': kwargs.get('json'), 'started_unix_ns': time.time_ns()})
             try:
                 response = self.original(url, **kwargs)
                 try: body = response.json()
@@ -272,7 +273,8 @@ class ModelHTTPBudget:
         return self
 
     def __exit__(self, *args):
-        self.transport.post = self.original
+        with self.lock: self.stopped = True
+        if not self.retain_blocker_on_exit: self.transport.post = self.original
 
 
 def writer_gate(events, supplied_labels):
@@ -591,15 +593,21 @@ def main():
                   'query_caches': 'separate_per_arm', 'visitor_quota': 'isolated_test_allowance',
                   'timing_includes': 'API serialization, pipeline and private measurement IO',
                   'timing_excludes': 'startup, source hashing, visitor network and browser'}})
-        with ModelHTTPBudget(args.max_model_http_attempts, threshold, emit) as budget:
+        with ModelHTTPBudget(args.max_model_http_attempts, threshold, emit, retain_blocker_on_exit=True) as budget:
             with IsolatedAPI(server, current, candidate, emit=emit) as api:
                 def ask(variant, case):
                     budget.active = (case['id'], variant)
                     result = api(variant, case)
                     result['actual_model_http_attempts_cumulative'] = budget.sent
-                    result['measurement_complete'] = result['measurement_complete'] and not budget.stopped
+                    with budget.lock:
+                        if not result['measurement_complete']: budget.stopped = True
+                        result['measurement_complete'] = result['measurement_complete'] and not budget.stopped
                     return result
-                results, status = run(manifest, ask, emit, threshold)
+                try:
+                    results, status = run(manifest, ask, emit, threshold)
+                finally:
+                    # Pending workers must never regain an unguarded transport during shutdown.
+                    with budget.lock: budget.stopped = True
         stable = source_fingerprints(server.engine.corpus) == frozen
         emit({'kind': 'finished', 'status': status, 'sources_unchanged': stable, 'code_unchanged': revision() == code_before and hashlib.sha256(Path(__file__).read_bytes()).hexdigest() == runner_before,
               'quality': verdict(manifest, results, [])})
