@@ -1,0 +1,150 @@
+{
+  "scope": "four_exposed_development_cases_not_release_acceptance",
+  "requested_model": "deepseek/deepseek-v4.1-flash:nitro",
+  "corpus_sha256": "f9314184d2cf2ced3322666699e129059ae50923d6f75da6dc8a4ada601e6daf",
+  "system_sha256": {
+    "current": "cab2b8cfecbdd6ed86b6673d5102ff57c0fc1b59a96d74d8170a6e273c199726",
+    "candidate": "a45e722715871e54914026692754f4c73d34429a2647f307883124614943da5f"
+  },
+  "cases": [
+    {
+      "id": "R01",
+      "question": "ما معنى التوكل على الله وما علاقته بالأخذ بالأسباب؟",
+      "style": "youth",
+      "evidence": [
+        {
+          "id": "k:60",
+          "source_id": "fatawa-arkan-islam",
+          "source": "fatawa-arkan-islam",
+          "location": "س26: هل الرقية تنافي التوكل؟ (ج1، ص64)",
+          "text_sha256": "16713c8affe3ed6f74d4bca29589eab880a8d99f5673ad1428399fd9bc099285"
+        },
+        {
+          "id": "z:1789",
+          "source_id": "fatawa-ibn-baz",
+          "source": "fatawa-ibn-baz",
+          "location": "كيفية التوكل على الله (ج4، ص427)",
+          "text_sha256": "cc7aeb0a2f56e7ee6e7ac093c18233abb07cb8892fa7e12b0de48e4367a8e0c6"
+        },
+        {
+          "id": "z:1790",
+          "source_id": "fatawa-ibn-baz",
+          "source": "fatawa-ibn-baz",
+          "location": "كيفية التوكل على الله (ج4، ص427–428)",
+          "text_sha256": "ec32b38429e37d96a7b640d4e6426509f2f5fd17d87668f7c5be4449687c6fbd"
+        },
+        {
+          "id": "u:3115",
+          "source_id": "fatawa-ibn-uthaymeen",
+          "source": "fatawa-ibn-uthaymeen",
+          "location": "باب قول الله تعالى (ج10، ص666–667)",
+          "text_sha256": "c19f6ef34cc850551ecd98babe707094ffd43e88af4274e9cf0e716a6f889e24"
+        }
+      ],
+      "proposed_review_checks": [
+        "تعريف واحد يجيب عن المعنى والعلاقة بالأسباب، دون إسقاط قيد الإذن بالأسباب.",
+        "لا تعاد الفكرة نفسها لمجرد تكرارها في أسماء المصادر.",
+        "حفظ نسبة الكلام، وعدم تحويل صيغة رواية متحفظة إلى جزم."
+      ],
+      "review_status": "assistant_proposal_pending_human_review"
+    },
+    {
+      "id": "R04",
+      "question": "ما هو الحول في الزكاة وفي أي الأموال يشترط؟",
+      "style": "youth",
+      "evidence": [
+        {
+          "id": "u:6655",
+          "source_id": "fatawa-ibn-uthaymeen",
+          "source": "مجموع فتاوى ابن عثيمين",
+          "location": "سئل فضيلة الشيخ - رحمه الله تعالى -: إذا كان عند الإنسان بيت (ج18، ص19–20)",
+          "text_sha256": "789859f952c58fabb184c3ee61e3af14f58eba9cd816db4a80b4e8526f165a3e"
+        },
+        {
+          "id": "f:556",
+          "source_id": "bidayat-al-mujtahid",
+          "source": "بداية المجتهد",
+          "location": "كتاب الزكاة، الجملة الرابعة في وقت الزكاة (ج2، ص32)",
+          "text_sha256": "010ec73e007d0244cebe1b96566a5c8446a68c91cdd28fffb2ffe58c3f9a62c3"
+        },
+        {
+          "id": "u:6653",
+          "source_id": "fatawa-ibn-uthaymeen",
+          "source": "مجموع فتاوى ابن عثيمين",
+          "location": "سئل فضيلة الشيخ - رحمه الله تعالى -: عن شروط وجوب الزكاة؟ (ج18، ص17–18)",
+          "text_sha256": "d004f8ebdf66e4a1690d197a5216497edc85bc3e69b303541dcb6830bd51a1d9"
+        }
+      ],
+      "proposed_review_checks": [
+        "بيان المقصود بالحول والأموال المذكورة في النص دون تعميمه على كل الأموال.",
+        "حفظ الاستثناءات ذات الصلة ونسبتها للمصدر.",
+        "إن ذُكرت رواية فحفظ حكم المصدر عليها وعدم الجزم بثبوتها."
+      ],
+      "review_status": "assistant_proposal_pending_human_review"
+    },
+    {
+      "id": "R08",
+      "question": "هل صلاة الجماعة واجبة؟",
+      "style": "youth",
+      "evidence": [
+        {
+          "id": "f:289",
+          "source_id": "bidayat-al-mujtahid",
+          "source": "بداية المجتهد",
+          "location": "كتاب الصلاة، الفصل الأول في معرفة حكم صلاة الجماعة (ج1، ص150)",
+          "text_sha256": "a48e0ac30ccfc421f21ff66f9032f2f2d8b9597f76936e289ab7388f9f95d736"
+        },
+        {
+          "id": "u:5359",
+          "source_id": "fatawa-ibn-uthaymeen",
+          "source": "مجموع فتاوى ابن عثيمين",
+          "location": "952 سئل فضيلة الشيخ: ما حكم من يتخلف عن صلاة الجماعة؟ وما حكم من يقول: إذا نصح (الصلاة بكيفي إن شئت صليت وإن لم شئت لم أصل) ؟ (ج15، ص74–75)",
+          "text_sha256": "5f3f609cd962bb4b68c8810a34b8455e5819b039bde7d8ad5deedba8560742aa"
+        }
+      ],
+      "proposed_review_checks": [
+        "بيان الخلاف الذي يذكره المصدر ونسبة الأقوال إلى أصحابها.",
+        "لا تحويل قول مصدر واحد إلى اتفاق، ولا ترجيح من محاور.",
+        "عدم إسقاط نطاق الحكم والأعذار المذكورة."
+      ],
+      "review_status": "assistant_proposal_pending_human_review"
+    },
+    {
+      "id": "R06",
+      "question": "ما حكم العادة السرية ومشاهدة الإباحية؟",
+      "style": "youth",
+      "evidence": [
+        {
+          "id": "z:8132",
+          "source_id": "fatawa-ibn-baz",
+          "source": "مجموع فتاوى ابن باز",
+          "location": "259 - حكم من فعل العادة السرية وعمل قوم لوط ووطء البهيمة (ج22، ص409–410)",
+          "text_sha256": "139807b6db24870bfd2174a33787e4bc28bbfedb1586f13571a64308f3f74ce5"
+        },
+        {
+          "id": "z:8127",
+          "source_id": "fatawa-ibn-baz",
+          "source": "مجموع فتاوى ابن باز",
+          "location": "حكم من ابتلي بالفاحشة (ج22، ص404)",
+          "text_sha256": "6eedcb534e7476651642e4079b600cee268d2cb7983605c467193583d4a76447"
+        },
+        {
+          "id": "z:5863",
+          "source_id": "fatawa-ibn-baz",
+          "source": "مجموع فتاوى ابن باز",
+          "location": "107 - حكم مشاهدة الأفلام والتلفاز ولعب الورق في نهار رمضان (ج15، ص316–317)",
+          "text_sha256": "64406142e50b044287a2cc4e0603c08f7b30d14c1879c059994c3b771ddab5a6"
+        }
+      ],
+      "proposed_review_checks": [
+        "تغطية جزأي السؤال كل على حدة مع نسبة كلام المفتي.",
+        "عدم استبدال حكم الفعل بحكم أثره على الصيام.",
+        "حفظ حكم الرواية إذا استعملت، وعدم نقل تفاصيل مسائل أخرى في المقطع."
+      ],
+      "review_status": "assistant_proposal_pending_human_review"
+    }
+  ],
+  "planned_http_attempts": 8,
+  "trials_per_variant_per_case": 1,
+  "limits": "one exploratory pair per case; cannot establish latency distribution, reliability equivalence or sustainable capacity"
+}
