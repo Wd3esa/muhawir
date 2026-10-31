@@ -113,14 +113,14 @@ def test_anthropic_request_shape(monkeypatch):
             pass
 
         def json(self):
-            return {"content": [{"type": "text", "text": '{"abstain": true, "claims": []}'}]}
+            return {"stop_reason": "end_turn", "content": [{"type": "text", "text": '{"abstain": true, "claims": []}'}]}
 
     def post(url, headers, json, timeout):
         sent.update(url=url, headers=headers, body=json)
         return Resp()
 
     import httpx
-    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(generate.transport, "post", post)
     out = generate.anthropic_call("k", "claude-sonnet-5-5")("sys", "user", generate.SCHEMA)
     assert out == '{"abstain": true, "claims": []}'
     assert sent["url"] == "https://api.anthropic.com/v1/messages"
@@ -249,14 +249,14 @@ def test_open_model_request_shape(monkeypatch):
             pass
 
         def json(self):
-            return {"choices": [{"message": {"content": '{"queries": ["أ"]}'}}]}
+            return {"choices": [{"finish_reason": "stop", "message": {"content": '{"queries": ["أ"]}'}}]}
 
     def post(url, headers, json, timeout):
         sent.update(url=url, headers=headers, body=json)
         return Resp()
 
     import httpx
-    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(generate.transport, "post", post)
     out = generate.openai_compatible_call("http://localhost:11434/v1/", "qwen")("s", "u", {})
     assert out == '{"queries": ["أ"]}'
     assert sent["url"] == "http://localhost:11434/v1/chat/completions"

@@ -20,7 +20,7 @@ import re
 import threading
 import time
 from .telemetry import ThreadPoolExecutor
-from . import telemetry
+from . import telemetry, transport
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -1312,14 +1312,22 @@ class ModelGenerator:
         return []
 
 
+class IncompleteModelResponse(ValueError):
+    """A billed response that cannot safely be interpreted as a completed answer."""
+
+
+def _completed_text(value):
+    if not isinstance(value, str) or not value.strip():
+        raise IncompleteModelResponse("Model returned no completed text")
+    return value
+
+
 def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     """A model call for the Anthropic API that returns the model's JSON text."""
-    import httpx
-
     @telemetry.model_call("anthropic", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
-        r = httpx.post(
+        r = transport.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
                      "content-type": "application/json"},
@@ -1330,19 +1338,21 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
-        telemetry.response_metadata(r, data.get("usage") or {})
-        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+        reason = data.get("stop_reason")
+        telemetry.response_metadata(r, data.get("usage") or {}, finish_reason=reason)
+        if reason != "end_turn":
+            raise IncompleteModelResponse("Anthropic response did not end normally")
+        return _completed_text("".join(b.get("text", "") for b in data.get("content", [])
+                                       if b.get("type") == "text"))
     return call
 
 
 def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     """A model call for the Gemini API that returns the model's JSON text."""
-    import httpx
-
     @telemetry.model_call("gemini", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
-        r = httpx.post(
+        r = transport.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             headers={"x-goog-api-key": api_key, "content-type": "application/json"},
             json={"systemInstruction": {"parts": [{"text": system}]},
@@ -1354,9 +1364,15 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
         data = r.json()
         usage = data.get("usageMetadata") or {}
         telemetry.response_metadata(r, {"prompt_tokens": usage.get("promptTokenCount"),
-                                        "completion_tokens": usage.get("candidatesTokenCount")})
-        parts = data["candidates"][0]["content"]["parts"]
-        return "".join(p.get("text", "") for p in parts)
+                                        "completion_tokens": usage.get("candidatesTokenCount")},
+                                    finish_reason=(data.get("candidates") or [{}])[0].get("finishReason"))
+        candidate = (data.get("candidates") or [{}])[0]
+        if candidate.get("finishReason") != "STOP":
+            raise IncompleteModelResponse("Gemini response did not end normally")
+        parts = candidate.get("content", {}).get("parts", [])
+        if any("functionCall" in part for part in parts):
+            raise IncompleteModelResponse("Gemini returned a tool request instead of an answer")
+        return _completed_text("".join(p.get("text", "") for p in parts if not p.get("thought")))
     return call
 
 
@@ -1387,15 +1403,16 @@ def _count(usage: dict) -> None:
 
 
 def openai_compatible_call(base_url: str, model: str, api_key: str = "",
-                           timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "") -> ModelCall:
+                           timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "",
+                           *, structured_outputs: bool = False) -> ModelCall:
     """Any server speaking the common chat-completions format: Ollama on your own computer
     (base_url http://localhost:11434/v1), or hosted open models such as DeepSeek or Qwen.
     `reasoning` (OPENAI_COMPAT_REASONING) asks a reasoning model to think less, in OpenRouter's format:
     "off" turns its thinking off, "minimal"/"low"/"medium"/"high" sets the effort; empty sends nothing."""
-    import httpx
-
     # the second reading (CHECK_PROMPT) may think more than the other steps (OPENAI_COMPAT_REASONING_CHECK): it is
     # the step that judges whether a sentence says what its passage says; writing needs no thinking, it is checked
+    if type(structured_outputs) is not bool:
+        raise ValueError("structured_outputs must be a boolean")
     extra = _reasoning_body(reasoning)
     extra_check = _reasoning_body(reasoning_check) if reasoning_check.strip() else extra
 
@@ -1409,11 +1426,15 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
-        r = httpx.post(
+        r = transport.post(
             base_url.rstrip("/") + "/chat/completions",
             headers=headers,
             json={"model": model, "temperature": 0, "max_tokens": 8192,  # room for the whole JSON reply (a reasoning model's thinking counts too)
-                  "response_format": {"type": "json_object"},
+                  "response_format": ({"type": "json_schema", "json_schema": {
+                      "name": "muhawir_reply", "strict": True, "schema": schema}}
+                      if structured_outputs else {"type": "json_object"}),
+                  **({"provider": {"require_parameters": True}}
+                     if is_openrouter and structured_outputs else {}),
                   "messages": [{"role": "system", "content": system},
                                {"role": "user", "content": user}],
                   **(extra_check if system == CHECK_PROMPT else extra)},
@@ -1421,7 +1442,11 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
-        telemetry.response_metadata(r, data.get("usage") or {}, usd_cost=is_openrouter)
+        choices = data.get("choices")
+        choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+        telemetry.response_metadata(r, data.get("usage") or {}, usd_cost=is_openrouter,
+                                    upstream_provider=data.get("provider") if is_openrouter else None,
+                                    finish_reason=choice.get("finish_reason"))
         _count(data.get("usage") or {})
         if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
             usage = data.get("usage") or {}
@@ -1430,7 +1455,11 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
             log.warning("timing %s %.1fs in=%s cached=%s out=%s reasoning=%s step=%s", model, time.time() - started,
                         usage.get("prompt_tokens"), cached, usage.get("completion_tokens"), thought,
                         " ".join(system.split())[:40])
-        return data["choices"][0]["message"]["content"] or ""
+        message = choice.get("message")
+        if (choice.get("finish_reason") != "stop" or not isinstance(message, dict)
+                or message.get("refusal") or message.get("tool_calls") or message.get("function_call")):
+            raise IncompleteModelResponse("Chat response did not contain a completed answer")
+        return _completed_text(message.get("content"))
     return call
 
 
@@ -1451,14 +1480,16 @@ def get_generator() -> Generator:
             os.environ.get("OPENAI_COMPAT_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
             os.environ.get("OPENAI_COMPAT_REASONING", ""),
-            os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""))))
+            os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""),
+            structured_outputs=os.environ.get("OPENAI_COMPAT_STRUCTURED_OUTPUTS") == "1")))
     # a second chat-completions service, tried when the first fails: e.g. OpenRouter first, Ollama Cloud second
     if os.environ.get("OPENAI_COMPAT2_BASE_URL") and os.environ.get("OPENAI_COMPAT2_MODEL"):
         calls.append(("open-model-2", openai_compatible_call(
             os.environ["OPENAI_COMPAT2_BASE_URL"], os.environ["OPENAI_COMPAT2_MODEL"],
             os.environ.get("OPENAI_COMPAT2_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
-            os.environ.get("OPENAI_COMPAT2_REASONING", ""))))
+            os.environ.get("OPENAI_COMPAT2_REASONING", ""),
+            structured_outputs=os.environ.get("OPENAI_COMPAT2_STRUCTURED_OUTPUTS") == "1")))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
         # the last fallback: a short wait, so a question whose models all fail ends in seconds, not minutes
         # (28 October 2026: two 60-second timeouts on the check left a visitor waiting three minutes)

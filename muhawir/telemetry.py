@@ -11,6 +11,7 @@ import hashlib
 from pathlib import Path
 import logging
 import os
+import re
 import threading
 import time
 import uuid
@@ -149,11 +150,20 @@ def cache_hit(where):
         trace.cache = where
 
 
-def response_metadata(response, usage, *, usd_cost=False):
+def response_metadata(response, usage, *, usd_cost=False, upstream_provider=None, finish_reason=None):
     event = _attempt.get()
     if event is None:
         return
     event["http_status"] = getattr(response, "status_code", None)
+    # Routing service and upstream are separate labels; never store the raw response.
+    if isinstance(upstream_provider, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._:/()-]{0,79}", upstream_provider):
+        event["upstream_provider"] = upstream_provider
+    reasons = {"stop", "length", "content_filter", "tool_calls", "function_call", "error",
+               "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn", "refusal",
+               "model_context_window_exceeded", "STOP", "MAX_TOKENS", "SAFETY", "RECITATION",
+               "OTHER", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "MALFORMED_FUNCTION_CALL"}
+    event["finish_reason"] = finish_reason if isinstance(finish_reason, str) and finish_reason in reasons else (
+        "missing" if finish_reason is None else "unknown")
     # Whitelist numeric usage fields. Never keep the provider's arbitrary response metadata.
     for output, value in (("tokens_in", usage.get("prompt_tokens", usage.get("input_tokens"))),
                           ("tokens_out", usage.get("completion_tokens", usage.get("output_tokens"))),
