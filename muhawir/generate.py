@@ -28,6 +28,7 @@ from . import attribution
 from .corpus import Passage
 from .normalize import normalize, tokenize
 from .verify import Claim
+from .writer_plan import PLAN_INSTRUCTION, UNUSABLE_EVIDENCE_PLAN, planned_schema, read_plan, requirements_for
 
 STYLE_GUIDE = {
     "kids": "القارئ اختار شرحًا يناسب طفلًا بين 9 و12 سنة؛ لا تفترض عمر السائل أو معرفته السابقة. "
@@ -838,7 +839,8 @@ def _retry_after(response) -> float | None:
         return None
 
 
-def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time.sleep) -> str:
+def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time.sleep,
+               *, stage: str | None = None) -> str:
     """Call again after a short wait if the provider says it is busy (more patiently on HTTP 429);
     other errors pass through."""
     busy_waits, other_retries = list(BUSY_WAITS), 1
@@ -846,7 +848,7 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
         try:
             # Attempt counts include retries and failed providers. Only aggregate
             # numbers are exposed by /api/health; never log the question text.
-            step = ("understand" if system == UNDERSTAND_PROMPT else
+            step = stage or ("understand" if system == UNDERSTAND_PROMPT else
                     "support" if system == CHECK_PROMPT else
                     "draft" if system == SYSTEM_PROMPT else
                     "relevance" if system in (RELEVANCE_PROMPT, KIDS_REVIEW_PROMPT) else
@@ -931,7 +933,8 @@ class ModelGenerator:
     """Writes answers with one or more language models, trying them in order; per-request state is kept thread-local."""
     strict_retrieval = False
 
-    def __init__(self, calls: list[tuple[str, ModelCall]]) -> None:
+    def __init__(self, calls: list[tuple[str, ModelCall]], *, evidence_plan: bool = False) -> None:
+        self.evidence_plan = evidence_plan  # explicit experiments only; get_generator leaves it off
         self.calls = [(name, with_breaker(name, call, len(calls) - 1)) for name, call in calls]
         self.name = "+".join(name for name, _ in calls)
         # per-request state lives in thread-local storage: the server answers requests in parallel
@@ -1240,24 +1243,52 @@ class ModelGenerator:
             return verdicts, reasons
         return None
 
+    @property
+    def last_evidence_plan(self):
+        return self._get("evidence_plan", ())
+
     def generate(self, question: str, passages: list[Passage], style: str, lang: str,
                  personal: bool = False, feedback: str = "", previous: str = "", kind: str = "",
                  feeling: str = "", answer_request: dict | None = None) -> list[Claim]:
         """Ask the models in order for a draft answer; a model that fails is skipped and the next one is tried."""
-        user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling, answer_request)
+        tasks = requirements_for(question, answer_request)
+        request_data = answer_request
+        if self.evidence_plan:
+            request_data = {**(answer_request if isinstance(answer_request, dict) else {}),
+                            "requirements": [{'requirement': i, 'text': text} for i, text in enumerate(tasks)]}
+        user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling, request_data)
+        self._state.evidence_plan = ()
+        system, schema = SYSTEM_PROMPT, SCHEMA
+        if self.evidence_plan:
+            if not passages:
+                self.last_note = "no passages provided for evidence planning"
+                return []
+            system += "\n\n" + PLAN_INSTRUCTION
+            schema = planned_schema(SCHEMA, len(tasks), [p.id for p in passages])
         replied = False
         for name, call in self.calls:
             try:
-                raw = with_retry(call, SYSTEM_PROMPT, user, SCHEMA)
+                raw = with_retry(call, system, user, schema, stage="draft")
             except Exception as exc:  # network, quota, timeout, wrong model name: try the fallback
                 log.warning("model %s failed (answer): %s", name, describe(exc))
                 continue
             replied = True
             self.last_used = name
             claims = parse_draft(raw)
+            if self.evidence_plan:
+                try:
+                    plan = read_plan(load_json(raw), len(tasks), passages, claims)
+                except (TypeError, ValueError):
+                    plan = None
+                if plan is None:
+                    self.last_note = UNUSABLE_EVIDENCE_PLAN
+                    log.warning("model %s gave an unusable evidence plan", name)
+                    continue
+                self._state.evidence_plan = plan
             self.last_as_list = as_list(raw)
             self.last_follow_up = follow_up(raw)
             if claims:
+                self.last_note = ""
                 return claims
             try:
                 data = load_json(raw)
@@ -1275,6 +1306,9 @@ class ModelGenerator:
         if not replied:
             self.last_used = ""
             self.last_note = "every model call failed"  # pipeline.ALL_MODELS_FAILED
+        elif self.evidence_plan:
+            self._state.evidence_plan = ()
+            self.last_note = UNUSABLE_EVIDENCE_PLAN
         return []
 
 

@@ -30,6 +30,7 @@ from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
 from .verify import Rejected, invented_definition, verify
+from .writer_plan import UNUSABLE_EVIDENCE_PLAN
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
@@ -831,7 +832,10 @@ class Muhawir:
         inference of its own at the end of a sentence is cut off. A sentence with nothing left is dropped."""
         if self.generator.name == "extractive":
             return draft
-        tidy = [_without_inference(_without_ids(_resolve_ids(c, allowed), allowed)) for c in draft]
+        # Deduplicate only the original complete Claim, before cleanup can remove
+        # details that distinguished two inputs. Preserve source ids and layout.
+        unique = dict.fromkeys(draft)
+        tidy = [_without_inference(_without_ids(_resolve_ids(c, allowed), allowed)) for c in unique]
         return [c for c in tidy if c.text]
 
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = "",
@@ -1129,6 +1133,9 @@ class Muhawir:
             self.generator.last_follow_up = ""
         with _timed("draft"):
             draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **writer_extra), allowed), corpus, lang), corpus)
+        if getattr(self.generator, "last_note", "") == UNUSABLE_EVIDENCE_PLAN:
+            return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
+                             "writer evidence planning could not be completed")
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
