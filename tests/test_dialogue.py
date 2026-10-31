@@ -1,5 +1,7 @@
 """Dialogue quality: search by phrase, one more search when nothing was found, clean text, tolerant
 scholar names, translation requests, the strict second reading. Fake model calls and synthetic data only."""
+
+from support_fixtures import support_reply
 import json
 from pathlib import Path
 
@@ -209,9 +211,9 @@ def test_a_sentence_whose_quoted_support_is_not_in_the_passage_is_dropped():
         keys = json.dumps(schema or {})
         if "problem" in keys:  # the second sentence is "approved" by a careless reader but quotes nothing real
             if "تحتاج النخلة" in user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]:
-                return json.dumps({"missing": [[]], "evidence": ["تحتاج إلى ماء كثير في الصيف"], "supported": [True]},
+                return json.dumps(support_reply([True], 'ماء كثير', missing=[[]], evidence=["تحتاج إلى ماء كثير في الصيف"]),
                                   ensure_ascii=False)
-            return json.dumps({"missing": [[]], "evidence": ["العدل صفة من صفات الله"], "supported": [True]},
+            return json.dumps(support_reply([True], 'ماء كثير', missing=[[]], evidence=["العدل صفة من صفات الله"]),
                               ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
@@ -355,7 +357,7 @@ def test_the_second_reading_sees_the_neutral_question_never_the_users_own_words(
                                "recall": "", "queries": []}, ensure_ascii=False)
         if "problem" in keys:
             seen.append(user)
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [True]},
+            return json.dumps(support_reply([True], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["تحتاج إلى ماء كثير"]),
                               ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
@@ -370,7 +372,7 @@ def test_a_passage_about_another_matter_than_the_question_rejects_the_sentence()
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if "problem" in keys:
-            return json.dumps({"on_topic": [False], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [True]},
+            return json.dumps(support_reply([True], 'ماء كثير', on_topic=[False], missing=[[]], evidence=["تحتاج إلى ماء كثير"]),
                               ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
@@ -399,7 +401,7 @@ def test_the_trimmed_sentence_is_checked_again_and_kept_when_it_holds():
         keys = json.dumps(schema or {})
         if "problem" in keys:
             ok = "يدل على" not in user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "supported": [ok]},
+            return json.dumps(support_reply([ok], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["تحتاج إلى ماء كثير"]),
                               ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
@@ -422,8 +424,7 @@ def _reading_model(says, default=True):
             with lock:
                 calls["n"] += 1
                 ok = next(answers, default)
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"],
-                               "problem": ["none" if ok else "addition"]}, ensure_ascii=False)
+            return json.dumps(support_reply(["none" if ok else "addition"], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["تحتاج إلى ماء كثير"]), ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -455,7 +456,7 @@ def _named_defects(defects):
         keys = json.dumps(schema or {})
         if "problem" in keys:
             mine = defects[texts.index(user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0])]
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"], "problem": [mine]},
+            return json.dumps(support_reply([mine], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["تحتاج إلى ماء كثير"]),
                               ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
@@ -600,8 +601,7 @@ def test_the_second_reading_never_sees_ids_or_source_numbers_in_the_sentence():
         keys = json.dumps(schema or {})
         if "problem" in keys:
             seen.append(user)
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["تحتاج إلى ماء كثير"],
-                               "problem": ["none"]}, ensure_ascii=False)
+            return json.dumps(support_reply(["none"], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["تحتاج إلى ماء كثير"]), ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -642,8 +642,7 @@ def test_a_sentence_that_gives_a_weak_hadith_as_established_is_rejected_and_the_
             seen["user"].append(user)
             sentence = user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
             weak = "لم يرد في ذلك حديث ثابت" in user and "لم يثبت" not in sentence
-            return json.dumps({"on_topic": [True], "missing": [[]], "evidence": ["لا زكاة في مال حتى يحول عليه الحول"],
-                               "problem": ["distortion" if weak else "none"]}, ensure_ascii=False)
+            return json.dumps(support_reply(["distortion" if weak else "none"], 'ماء كثير', on_topic=[True], missing=[[]], evidence=["لا زكاة في مال حتى يحول عليه الحول"]), ensure_ascii=False)
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -681,8 +680,7 @@ def test_a_fact_added_about_a_person_that_the_cited_passage_does_not_give_is_rej
         sentence = user.split("الجملة 1: <<<", 1)[1].split(">>>", 1)[0]
         passage = user.split("المقاطع:", 1)[1]
         missing = [t for t in ("قريش", "تميم", "الأوس", "الخزرج") if t in sentence and t not in passage]
-        return json.dumps({"on_topic": [True], "missing": [missing], "problem": ["none"],
-                           "evidence": ["كعب بن الأشرف من الذين يؤمنون بالجبت والطاغوت"]}, ensure_ascii=False)
+        return json.dumps(support_reply(["none"], 'ماء كثير', on_topic=[True], missing=[missing], evidence=["كعب بن الأشرف من الذين يؤمنون بالجبت والطاغوت"]), ensure_ascii=False)
     gen = ModelGenerator([("m", call)])
     assert gen.check_support([kept, added], passages, "ما سبب نزول سورة الكوثر؟") == [True, False]
     assert gen.last_check_reasons[1] == "key term not in the passage: قريش"
@@ -796,7 +794,7 @@ def _with_example(text, religious=False):
         if "religious" in keys:  # the example check: does the example state religious information?
             return json.dumps({"religious": religious})
         if "problem" in keys:
-            return '{"supported": [true]}'
+            return json.dumps(support_reply([True], 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -829,7 +827,7 @@ def test_an_answer_made_only_of_an_example_is_not_shown():
         if "religious" in keys:
             return '{"religious": false}'
         if "problem" in keys:
-            return '{"supported": [true]}'
+            return json.dumps(support_reply([True], 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if "queries" in keys:
@@ -860,7 +858,7 @@ def test_an_example_must_be_cited_to_the_passage_whose_meaning_it_explains():
             return json.dumps({"religious": "صاعًا" in user})
         asked.append(user)  # the second reading: the example beside the passage it is cited to
         cited = user.split("المقاطع:", 1)[1]
-        return json.dumps({"on_topic": ["حول" in cited], "missing": [[]], "evidence": [""], "problem": ["none"]},
+        return json.dumps(support_reply(["none"], 'ماء كثير', on_topic=["حول" in cited], missing=[[]], evidence=[""]),
                           ensure_ascii=False)
     gen = ModelGenerator([("m", call)])
     claims = [Claim(text, ("h",)), Claim(text, ("u",)), Claim(religious, ("h",))]

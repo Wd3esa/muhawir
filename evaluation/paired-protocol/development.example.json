@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "partition": "development",
+  "provenance": "Previously exposed historical development questions; reference requirements are proposals pending review.",
+  "success": {
+    "critical_error_upper": 0.01,
+    "quality_harm_margin": 0.01,
+    "primary_metric": "cost",
+    "alpha": 0.05
+  },
+  "cases": [
+    {
+      "id": "B1",
+      "question": "بيّن معنى التوكل على الله وعلاقته بالأسباب المأذون فيها، مع نسبة القول لصاحبه.",
+      "style": "youth",
+      "lang": "ar",
+      "reference": {
+        "expected_behavior": "answer",
+        "requirements": [
+          "تعريف بلا تكرار",
+          "قيد الأسباب المأذون فيها",
+          "صحة نسبة القول"
+        ],
+        "review_status": "pending",
+        "reviewer": "",
+        "evidence": [
+          {
+            "passage_id": "k:60",
+            "text_sha256": "16713c8affe3ed6f74d4bca29589eab880a8d99f5673ad1428399fd9bc099285"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B3",
+      "question": "ما المقصود بالحول في الزكاة، وما الأموال التي يشترط فيها، وما الاستثناءات؟",
+      "style": "extended",
+      "lang": "ar",
+      "reference": {
+        "expected_behavior": "answer",
+        "requirements": [
+          "المعنى والأموال والاستثناءات",
+          "عدم تصحيح رواية ضعّفها المصدر",
+          "مطابقة الاقتباس"
+        ],
+        "review_status": "pending",
+        "reviewer": "",
+        "evidence": [
+          {
+            "passage_id": "f:556",
+            "text_sha256": "010ec73e007d0244cebe1b96566a5c8446a68c91cdd28fffb2ffe58c3f9a62c3"
+          },
+          {
+            "passage_id": "u:6653",
+            "text_sha256": "d004f8ebdf66e4a1690d197a5216497edc85bc3e69b303541dcb6830bd51a1d9"
+          }
+        ]
+      }
+    }
+  ]
+}

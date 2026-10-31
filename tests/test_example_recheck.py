@@ -1,4 +1,6 @@
 """Real checker orchestration with synthetic passages and fake providers; no paid calls."""
+
+from support_fixtures import support_reply
 import json
 import threading
 
@@ -28,7 +30,7 @@ def test_religious_example_is_not_rescued_by_a_later_permissive_reading(monkeypa
                 return json.dumps({"religious": counts["example"] == 1})
             assert system == generate.CHECK_PROMPT
             counts["support"] += 1
-            return '{"problem": ["none"]}'
+            return json.dumps(support_reply(['none'], 'A box can have different colors.'))
     gen = ModelGenerator([("fake-example", call)])
     assert gen.check_support([ORDINARY, EXAMPLE], {PASSAGE.id: PASSAGE}) == [True, False]
     assert gen.last_check_reasons == ["", generate.RELIGIOUS_EXAMPLE]
@@ -42,7 +44,7 @@ def test_nonreligious_example_still_requires_support_and_topic_check():
         if system == generate.EXAMPLE_PROMPT:
             return '{"religious": false}'
         assert system == generate.CHECK_PROMPT
-        return '{"problem": ["none"], "on_topic": [false]}'
+        return json.dumps(support_reply(['none'], 'A box can have different colors.', on_topic=[False]))
     gen = ModelGenerator([("fake-example-topic", call)])
     assert gen.check_support([EXAMPLE], {PASSAGE.id: PASSAGE}, "What color?") == [False]
     assert seen.count(generate.EXAMPLE_PROMPT) == 2  # generic support/topic retry is preserved
@@ -54,7 +56,7 @@ def test_ordinary_support_rejection_still_gets_its_second_reading():
     def call(system, user, schema):
         assert system == generate.CHECK_PROMPT
         seen.append(system)
-        return json.dumps({"problem": ["addition" if len(seen) == 1 else "none"]})
+        return json.dumps(support_reply(["addition" if len(seen) == 1 else "none"], 'A box can have different colors.'))
     gen = ModelGenerator([("fake-ordinary-retry", call)])
     assert gen.check_support([ORDINARY], {PASSAGE.id: PASSAGE}) == [True]
     assert len(seen) == 2

@@ -20,7 +20,7 @@ import re
 import threading
 import time
 from .telemetry import ThreadPoolExecutor
-from . import telemetry
+from . import telemetry, transport
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -28,6 +28,7 @@ from . import attribution
 from .corpus import Passage
 from .normalize import normalize, tokenize
 from .verify import Claim
+from .writer_plan import PLAN_INSTRUCTION, UNUSABLE_EVIDENCE_PLAN, planned_schema, read_plan, requirements_for
 
 STYLE_GUIDE = {
     "kids": "القارئ اختار شرحًا يناسب طفلًا بين 9 و12 سنة؛ لا تفترض عمر السائل أو معرفته السابقة. "
@@ -485,6 +486,27 @@ CHECK_SCHEMA = {
     "additionalProperties": False,
 }
 
+
+def _valid_support_reply(data, count: int) -> bool:
+    """Enforce the requested schema locally; provider schema hints are not validation.
+
+    Missing/legacy/extra fields and invalid element types are unusable checks,
+    never an approval or a semantic rejection. Empty witnesses remain valid JSON
+    strings but cannot support an ordinary approved sentence.
+    """
+    if not isinstance(data, dict) or set(data) != set(CHECK_SCHEMA["required"]):
+        return False
+    if any(not isinstance(data[key], list) or len(data[key]) != count
+           for key in CHECK_SCHEMA["required"]):
+        return False
+    problems = CHECK_SCHEMA["properties"]["problem"]["items"]["enum"]
+    return (all(isinstance(value, bool) for value in data["on_topic"])
+            and all(isinstance(value, str) for value in data["evidence"])
+            and all(isinstance(value, str) and value in problems for value in data["problem"])
+            and all(isinstance(terms, list) and all(isinstance(term, str) for term in terms)
+                    for terms in data["missing"]))
+
+
 EXAMPLE_PROMPT = """أمامك جملة مثال كتبها مساعد ليوضح معنى لقارئ (غالبًا طفل) بموقف من الحياة اليومية. هل تتضمن معلومة دينية بأي صورة؟ أي شيء مما يأتي:
 كيف تُؤدّى عبادة، أو لمن تُعطى، أو كم مقدارها، أو متى تُؤدّى؛ حكم أو أمر أو نهي؛ ثواب أو عقاب؛ نسبة شيء إلى الله أو النبي ﷺ؛
 تشبيه أمر ديني بشيء من الدنيا؛ ذكر عبادة أو ركن بعينه (صلاة، زكاة، صوم، حج، شهادة…) على أنه المقصود بالمثال؛
@@ -817,7 +839,8 @@ def _retry_after(response) -> float | None:
         return None
 
 
-def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time.sleep) -> str:
+def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time.sleep,
+               *, stage: str | None = None) -> str:
     """Call again after a short wait if the provider says it is busy (more patiently on HTTP 429);
     other errors pass through."""
     busy_waits, other_retries = list(BUSY_WAITS), 1
@@ -825,7 +848,7 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
         try:
             # Attempt counts include retries and failed providers. Only aggregate
             # numbers are exposed by /api/health; never log the question text.
-            step = ("understand" if system == UNDERSTAND_PROMPT else
+            step = stage or ("understand" if system == UNDERSTAND_PROMPT else
                     "support" if system == CHECK_PROMPT else
                     "draft" if system == SYSTEM_PROMPT else
                     "relevance" if system in (RELEVANCE_PROMPT, KIDS_REVIEW_PROMPT) else
@@ -910,7 +933,8 @@ class ModelGenerator:
     """Writes answers with one or more language models, trying them in order; per-request state is kept thread-local."""
     strict_retrieval = False
 
-    def __init__(self, calls: list[tuple[str, ModelCall]]) -> None:
+    def __init__(self, calls: list[tuple[str, ModelCall]], *, evidence_plan: bool = False) -> None:
+        self.evidence_plan = evidence_plan  # explicit experiments only; get_generator leaves it off
         self.calls = [(name, with_breaker(name, call, len(calls) - 1)) for name, call in calls]
         self.name = "+".join(name for name, _ in calls)
         # per-request state lives in thread-local storage: the server answers requests in parallel
@@ -1196,55 +1220,75 @@ class ModelGenerator:
             except Exception as exc:
                 log.warning("model %s failed (support check): %s", name, describe(exc))
                 continue
-            data = data if isinstance(data, dict) else {}
-            problems, flags = data.get("problem"), data.get("supported")
-            named = isinstance(problems, list) and len(problems) == len(claims)
-            if named:  # the reader must name the defect; "none" means the sentence says what its passage says
-                verdicts = [isinstance(p, str) and p.strip().lower() == "none" for p in problems]
-                reasons = ["" if ok else f"the second reading found: {p}" for ok, p in zip(verdicts, problems)]
-            elif isinstance(flags, list) and len(flags) == len(claims):
-                verdicts = [f is True or (isinstance(f, str) and f.strip().lower() == "true") for f in flags]
-                reasons = ["" if ok else "the second reading judged it unsupported" for ok in verdicts]
-            else:
+            if not _valid_support_reply(data, len(claims)):
                 log.warning("model %s gave an unusable support check", name)
                 continue
-            on_topic = data.get("on_topic")
-            if question and isinstance(on_topic, list) and len(on_topic) == len(claims):  # a passage on another matter
-                for i, t in enumerate(on_topic):
-                    if verdicts[i] and (t is False or (isinstance(t, str) and t.strip().lower() == "false")):
-                        verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
-            missing = data.get("missing")
-            if isinstance(missing, list) and len(missing) == len(claims):  # a key term the passages never mention
-                for i, m in enumerate(missing):
-                    terms = [x.strip() for x in m if isinstance(x, str) and x.strip()] if isinstance(m, list) else []
-                    if terms and verdicts[i]:
-                        verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
-            evidence = data.get("evidence")
-            if isinstance(evidence, list) and len(evidence) == len(claims):
-                for i, (c, ev) in enumerate(zip(claims, evidence)):
-                    if verdicts[i] and not _has_evidence(c, ev, passages):
-                        verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
+            problems = data["problem"]
+            verdicts = [problem == "none" for problem in problems]
+            reasons = ["" if ok else f"the second reading found: {problem}"
+                       for ok, problem in zip(verdicts, problems)]
+            for i, (claim, on_topic, missing, witness) in enumerate(zip(
+                    claims, data["on_topic"], data["missing"], data["evidence"])):
+                if not verdicts[i]:
+                    continue
+                if question and not on_topic:
+                    verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
+                    continue
+                terms = [term.strip() for term in missing if term.strip()]
+                if terms:
+                    verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
+                    continue
+                if not _has_evidence(claim, witness, passages):
+                    verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
             return verdicts, reasons
         return None
+
+    @property
+    def last_evidence_plan(self):
+        return self._get("evidence_plan", ())
 
     def generate(self, question: str, passages: list[Passage], style: str, lang: str,
                  personal: bool = False, feedback: str = "", previous: str = "", kind: str = "",
                  feeling: str = "", answer_request: dict | None = None) -> list[Claim]:
         """Ask the models in order for a draft answer; a model that fails is skipped and the next one is tried."""
-        user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling, answer_request)
+        tasks = requirements_for(question, answer_request)
+        request_data = answer_request
+        if self.evidence_plan:
+            request_data = {**(answer_request if isinstance(answer_request, dict) else {}),
+                            "requirements": [{'requirement': i, 'text': text} for i, text in enumerate(tasks)]}
+        user = build_user_prompt(question, passages, style, lang, personal, feedback, previous, kind, feeling, request_data)
+        self._state.evidence_plan = ()
+        system, schema = SYSTEM_PROMPT, SCHEMA
+        if self.evidence_plan:
+            if not passages:
+                self.last_note = "no passages provided for evidence planning"
+                return []
+            system += "\n\n" + PLAN_INSTRUCTION
+            schema = planned_schema(SCHEMA, len(tasks), [p.id for p in passages])
         replied = False
         for name, call in self.calls:
             try:
-                raw = with_retry(call, SYSTEM_PROMPT, user, SCHEMA)
+                raw = with_retry(call, system, user, schema, stage="draft")
             except Exception as exc:  # network, quota, timeout, wrong model name: try the fallback
                 log.warning("model %s failed (answer): %s", name, describe(exc))
                 continue
             replied = True
             self.last_used = name
             claims = parse_draft(raw)
+            if self.evidence_plan:
+                try:
+                    plan = read_plan(load_json(raw), len(tasks), passages, claims)
+                except (TypeError, ValueError):
+                    plan = None
+                if plan is None:
+                    self.last_note = UNUSABLE_EVIDENCE_PLAN
+                    log.warning("model %s gave an unusable evidence plan", name)
+                    continue
+                self._state.evidence_plan = plan
             self.last_as_list = as_list(raw)
             self.last_follow_up = follow_up(raw)
             if claims:
+                self.last_note = ""
                 return claims
             try:
                 data = load_json(raw)
@@ -1262,17 +1306,28 @@ class ModelGenerator:
         if not replied:
             self.last_used = ""
             self.last_note = "every model call failed"  # pipeline.ALL_MODELS_FAILED
+        elif self.evidence_plan:
+            self._state.evidence_plan = ()
+            self.last_note = UNUSABLE_EVIDENCE_PLAN
         return []
+
+
+class IncompleteModelResponse(ValueError):
+    """A billed response that cannot safely be interpreted as a completed answer."""
+
+
+def _completed_text(value):
+    if not isinstance(value, str) or not value.strip():
+        raise IncompleteModelResponse("Model returned no completed text")
+    return value
 
 
 def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     """A model call for the Anthropic API that returns the model's JSON text."""
-    import httpx
-
     @telemetry.model_call("anthropic", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
-        r = httpx.post(
+        r = transport.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
                      "content-type": "application/json"},
@@ -1283,19 +1338,21 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
-        telemetry.response_metadata(r, data.get("usage") or {})
-        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+        reason = data.get("stop_reason")
+        telemetry.response_metadata(r, data.get("usage") or {}, finish_reason=reason)
+        if reason != "end_turn":
+            raise IncompleteModelResponse("Anthropic response did not end normally")
+        return _completed_text("".join(b.get("text", "") for b in data.get("content", [])
+                                       if b.get("type") == "text"))
     return call
 
 
 def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
     """A model call for the Gemini API that returns the model's JSON text."""
-    import httpx
-
     @telemetry.model_call("gemini", model)
     def call(system: str, user: str, schema: dict) -> str:
         """Send one request and return the reply text."""
-        r = httpx.post(
+        r = transport.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             headers={"x-goog-api-key": api_key, "content-type": "application/json"},
             json={"systemInstruction": {"parts": [{"text": system}]},
@@ -1307,9 +1364,15 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
         data = r.json()
         usage = data.get("usageMetadata") or {}
         telemetry.response_metadata(r, {"prompt_tokens": usage.get("promptTokenCount"),
-                                        "completion_tokens": usage.get("candidatesTokenCount")})
-        parts = data["candidates"][0]["content"]["parts"]
-        return "".join(p.get("text", "") for p in parts)
+                                        "completion_tokens": usage.get("candidatesTokenCount")},
+                                    finish_reason=(data.get("candidates") or [{}])[0].get("finishReason"))
+        candidate = (data.get("candidates") or [{}])[0]
+        if candidate.get("finishReason") != "STOP":
+            raise IncompleteModelResponse("Gemini response did not end normally")
+        parts = candidate.get("content", {}).get("parts", [])
+        if any("functionCall" in part for part in parts):
+            raise IncompleteModelResponse("Gemini returned a tool request instead of an answer")
+        return _completed_text("".join(p.get("text", "") for p in parts if not p.get("thought")))
     return call
 
 
@@ -1340,15 +1403,16 @@ def _count(usage: dict) -> None:
 
 
 def openai_compatible_call(base_url: str, model: str, api_key: str = "",
-                           timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "") -> ModelCall:
+                           timeout: float = 300.0, reasoning: str = "", reasoning_check: str = "",
+                           *, structured_outputs: bool = False) -> ModelCall:
     """Any server speaking the common chat-completions format: Ollama on your own computer
     (base_url http://localhost:11434/v1), or hosted open models such as DeepSeek or Qwen.
     `reasoning` (OPENAI_COMPAT_REASONING) asks a reasoning model to think less, in OpenRouter's format:
     "off" turns its thinking off, "minimal"/"low"/"medium"/"high" sets the effort; empty sends nothing."""
-    import httpx
-
     # the second reading (CHECK_PROMPT) may think more than the other steps (OPENAI_COMPAT_REASONING_CHECK): it is
     # the step that judges whether a sentence says what its passage says; writing needs no thinking, it is checked
+    if type(structured_outputs) is not bool:
+        raise ValueError("structured_outputs must be a boolean")
     extra = _reasoning_body(reasoning)
     extra_check = _reasoning_body(reasoning_check) if reasoning_check.strip() else extra
 
@@ -1362,11 +1426,15 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         headers = {"content-type": "application/json"}
         if api_key:
             headers["authorization"] = f"Bearer {api_key}"
-        r = httpx.post(
+        r = transport.post(
             base_url.rstrip("/") + "/chat/completions",
             headers=headers,
             json={"model": model, "temperature": 0, "max_tokens": 8192,  # room for the whole JSON reply (a reasoning model's thinking counts too)
-                  "response_format": {"type": "json_object"},
+                  "response_format": ({"type": "json_schema", "json_schema": {
+                      "name": "muhawir_reply", "strict": True, "schema": schema}}
+                      if structured_outputs else {"type": "json_object"}),
+                  **({"provider": {"require_parameters": True}}
+                     if is_openrouter and structured_outputs else {}),
                   "messages": [{"role": "system", "content": system},
                                {"role": "user", "content": user}],
                   **(extra_check if system == CHECK_PROMPT else extra)},
@@ -1374,7 +1442,11 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
-        telemetry.response_metadata(r, data.get("usage") or {}, usd_cost=is_openrouter)
+        choices = data.get("choices")
+        choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+        telemetry.response_metadata(r, data.get("usage") or {}, usd_cost=is_openrouter,
+                                    upstream_provider=data.get("provider") if is_openrouter else None,
+                                    finish_reason=choice.get("finish_reason"))
         _count(data.get("usage") or {})
         if TIMING:  # MUHAWIR_TIMING=1: one log line per model call, to see where an answer's time goes
             usage = data.get("usage") or {}
@@ -1383,7 +1455,11 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
             log.warning("timing %s %.1fs in=%s cached=%s out=%s reasoning=%s step=%s", model, time.time() - started,
                         usage.get("prompt_tokens"), cached, usage.get("completion_tokens"), thought,
                         " ".join(system.split())[:40])
-        return data["choices"][0]["message"]["content"] or ""
+        message = choice.get("message")
+        if (choice.get("finish_reason") != "stop" or not isinstance(message, dict)
+                or message.get("refusal") or message.get("tool_calls") or message.get("function_call")):
+            raise IncompleteModelResponse("Chat response did not contain a completed answer")
+        return _completed_text(message.get("content"))
     return call
 
 
@@ -1404,14 +1480,16 @@ def get_generator() -> Generator:
             os.environ.get("OPENAI_COMPAT_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
             os.environ.get("OPENAI_COMPAT_REASONING", ""),
-            os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""))))
+            os.environ.get("OPENAI_COMPAT_REASONING_CHECK", ""),
+            structured_outputs=os.environ.get("OPENAI_COMPAT_STRUCTURED_OUTPUTS") == "1")))
     # a second chat-completions service, tried when the first fails: e.g. OpenRouter first, Ollama Cloud second
     if os.environ.get("OPENAI_COMPAT2_BASE_URL") and os.environ.get("OPENAI_COMPAT2_MODEL"):
         calls.append(("open-model-2", openai_compatible_call(
             os.environ["OPENAI_COMPAT2_BASE_URL"], os.environ["OPENAI_COMPAT2_MODEL"],
             os.environ.get("OPENAI_COMPAT2_API_KEY", ""),
             float(os.environ.get("OPENAI_COMPAT_TIMEOUT") or 300),
-            os.environ.get("OPENAI_COMPAT2_REASONING", ""))))
+            os.environ.get("OPENAI_COMPAT2_REASONING", ""),
+            structured_outputs=os.environ.get("OPENAI_COMPAT2_STRUCTURED_OUTPUTS") == "1")))
     if os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_MODEL"):
         # the last fallback: a short wait, so a question whose models all fail ends in seconds, not minutes
         # (28 October 2026: two 60-second timeouts on the check left a visitor waiting three minutes)

@@ -100,6 +100,8 @@ def summarize(rows):
         "observed_transport_calls": len(calls),
         "transport_errors": sum(event["outcome"] != "ok" for event in calls),
         "calls_by_stage": dict(Counter(event["stage"] for event in calls)),
+        "upstream_providers": dict(Counter(event.get("upstream_provider", "unknown") for event in calls)),
+        "finish_reasons": dict(Counter(event.get("finish_reason", "unrecorded") for event in calls)),
         "provider_models": sorted({f'{event["provider"]}/{event["model"]}' for event in calls}),
         "known_reported_cost_usd": str(sum(known, Decimal(0))),
         "calls_with_unknown_cost": len(calls) - len(known),

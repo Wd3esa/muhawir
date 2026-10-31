@@ -13,6 +13,7 @@ import queue
 import threading
 import time
 from collections import OrderedDict, defaultdict, deque
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -26,7 +27,7 @@ from .corpus import load_corpus
 from .generate import USAGE, get_generator
 from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir, _progress
 from .store import SqliteCorpus, SqliteRetriever
-from . import extract, quote_check, tts, telemetry
+from . import extract, quote_check, tts, telemetry, transport
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
@@ -98,7 +99,15 @@ def build() -> Muhawir:
     return engine
 
 
-app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def lifespan(app):
+    try:
+        yield
+    finally:
+        await run_in_threadpool(transport.close)
+
+
+app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None, lifespan=lifespan)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
 
 

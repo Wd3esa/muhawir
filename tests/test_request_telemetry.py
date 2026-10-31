@@ -20,12 +20,12 @@ def test_nested_workers_keep_requests_separate_and_log_no_content(monkeypatch, c
     meeting = threading.Barrier(2)
     def post(*args, **kwargs):
         meeting.wait(timeout=3)
-        return httpx.Response(200, json={"choices": [{"message": {"content": "secret answer"}}],
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": "secret answer"}}],
                                        "usage": {"cost": .000123, "prompt_tokens": 17,
                                                  "completion_tokens": 3,
                                                  "prompt_tokens_details": {"cached_tokens": 8}}},
                               request=httpx.Request("POST", "https://openrouter.ai"))
-    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(generate.transport, "post", post)
     call = generate.openai_compatible_call("https://openrouter.ai/api/v1", "test/model", "secret key")
     def request(i):
         trace = telemetry.start("ask")
@@ -63,7 +63,7 @@ def test_transport_retry_and_timeout_are_not_free_successes(monkeypatch, caplog)
         if attempts == 1:
             return httpx.Response(429, request=httpx.Request("POST", "http://fake"))
         raise httpx.ReadTimeout("secret request content")
-    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(generate.transport, "post", post)
     call = generate.openai_compatible_call("https://openrouter.ai/api/v1", "test")
     trace = telemetry.start("ask")
     with telemetry.bind(trace):

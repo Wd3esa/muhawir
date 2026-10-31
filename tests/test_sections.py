@@ -1,4 +1,6 @@
 """Chapter and section openings of «بداية المجتهد» are offered first; pasted quotations are rejected."""
+
+from support_fixtures import support_reply
 import json
 from pathlib import Path
 
@@ -110,7 +112,7 @@ def test_pasted_quotation_is_rejected_and_rewritten_in_own_words():
     def call(system, user, schema=None):
         keys = json.dumps(schema or {})
         if "problem" in keys:
-            return json.dumps({"supported": [True] * user.count("الجملة ")})
+            return json.dumps(support_reply([True] * user.count("الجملة "), 'ماء كثير'))
         if "verdict" in keys:
             return '{"verdict": "yes"}'
         if '"question"' in keys or "queries" in keys:

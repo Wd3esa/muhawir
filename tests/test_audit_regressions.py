@@ -1,4 +1,6 @@
 """Regression checks for the deployment audit: fake sources and calls only."""
+
+from support_fixtures import support_reply
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -70,7 +72,7 @@ def test_second_reading_sees_heading_and_label():
     seen = []
     def call(system, user, schema=None):
         seen.append(user)
-        return '{"supported":[true],"problem":["none"]}'
+        return json.dumps(support_reply(['none'], 'ماء كثير'))
     corpus = load_corpus(SYNTHETIC)
     claim = Claim("تحتاج النخلة الماء.", ("test-a:1",), section="عنوان الفحص", label="وسم الفحص")
     gen = ModelGenerator([("fake", call)])
