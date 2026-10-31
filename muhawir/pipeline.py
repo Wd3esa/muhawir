@@ -1067,7 +1067,7 @@ class Muhawir:
         kind, feeling = extra.get("kind", ""), extra.get("feeling", "")
         contemporary = kind == "contemporary"
         if contemporary:
-            words = classify.product_words(question)
+            words = classify.product_words(f"{extra.get('_source_question', '')} {question}")
             if words:
                 kept = [c for c in kept if any((p := corpus.passage(pid)) is not None and
                         classify.speaks_of(p.text, words) for pid in c.passage_ids)]
@@ -1111,6 +1111,7 @@ class Muhawir:
         """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
+        writer_extra = {k: v for k, v in extra.items() if not k.startswith("_")}
         if lang in TRANSLATED_LANGS:  # an English or Urdu answer quotes the approved translation of a verse, never its own
             passages = [replace(p, translation=self._translation(p, lang=lang)) if p.kind == "quran" else p
                         for p in passages]
@@ -1121,7 +1122,7 @@ class Muhawir:
             self.generator.last_as_list = False
             self.generator.last_follow_up = ""
         with _timed("draft"):
-            draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed), corpus, lang), corpus)
+            draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **writer_extra), allowed), corpus, lang), corpus)
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
@@ -1167,7 +1168,7 @@ class Muhawir:
             rewritten = True
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
-                                                  **extra)
+                                                  **writer_extra)
                 second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question) if redraft else None
             if second is not None and second[0] and (coverage_repair or style == "kids" or len(second[0]) > len(kept)):
                 kept, rejected = second
@@ -1728,6 +1729,8 @@ class Muhawir:
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
+        if original:
+            extra["_source_question"] = original
         if answer_request:
             extra["answer_request"] = answer_request
         if passages:
