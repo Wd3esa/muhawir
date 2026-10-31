@@ -136,6 +136,13 @@ def span(name):
                    "duration_ns": time.perf_counter_ns() - started})
 
 
+def support_reuse(count):
+    """Count reused completed judgments without recording any answer or source text."""
+    trace = _current.get()
+    if trace is not None and count:
+        trace.add({"kind": "reuse", "name": "support_positive", "count": count})
+
+
 def cache_hit(where):
     trace = _current.get()
     if trace is not None:

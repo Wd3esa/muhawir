@@ -86,6 +86,8 @@ def summarize(rows):
         own_known = [Decimal(event["reported_cost_usd"]) for event in own if event.get("reported_cost_usd") is not None]
         per_request.append({"request_id": row["request_id"], "duration_s": row["duration_ns"] / 1e9,
                             "status": row["status"], "cache": row["cache"], "observed_transport_calls": len(own),
+                            "reused_support_checks": sum(e.get("count", 0) for e in row["events"]
+                                if e.get("kind") == "reuse" and e.get("name") == "support_positive"),
                             "known_reported_cost_usd": str(sum(own_known, Decimal(0))),
                             "calls_with_unknown_cost": len(own) - len(own_known)})
     return {
