@@ -835,7 +835,7 @@ class Muhawir:
         return [c for c in tidy if c.text]
 
     def _checked(self, draft, corpus, allowed: set[str], passages: list[Passage], question: str = "",
-                 early: dict | None = None, reviewer=None):
+                 early: dict | None = None, reviewer=None, support_memo: dict | None = None):
         """The two checks: in code (ids retrieved, quotes verbatim, schools named), then the model's
         second reading against the cited passages and the question. None when the second reading could not run."""
         shape = [Rejected(c, "starts with a conclusion of its own") for c in draft if _opens_with_conclusion(c.text)]
@@ -890,7 +890,12 @@ class Muhawir:
                 early["claims"] = list(kept)
                 early["pool"] = ThreadPoolExecutor(max_workers=1)
                 early["future"] = early["pool"].submit(judge_now, question, list(kept), by_id)
-            flags = check(kept, by_id, question)
+            def read_support(group):
+                # Custom generators retain their existing API and semantics.
+                if getattr(check, "supports_request_memo", False):
+                    return check(group, by_id, question, memo=support_memo)
+                return check(group, by_id, question)
+            flags = read_support(kept)
             if flags is None:
                 return None
             flags, kept = list(flags), list(kept)
@@ -899,7 +904,7 @@ class Muhawir:
             # («…، وهذا يدل على…») is read once more without that tail
             cuts = {i: cut for i, (c, ok) in enumerate(zip(kept, flags)) if not ok
                     for cut in [_without_conclusion(c)] if cut is not None}
-            again = check(list(cuts.values()), by_id, question) if cuts else None
+            again = read_support(list(cuts.values())) if cuts else None
             for (i, cut), ok in zip(cuts.items(), again or []):
                 if ok:
                     kept[i], flags[i] = cut, True
@@ -1111,6 +1116,7 @@ class Muhawir:
         """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
+        support_memo = {}  # accepted exact judgments live only for this answer attempt
         writer_extra = {k: v for k, v in extra.items() if not k.startswith("_")}
         if lang in TRANSLATED_LANGS:  # an English or Urdu answer quotes the approved translation of a verse, never its own
             passages = [replace(p, translation=self._translation(p, lang=lang)) if p.kind == "quran" else p
@@ -1152,7 +1158,8 @@ class Muhawir:
 
         with _timed("check"):
             result = self._checked(draft, corpus, allowed, passages, question, early,
-                                   reviewer=displayed_reviewer(bool(getattr(self.generator, "last_as_list", False))))
+                                   reviewer=displayed_reviewer(bool(getattr(self.generator, "last_as_list", False))),
+                                   support_memo=support_memo)
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
             if early.get("pool") is not None:
                 early["pool"].shutdown(wait=False)
@@ -1169,7 +1176,7 @@ class Muhawir:
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
                                                   **writer_extra)
-                second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question) if redraft else None
+                second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question, support_memo=support_memo) if redraft else None
             if second is not None and second[0] and (coverage_repair or style == "kids" or len(second[0]) > len(kept)):
                 kept, rejected = second
                 return True

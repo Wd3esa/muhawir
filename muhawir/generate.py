@@ -499,8 +499,6 @@ EXAMPLE_SCHEMA = {
     "additionalProperties": False,
 }
 
-# the second reading must find real words in the cited passage; at least this share of them has to be there
-EVIDENCE_MIN_SHARE = 0.4
 _EXAMPLE_START = ("مثلا", "مثال", "for example", "e g")  # a sentence that starts so is an illustration: it quotes nothing
 
 
@@ -579,22 +577,20 @@ KIND_AR = {"quran": "آية", "tafsir": "تفسير", "asbab": "سبب نزول"
            "gharib": "معنى لفظ قرآني", "takhrij": "تخريج قول مشتهر", "other": "نص"}
 
 
-def _stem(token: str) -> str:
-    """A rough root: without a leading verb or noun prefix letter, first three letters (يغسل ~ اغسلوا)."""
-    return token.lstrip("يتناوفبلكس")[:3] if len(token) >= 4 else token
-
-
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
-    """The words the second reading quoted as support really are in the passages the sentence cites.
-    An illustration («مثلًا…») quotes nothing and is judged by the reading alone."""
+    """A quoted witness must occur consecutively in one cited passage.
+
+    Ignore typography and Arabic letter variants, but preserve word order and
+    function words (including negations). This proves provenance, not entailment.
+    Examples still require their separate semantic and religious-content checks.
+    """
     if is_example(claim.text):
         return True
-    words = tokenize(evidence) if isinstance(evidence, str) else []
-    if not words:
-        return False
-    have = {t for pid in claim.passage_ids if pid in passages for t in tokenize(passages[pid].text)}
-    stems = {_stem(t) for t in have}
-    return sum(1 for w in words if w in have or _stem(w) in stems) / len(words) >= EVIDENCE_MIN_SHARE
+    witness = normalize(evidence) if isinstance(evidence, str) else ""
+    return bool(witness) and any(
+        f" {witness} " in f" {normalize(passages[pid].text)} "
+        for pid in claim.passage_ids if pid in passages
+    )
 
 
 class Generator(Protocol):
@@ -1085,7 +1081,8 @@ class ModelGenerator:
                 return out.strip()[:1000]
         return None
 
-    def check_support(self, claims: list[Claim], passages: dict[str, Passage], question: str = "") -> list[bool] | None:
+    def check_support(self, claims: list[Claim], passages: dict[str, Passage], question: str = "",
+                      *, memo: dict | None = None) -> list[bool] | None:
         """A second, strict reading: does each cited passage really say what the claim says, and is it about
         the matter the question asks about? Catches paraphrase errors the quotation check cannot see (a negation
         turned around) and a passage that only shares a word with the question.
@@ -1096,6 +1093,31 @@ class ModelGenerator:
         self.last_check_reasons = []
         if not claims:
             return []
+
+        # The caller owns this memo for a single _write, including its one rewrite.
+        # Batched judgments depend on neighboring sentences, so cannot use this path.
+        if memo is not None and READ_EACH_SENTENCE:
+            policy = (id(self), CHECK_PROMPT, EXAMPLE_PROMPT,
+                      json.dumps(CHECK_SCHEMA, sort_keys=True),
+                      json.dumps(EXAMPLE_SCHEMA, sort_keys=True), id(_has_evidence),
+                      tuple((name, id(call)) for name, call in self.calls))
+            keys = [(policy, question, claim,
+                     tuple((pid, passages.get(pid), _passage_block(passages[pid]) if pid in passages else None)
+                           for pid in claim.passage_ids)) for claim in claims]
+            missing = [i for i, key in enumerate(keys) if key not in memo]
+            fresh = self.check_support([claims[i] for i in missing], passages, question) if missing else []
+            if fresh is None or len(fresh) != len(missing):
+                return None
+            reasons = list(self.last_check_reasons)
+            flags, why = [True] * len(claims), [""] * len(claims)
+            for position, i in enumerate(missing):
+                flags[i] = fresh[position]
+                why[i] = reasons[position] if position < len(reasons) else ""
+                if flags[i] is True:  # never reuse rejection, failure or incomplete checks
+                    memo[keys[i]] = True
+            telemetry.support_reuse(len(claims) - len(missing))
+            self.last_check_reasons = why
+            return flags
 
         def read(claim: Claim):
             """Read one sentence: an example sentence has its own check, any other is checked against its passages, each with one retry."""
@@ -1133,6 +1155,8 @@ class ModelGenerator:
         verdicts = [r[0][0] or second[i][0][0] if i in second else r[0][0] for i, r in enumerate(first)]
         self.last_check_reasons = ["" if ok else first[i][1][0] for i, ok in enumerate(verdicts)]
         return verdicts
+
+    check_support.supports_request_memo = True
 
     def _read_example(self, claim: Claim, passages: dict[str, Passage],
                       question: str) -> tuple[list[bool], list[str]] | None:
