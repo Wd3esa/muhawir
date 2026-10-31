@@ -10,6 +10,18 @@ def test_health():
     assert body["ok"] and body["generator"] == "extractive" and body["synthetic"] is True
 
 
+def test_health_identifies_all_application_code_without_a_model_call(monkeypatch):
+    from muhawir import server, telemetry
+    monkeypatch.setattr(server, "credit_remaining", lambda: None)
+    def unexpected(*args, **kwargs):
+        raise AssertionError("health must not generate an answer")
+    monkeypatch.setattr(server.engine.generator, "generate", unexpected)
+    body = client.get("/api/health").json()
+    assert body["code_revision"] == telemetry.CODE_REVISION
+    assert len(body["code_revision"]) == 64
+    assert body["pipeline_revision"] == server.PIPELINE_REVISION
+
+
 def test_ask_answers_with_sources():
     body = client.post("/api/ask", json={"question": "ماذا تحتاج النخلة في الصيف؟"}).json()
     assert body["status"] == "answered" and body["sources"]
