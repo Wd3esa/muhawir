@@ -469,7 +469,7 @@ def voices() -> dict:
 @app.get("/api/health")
 def health() -> dict:
     """Service status: revision, generator, corpus size, usage counts and the credit left."""
-    return {"ok": True, "pipeline_revision": PIPELINE_REVISION,
+    return {"ok": True, "pipeline_revision": PIPELINE_REVISION, "code_revision": telemetry.CODE_REVISION,
             "generator": engine.generator.name, "synthetic": engine.corpus.synthetic,
             "passages": len(engine.corpus.passages), "tts": tts.configured(), "credit_usd": credit_remaining(),
             "usage": {**{k: round(v, 1) for k, v in STATS.items()}, **USAGE,
