@@ -245,6 +245,7 @@ def analyze(events):
                 review_id = f"P{trial + 1}-{slot}"
                 review.append({'id': review_id, 'question': plan['case']['question'],
                     'style': plan['case']['style'], 'claims': parsed[key]['claims'],
+                    'response_sha256': digest(responses[key]['response']),
                     'abstain': parsed[key]['abstain'], 'verdicts': {
                         'meaning_supported': None, 'conditions_preserved': None,
                         'attribution_and_grade_correct': None, 'question_covered': None,
@@ -272,7 +273,7 @@ def analyze(events):
             'Draft calls only; excludes retrieval, checkers, rewrite and production network/browser latency.',
             'Routing, caching and time drift can confound timings; paired differences are descriptive.',
             'No general accuracy, population p95 or release approval is inferred.']}
-    return report, {'scope': 'blinded_draft_review', 'evidence': plan['case']['passages'],
+    return report, {'scope': 'blinded_draft_review', 'reviewer': '', 'evidence': plan['case']['passages'],
                     'answer_request': plan['case'].get('answer_request'),
                     'items': sorted(review, key=lambda r: r['id'])}
 
