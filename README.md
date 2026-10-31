@@ -34,8 +34,6 @@ uvicorn muhawir.server:app --port 8000      # ثم افتح http://localhost:800
 
 مع `LLM_PROVIDER=model` و`OPENAI_COMPAT_BASE_URL` و`OPENAI_COMPAT_MODEL` و`OPENAI_COMPAT_API_KEY` لخدمة النموذج (أي خدمة بصيغة chat completions مثل OpenRouter أو Ollama)، والبدائل في `OPENAI_COMPAT2_*` و`GEMINI_*`. القيم كلها في [.env.example](.env.example).
 
-**النشر على Render:** `render.yaml` يصف الخدمة على الخطة المجانية. في Render اختر New ثم Blueprint، واربط هذا المستودع، وأدخل مفتاح Ollama حين يُطلب، ومفتاح Gemini للاحتياط إن وُجد.
-
 **الاختبارات:** `pip install -r requirements-dev.txt && python -m pytest -q` (على بيانات مصطنعة فقط).
 
 **إضافة كتاب مُراجع:** [دليل إضافة المصادر](docs/ADDING_SOURCES.md). النصوص وملفات الإذن خارج المستودع، مع اختبار قاعدة مرشحة قبل النشر.
