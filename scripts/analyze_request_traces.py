@@ -13,8 +13,13 @@ PREFIX = "muhawir_trace "
 
 
 def read_records(path):
+    return read_lines(Path(path).read_text().splitlines())
+
+
+def read_lines(lines):
+    """The same strict parser for a private in-memory journal export."""
     rows, ids, late, drained = [], set(), [], {}
-    for number, line in enumerate(Path(path).read_text().splitlines(), 1):
+    for number, line in enumerate(lines, 1):
         if "muhawir_trace_event " in line:
             late.append(json.loads(line.split("muhawir_trace_event ", 1)[1]))
             continue
