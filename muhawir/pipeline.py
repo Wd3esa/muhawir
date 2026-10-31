@@ -23,7 +23,8 @@ from dataclasses import asdict, dataclass, field, replace
 from . import attribution, bayyinat, bidaya, classify, keyboard, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
-from .generate import AnswerReview, Generator, is_example
+from .generate import AnswerReview, Generator, ModelGenerator, is_example
+from .presentation import compact_provenance, lead_with_requested_text, required_quote, retain_inline_qualification
 from .messages import LANGS, STYLES, TEXT, TRANSLATED_LANGS
 from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
@@ -381,7 +382,8 @@ class _Written:
     rejected: list
     retried: bool = False  # written after a second search with new search phrases
     off_topic: bool = False  # the checked answer was about another matter than the question, so it was dropped
-    partial: bool = False  # the answer is sourced and checked but covers only part of what was asked (said in a notice)
+    partial: bool = False  # coverage of the displayed answer, not absence of sources
+    incomplete_parts: tuple[str, ...] = ()
 
 
 # why a sentence was rejected, told to the model in its own language when it is asked to write again
@@ -1060,11 +1062,56 @@ class Muhawir:
             progress("source", list(dict.fromkeys(self.corpus.source_of(p).name for p in passages)))
         return passages, queries
 
+    def _display_claims(self, kept, corpus, style, lang, personal, extra, question):
+        """The same deterministic final text for the reviewer and for publication."""
+        kind, feeling = extra.get("kind", ""), extra.get("feeling", "")
+        contemporary = kind == "contemporary"
+        if contemporary:
+            words = classify.product_words(f"{extra.get('_source_question', '')} {question}")
+            if words:
+                kept = [c for c in kept if any((p := corpus.passage(pid)) is not None and
+                        classify.speaks_of(p.text, words) for pid in c.passage_ids)]
+        answer = [c for c in kept if not c.school]
+        answer = [replace(c, text=_agreed_upon(c.text, {corpus.passage(pid).source_id for pid in c.passage_ids}))
+                  for c in answer]
+        answer = [replace(c, text=_saying_notice(_hadith_notice(c.text, ps), ps)) for c in answer
+                  for ps in [[corpus.passage(pid) for pid in c.passage_ids]]]
+        if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
+            answer = [c for c in answer if not classify.names_company(c.text)]
+        # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
+        answer = [c for c in answer if bayyinat.VERSE not in c.text]
+        if contemporary or personal or kind == "ruling" or feeling == "sad":  # no invented example near a ruling or grief
+            answer = [c for c in answer if not is_example(c.text)]
+        if kind not in ("ruling", "contemporary") and style != "extended" and not personal:
+            # a question on a meaning, kinds or wisdom gets what the sources agree on, not the disagreement
+            answer = [c for c in answer if not _DISAGREEMENT.search(c.text)]
+        # who said it, from the source list: «الفتوى توضح أن…» names the mufti, «وهذا ما ورد في الفتوى» goes; a ruling
+        # that names no one is credited to the sources it cites, or dropped if it cites only verses or hadith
+        answer = [replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang)) for c in answer]
+        rules = contemporary or personal or kind == "ruling"
+        answer = [replace(c, text=t) for c in answer
+                  for t in [c.text if is_example(c.text) or not (rules or attribution.prefers(c.text))
+                            else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
+        if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
+            answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
+        listing = bool(extra.get("_listing", False)) or kind == "how"
+        answer = retain_inline_qualification(compact_provenance(answer, corpus, lang), corpus)
+        by_id = {pid: corpus.passage(pid) for c in answer for pid in c.passage_ids}
+        answer = lead_with_requested_text(answer, by_id, extra.get("answer_request"))
+        answer = fit_style(answer, style, listing)
+        answer = [replace(c, text=_without_label(c.text, c.label)) for c in answer]
+        named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
+                              for c in kept if c.school])
+        if style == "kids":
+            named = []
+        return answer, named, listing
+
     def _write(self, question: str, passages: list[Passage], style: str, lang: str, personal: bool,
                extra: dict) -> "_Written | Response":
         """Draft an answer from the passages, check it twice, and rewrite it once if the checks broke it.
         A Response (service unavailable) instead when the model or the second reading could not run."""
         t, synthetic = TEXT[lang], self.corpus.synthetic
+        writer_extra = {k: v for k, v in extra.items() if not k.startswith("_")}
         if lang in TRANSLATED_LANGS:  # an English or Urdu answer quotes the approved translation of a verse, never its own
             passages = [replace(p, translation=self._translation(p, lang=lang)) if p.kind == "quran" else p
                         for p in passages]
@@ -1075,7 +1122,7 @@ class Muhawir:
             self.generator.last_as_list = False
             self.generator.last_follow_up = ""
         with _timed("draft"):
-            draft = self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **extra), allowed)
+            draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **writer_extra), allowed), corpus, lang), corpus)
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
@@ -1084,8 +1131,28 @@ class Muhawir:
         # Children use the same judge slot for relevance and clarity; no extra successful-path call.
         judge = (getattr(self.generator, "judge_kids_answer", None) if style == "kids" else None) \
             or getattr(self.generator, "judge_relevance", None)
+        # Preserve custom/subclass legacy judges, while retaining structured reasons on the stock implementation.
+        if getattr(judge, "__func__", None) is ModelGenerator.judge_relevance:
+            judge = self.generator.review_relevance
+
+        def displayed_reviewer(listing):
+            display_extra = {**extra, "_listing": listing}
+            def read(q, claims, by_id):
+                answer, named, _ = self._display_claims(claims, corpus, style, lang, personal, display_extra, q)
+                shown = answer + named
+                request = extra.get("answer_request") or {}
+                form = request.get("form")
+                if form in ("hadith_text", "verse_text") and not any(required_quote(c, by_id, form) for c in answer):
+                    return AnswerReview("partly", reason="لم يتضمن الجواب النص الأصلي المطلوب من مقطعه.")
+                tasks = request.get("requirements", [])
+                review_question = q + ("\nالمطالب المستقلة (بيانات): " + json.dumps(tasks, ensure_ascii=False) if tasks else "")
+                value = judge(review_question, shown, by_id) if judge and shown else None
+                return value
+            return read
+
         with _timed("check"):
-            result = self._checked(draft, corpus, allowed, passages, question, early, reviewer=judge)
+            result = self._checked(draft, corpus, allowed, passages, question, early,
+                                   reviewer=displayed_reviewer(bool(getattr(self.generator, "last_as_list", False))))
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
             if early.get("pool") is not None:
                 early["pool"].shutdown(wait=False)
@@ -1095,15 +1162,15 @@ class Muhawir:
         can_review = bool(getattr(self.generator, "check_support", None))
         rewritten = False
 
-        def rewrite(feedback: str) -> bool:
+        def rewrite(feedback: str, coverage_repair: bool = False) -> bool:
             """One full checked rewrite. A simpler children's answer may have fewer sentences."""
             nonlocal kept, rejected, rewritten
             rewritten = True
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
-                                                  **extra)
-                second = self._checked(self._tidy(redraft, allowed), corpus, allowed, passages, question) if redraft else None
-            if second is not None and second[0] and (style == "kids" or len(second[0]) > len(kept)):
+                                                  **writer_extra)
+                second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question) if redraft else None
+            if second is not None and second[0] and (coverage_repair or style == "kids" or len(second[0]) > len(kept)):
                 kept, rejected = second
                 return True
             return False
@@ -1118,7 +1185,7 @@ class Muhawir:
                 if use_early and early.get("future") is not None and not rewritten and kept == early["claims"]:
                     value = early["future"].result()  # only valid for the unchanged, checked sentences
                 else:
-                    value = judge(question, kept, {p.id: p for p in passages}) if judge and kept else None
+                    value = displayed_reviewer(bool(getattr(self.generator, "last_as_list", False)))(question, kept, {p.id: p for p in passages}) if kept else None
             return value if isinstance(value, AnswerReview) else AnswerReview(verdict=value)
 
         try:
@@ -1131,10 +1198,12 @@ class Muhawir:
         unclear = style == "kids" and review.clarity == "rewrite"
         if verdict != "no" and (partial or unclear) and not rewritten and can_review:
             feedback = _feedback(rejected, incomplete=partial)
+            if partial and review.reason:
+                feedback += "\nالمطلب غير المكتمل بحسب المراجعة: " + review.reason
             if unclear:
                 feedback += "\nالشرح السابق صعب للصغار. ملاحظات فحص الوضوح:\n" + review.feedback
                 feedback += "\nاكتب المعنى بكلمات مألوفة دون تكرار؛ يجوز أن يكون الجواب أقصر مع حفظ القيود والمصادر."
-            adopted = rewrite(feedback)
+            adopted = rewrite(feedback, coverage_repair=True)
             # The same rewrite budget serves broken support, incomplete coverage and clarity together.
             if adopted or style != "kids":
                 review = review_answer()
@@ -1143,11 +1212,19 @@ class Muhawir:
             unclear = style == "kids" and (review.clarity == "rewrite" or (unclear and review.clarity != "clear"))
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
+        final, _, _ = self._display_claims(kept, corpus, style, lang, personal,
+                         {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}, question)
+        form = (extra.get("answer_request") or {}).get("form")
+        if form in ("hadith_text", "verse_text") and not any(required_quote(c, {p.id: p for p in passages}, form) for c in final):
+            return self._why(Response(UNAVAILABLE, t["requested_text_unavailable"], synthetic=synthetic),
+                             "the requested original text did not survive source and final display checks")
         if unclear:
             # Do not call this missing evidence or run another search: the sources are present, the wording failed.
             return self._why(Response(UNAVAILABLE, t["simplify_unavailable"], synthetic=synthetic),
                              "children's explanation remained unclear after the available rewrite")
-        return _Written(passages, allowed, corpus, kept, rejected, partial=partial)
+        tasks = (extra.get("answer_request") or {}).get("requirements", [])
+        gaps = tuple(tasks[i] for i in review.missing_parts if i < len(tasks)) if verdict == "partly" else ()
+        return _Written(passages, allowed, corpus, kept, rejected, partial=partial, incomplete_parts=gaps)
 
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
                first: _Written | None) -> _Written | Response | None:
@@ -1476,6 +1553,7 @@ class Muhawir:
                                 synthetic=self.corpus.synthetic)
         understand = getattr(self.generator, "understand", None)
         understood, queries, previous, kind, feeling, personal, unsure = "", None, "", "", "", False, False
+        answer_request = {}
         # «بالعربية» / «In English» tapped under «بأي لغة تريد الجواب؟»: the language is the one tapped, decided here
         # and not by the model, and the question is never sent back to that choice again
         chosen = _CHOICES.get(normalize(question)) if turns and turns[-1]["role"] == "assistant" \
@@ -1543,6 +1621,7 @@ class Muhawir:
                         return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
                     queries = u["queries"]
                     kind = u.get("kind", "")
+                    answer_request = u.get("answer_request") or {}
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -1573,7 +1652,8 @@ class Muhawir:
         alias = None
         if (understood and CACHE_SIZE and not previous and not feeling and not personal
                 and not classify.mentions_suicide(question)):
-            alias = (normalize(as_question(understood)), style, lang)
+            scope = json.dumps(answer_request, ensure_ascii=False, sort_keys=True) if answer_request else ""
+            alias = (normalize(as_question(understood)) + ("\nrequest:" + scope if scope else ""), style, lang)
             if alias[0]:
                 kept = self._kept(alias)
                 if kept is not None:
@@ -1583,7 +1663,7 @@ class Muhawir:
             else:
                 alias = None
         res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous,
-                        kind=kind, feeling=feeling, personal=personal)
+                        kind=kind, feeling=feeling, personal=personal, answer_request=answer_request)
         if alias is not None:
             self._keep(alias, res)
         if classify.mentions_suicide(question) and res.status == ANSWERED:
@@ -1598,7 +1678,7 @@ class Muhawir:
 
     def _ask(self, question: str, style: str, lang: str, original: str = "",
              queries: list[str] | None = None, previous: str = "", kind: str = "", feeling: str = "",
-             personal: bool = False) -> Response:
+             personal: bool = False, answer_request: dict | None = None) -> Response:
         lang = lang if lang in LANGS else "ar"
         style = style if style in STYLES else "youth"
         t = TEXT[lang]
@@ -1649,6 +1729,10 @@ class Muhawir:
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
+        if original:
+            extra["_source_question"] = original
+        if answer_request:
+            extra["answer_request"] = answer_request
         if passages:
             progress("writing")
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
@@ -1674,13 +1758,6 @@ class Muhawir:
             return self._why(self._abstain(question, t, synthetic), "search found no passage")
         kept, rejected, passages, allowed, corpus = (written.kept, written.rejected, written.passages,
                                                      written.allowed, written.corpus)
-        if contemporary:  # only what a passage says about the product asked about is quoted; the rest is not an answer
-            words = classify.product_words(f"{original} {question}")
-            if words:
-                def _names_it(c) -> bool:
-                    found = [corpus.passage(pid) for pid in c.passage_ids]
-                    return any(p is not None and classify.speaks_of(p.text, words) for p in found)
-                kept = [c for c in kept if _names_it(c)]
         offered = f"{len(passages)} passages offered"
         if not kept:
             reason = "; ".join(r.reason for r in rejected) or getattr(self.generator, "last_note", "") or "no claims"
@@ -1701,31 +1778,8 @@ class Muhawir:
         if rejected:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
-        answer = [c for c in kept if not c.school]
-        answer = [replace(c, text=_agreed_upon(c.text, {corpus.passage(pid).source_id for pid in c.passage_ids}))
-                  for c in answer]
-        answer = [replace(c, text=_saying_notice(_hadith_notice(c.text, ps), ps)) for c in answer
-                  for ps in [[corpus.passage(pid) for pid in c.passage_ids]]]
-        if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
-            answer = [c for c in answer if not classify.names_company(c.text)]
-        # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
-        answer = [c for c in answer if bayyinat.VERSE not in c.text]
-        if contemporary or personal or kind == "ruling" or feeling == "sad":  # no invented example near a ruling or grief
-            answer = [c for c in answer if not is_example(c.text)]
-        if kind not in ("ruling", "contemporary") and style != "extended" and not personal:
-            # a question on a meaning, kinds or wisdom gets what the sources agree on, not the disagreement
-            answer = [c for c in answer if not _DISAGREEMENT.search(c.text)]
-        # who said it, from the source list: «الفتوى توضح أن…» names the mufti, «وهذا ما ورد في الفتوى» goes; a ruling
-        # that names no one is credited to the sources it cites, or dropped if it cites only verses or hadith
-        answer = [replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang)) for c in answer]
-        rules = contemporary or personal or kind == "ruling"
-        answer = [replace(c, text=t) for c in answer
-                  for t in [c.text if is_example(c.text) or not (rules or attribution.prefers(c.text))
-                            else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
-        if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
-            answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
-        listing = bool(getattr(self.generator, "last_as_list", False)) or kind == "how"
-        answer = fit_style(answer, style, listing)
+        display_extra = {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}
+        answer, named, listing = self._display_claims(kept, corpus, style, lang, personal, display_extra, question)
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
                 return Response(REFERRED, t["personal_case"], synthetic=synthetic)
@@ -1736,10 +1790,6 @@ class Muhawir:
                    **({"section": c.section} if c.section else {}), **({"label": c.label} if c.label else {}),
                    **({"example": True} if is_example(c.text) else {})}
                   for c in answer]
-        named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
-                              for c in kept if c.school])
-        if style == "kids":  # the style for children names no disagreement between scholars (generate.STYLE_GUIDE)
-            named = []
         views = [{"school": c.school, "text": _strip_ids(c.text, allowed), "passage_ids": list(c.passage_ids)}
                  for c in named]
         cards = self._cards([pid for c in answer + named for pid in c.passage_ids], corpus,
@@ -1749,8 +1799,11 @@ class Muhawir:
             # «the scholars' views» only when views are shown: an agreed ruling («are the five prayers obligatory?»)
             # has no views to present
             note = t["ruling_note"] if views else t["ruling_note_agreed"]
-        if written.partial:  # said by the system: what the sources hold covers only part of the question (21 October 2026)
-            note = f"{note}\n{t['partial_note']}" if note else t["partial_note"]
+        if written.partial:
+            coverage_note = t["partial_note"]
+            if written.incomplete_parts:
+                coverage_note += " " + t["incomplete_parts"] + " " + "؛ ".join(written.incomplete_parts)
+            note = f"{note}\n{coverage_note}" if note else coverage_note
         if contemporary:  # quoted fatwas, never Muhawir's own ruling on the product; the card names who to ask
             return Response(REFERRED, t["contemporary_info"] + "\n" + t["contemporary_quoted"], claims, cards, synthetic,
                             note, views)

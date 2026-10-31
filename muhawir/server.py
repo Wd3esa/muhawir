@@ -108,6 +108,12 @@ def book_answer_styles() -> FileResponse:
     return FileResponse(ROOT / "static" / "book-answer.css", media_type="text/css")
 
 
+@app.get("/surfaces.css")
+def surface_styles() -> FileResponse:
+    """The final shared surface layer, loaded after the book layout."""
+    return FileResponse(ROOT / "static" / "surfaces.css", media_type="text/css")
+
+
 engine = build()
 
 

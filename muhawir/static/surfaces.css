@@ -1,0 +1,94 @@
+/* Final surface layer: shared by chrome, both answer layouts and source panels.
+   Keep after book-answer.css. Reading surfaces have at least 96% opacity. */
+:root {
+  --bg:#eef2ee; --panel:#fafcf8; --sidebar:#e7ede7;
+  --ink:#20372b; --muted:#495e50; --muted-soft:#53695a;
+  --accent:#285e42; --accent-ink:#ffffff; --accent-soft:#dbe9dd;
+  --line:#adbdaf; --mine:#e0ebe0; --card:var(--panel); --focus:#285e42;
+  --surface-chrome:rgba(231,237,231,.86);
+  --surface-panel:rgba(250,252,248,.90);
+  --surface-reading:rgba(250,252,248,.97);
+  --surface-question:rgba(224,235,224,.96);
+  --surface-edge:rgba(255,255,255,.9);
+  --surface-shadow:0 8px 24px rgba(29,53,38,.08),inset 0 1px 0 var(--surface-edge);
+  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(95,143,110,.18),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(159,172,129,.17),transparent 48%);
+  --book-paper:var(--panel); --book-ink:var(--ink); --book-muted:var(--muted);
+  --book-quote:var(--accent); --book-bar:#345b43; --book-tint:var(--accent-soft);
+  --book-line:var(--line); --book-white:#fff;
+}
+:root[data-theme="dark"] {
+  color-scheme:dark;
+  --bg:#0b100d; --panel:#1c2821; --sidebar:#152019;
+  --ink:#f0f5ee; --muted:#c1d1c4; --muted-soft:#b7cabc;
+  --accent:#b0e2bd; --accent-ink:#102317; --accent-soft:#2c4434;
+  --line:#607d68; --mine:#263c2d; --card:var(--panel); --focus:#c1edcc;
+  --surface-chrome:rgba(21,32,25,.90);
+  --surface-panel:rgba(28,40,33,.92);
+  --surface-reading:rgba(28,40,33,.97);
+  --surface-question:rgba(38,60,45,.97);
+  --surface-edge:rgba(212,247,221,.21);
+  --surface-shadow:0 8px 24px rgba(0,0,0,.23),inset 0 1px 0 var(--surface-edge);
+  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(107,176,129,.15),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(133,159,110,.09),transparent 48%);
+  --book-paper:var(--panel); --book-ink:var(--ink); --book-muted:var(--muted);
+  --book-quote:var(--accent); --book-bar:#3d6549; --book-tint:var(--accent-soft);
+  --book-line:var(--line); --book-white:#fff;
+}
+:root[data-answer-palette="blue"] { --book-quote:#315d76; --book-bar:#365f75; }
+:root[data-answer-palette="sepia"] { --book-quote:#72542d; --book-bar:#715536; }
+:root[data-answer-palette="plum"] { --book-quote:#704e6b; --book-bar:#704e6b; }
+:root[data-theme="dark"][data-answer-palette="blue"] { --book-quote:#b9dbf0; --book-bar:#36576a; }
+:root[data-theme="dark"][data-answer-palette="sepia"] { --book-quote:#ebd0a6; --book-bar:#675137; }
+:root[data-theme="dark"][data-answer-palette="plum"] { --book-quote:#e8c6e0; --book-bar:#63475e; }
+body,.workspace { background-color:var(--bg); background-image:var(--surface-scene); }
+.sidebar,.topbar { background:var(--sidebar); border-color:var(--line); box-shadow:inset 0 1px 0 var(--surface-edge); }
+.topbar { border-bottom:1px solid var(--line); }
+#ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options { background:var(--panel); border:1px solid var(--line); box-shadow:var(--surface-shadow); }
+.msg.book-answer:not(.pending),.msg.plain-answer:not(.pending) { background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:20px; box-shadow:var(--surface-shadow); }
+.turn-user { background:var(--mine); border:1px solid var(--line); box-shadow:inset 0 1px 0 var(--surface-edge); }
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .sidebar,.topbar { background:var(--surface-chrome); }
+  #ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options { background:var(--surface-panel); }
+  .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending) { background:var(--surface-reading); }
+  .turn-user { background:var(--surface-question); }
+  .sidebar,.topbar,#ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options,
+  .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending),.turn-user {
+    -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  }
+}
+.card,.book-answer .source-shelf .card,.msg .views,.verify-card { background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.card blockquote,.verify-passage { background:transparent; }
+.book-answer .card summary,.book-answer .card[open] summary,.book-answer .card summary:hover { color:var(--book-quote); }
+.book-answer .card blockquote:not(.translation),.book-answer .source-quote,.book-answer .cite a { color:var(--book-quote); }
+.book-answer .note,.book-answer .card .about,.book-answer .card .meta,.msg .tools .action-btn { color:var(--muted); }
+.msg .tools { flex-wrap:wrap; gap:3px; overflow:visible; border-color:var(--line); padding-top:8px; }
+.msg .tools .action-btn { flex:0 0 44px; width:44px; min-width:44px; height:44px; border-radius:12px; background:color-mix(in srgb,var(--panel) 72%,var(--accent-soft)); }
+.msg .tools .listen-group,.msg .tools .listen-controls { width:44px; }
+.msg .tools .sources-chip { flex-basis:52px; width:52px; min-width:52px; }
+.msg .tools .action-btn:hover,.msg .tools .action-btn[aria-pressed="true"] { background:var(--accent-soft); color:var(--ink); }
+.topbar .icon-button { width:44px; height:44px; color:var(--ink); background:var(--panel); border:1px solid var(--line); }
+#ask .mic,#ask .stop-request { color:var(--ink); background:var(--accent-soft); }
+#ask:focus-within { border-color:var(--focus); box-shadow:var(--surface-shadow),0 0 0 2px color-mix(in srgb,var(--focus) 24%,transparent); }
+#q::placeholder,.history-search input::placeholder { color:var(--muted); opacity:1; }
+.disclaimer { font-size:13px; line-height:1.7; color:var(--muted); }
+@media(max-width:620px) { .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending) { border-radius:17px; } }
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more) {
+  body,.workspace { background-image:none; }
+  .sidebar,.topbar { background:var(--sidebar); }
+  #ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options,
+  .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending) { background:var(--panel); }
+  .turn-user { background:var(--mine); }
+  .sidebar,.topbar,#ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options,
+  .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending),.turn-user {
+    -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none;
+  }
+}
+@media(forced-colors:active) {
+  body,.workspace { background:Canvas; color:CanvasText; }
+  .sidebar,.topbar,#ask,.pop-panel,.pop-list,.msg .tools .more-menu,.explanation-options,
+  .msg.book-answer:not(.pending),.msg.plain-answer:not(.pending),.turn-user,.card,.msg .views,.verify-card {
+    background:Canvas; color:CanvasText; border:1px solid CanvasText; -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none;
+  }
+  .msg .tools .action-btn,.book-answer .source-quote,.book-answer .cite a { color:LinkText; background:Canvas; }
+}
+
+:root[data-theme="dark"][data-answer-palette] { --book-paper:var(--panel); --book-ink:var(--ink); --book-muted:var(--muted); --book-tint:var(--accent-soft); --book-line:var(--line); }

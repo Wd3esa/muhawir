@@ -45,7 +45,9 @@ TEXT = {
         "override_attempt": "لا أستطيع تغيير طريقتي: أجيب من المصادر المعتمدة فقط ولا أفتي برأيي. "
                             "إن كان لديك سؤال، فاكتبه وسأبحث عنه في المصادر، أو اسأل مختصًا.",
         "reexplain_lead": "لا بأس، سأشرح لك الجواب نفسه بطريقة أبسط:",
-        "partial_note": "المصادر الموجودة تغطي بعض الكلمات",
+        "incomplete_parts": "المطلوب الذي لم يكتمل:",
+        "requested_text_unavailable": "لم أتمكن من عرض النص المطلوب والتحقق من مطابقته للمصدر هذه المرة.",
+        "partial_note": "لم يكتمل الجواب عن جميع أجزاء السؤال.",
         "ruling_note": "هذا عرض لأقوال العلماء كما وردت في المصدر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
         "ruling_note_agreed": "هذا ما ورد في المصادر، وليس فتوى. وللعمل بمسألة تخصك اسأل مختصًا في العلم الشرعي.",
         "choose_lang": "يجيب مُحاور حاليًا بالعربية والإنجليزية والأردية فقط. بأي لغة تريد الجواب؟",
@@ -104,7 +106,9 @@ TEXT = {
                             "give fatwas of my own. Ask your question and I will look for it in the "
                             "sources, or ask a qualified scholar.",
         "reexplain_lead": "No problem, I will explain the same answer again, more simply:",
-        "partial_note": "The available sources cover some of the words",
+        "incomplete_parts": "Unanswered requirement:",
+        "requested_text_unavailable": "I could not provide and verify the requested original text this time.",
+        "partial_note": "This answer does not fully address every part of the question.",
         "ruling_note": "This presents the scholars' views as the source states them; it is not a fatwa. "
                        "For a matter that concerns you, ask a qualified scholar.",
         "ruling_note_agreed": "This is what the sources state; it is not a fatwa. "
@@ -163,7 +167,9 @@ TEXT = {
         "override_attempt": "میں اپنا طریقہ نہیں بدل سکتا: میں صرف معتبر مصادر سے جواب دیتا ہوں اور اپنی رائے سے فتویٰ نہیں دیتا۔ "
                             "اپنا سوال لکھیے، میں اسے مصادر میں تلاش کروں گا، یا کسی مستند عالم سے پوچھیں۔",
         "reexplain_lead": "کوئی بات نہیں، میں وہی جواب آسان انداز میں دوبارہ سمجھاتا ہوں:",
-        "partial_note": "دستیاب مصادر کچھ الفاظ کا احاطہ کرتے ہیں",
+        "incomplete_parts": "سوال کا نامکمل حصہ:",
+        "requested_text_unavailable": "اس بار مطلوبہ اصل متن پیش کر کے مصدر سے اس کی مطابقت کی تصدیق نہیں ہو سکی۔",
+        "partial_note": "جواب میں سوال کے تمام حصوں کا احاطہ نہیں ہو سکا۔",
         "ruling_note": "یہ علما کے اقوال کا بیان ہے جیسے مصدر میں آئے ہیں، فتویٰ نہیں۔ اپنے کسی معاملے پر عمل کے لیے کسی مستند عالم سے پوچھیں۔",
         "ruling_note_agreed": "یہ وہ ہے جو مصادر میں آیا ہے، فتویٰ نہیں۔ اپنے کسی معاملے پر عمل کے لیے کسی مستند عالم سے پوچھیں۔",
         "choose_lang": "محاور فی الحال صرف عربی، انگریزی اور اردو میں جواب دیتا ہے۔ آپ کس زبان میں جواب چاہتے ہیں؟",
