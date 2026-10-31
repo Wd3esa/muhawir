@@ -71,6 +71,30 @@ def test_acceptance_requires_complete_decisions_and_real_witnesses_in_one_call()
     assert seen == [joint.REVIEW_PROMPT]
 
 
+def test_model_receives_the_actual_output_contract_even_with_a_json_object_transport():
+    claims, corpus, ids = context()
+    def call(system, user, schema):
+        body = json.loads(user)
+        assert body["response_schema"] == schema == joint.REVIEW_SCHEMA
+        assert "dropped_condition" in body["response_schema"]["properties"]["claims"]["items"][
+            "properties"]["findings"]["items"]["properties"]["code"]["enum"]
+        return joint.Completion(json.dumps(positive(joint.ReviewRequest(user))), "stop")
+    out = joint.evaluate("Sample?", claims, corpus, ids, call)
+    assert out.status == "accepted_for_evaluation" and out.attempts == 1
+
+
+def test_misnested_rejection_remains_unavailable_instead_of_being_silently_repaired():
+    request = request_for()
+    data = negative(request)
+    data["claims"][0]["units"] = [{
+        "text": "The sample rule applies only to blue boxes.",
+        "evidence": [{"passage_id": "p1", "quote": "only to blue boxes", "reason": "Condition."}],
+        "findings": [{"code": "condition_omitted", "detail": "A condition was omitted."}],
+    }]
+    with pytest.raises(ValueError):
+        joint.parse_review(json.dumps(data), request)
+
+
 @pytest.mark.parametrize("code", joint.PROBLEMS)
 def test_explicit_defect_is_never_outvoted_or_silently_deleted(code):
     claims, corpus, ids = context()
@@ -197,6 +221,8 @@ def test_repair_is_local_then_entire_new_draft_is_reverified():
         seen.append(system)
         if system == joint.REPAIR_PROMPT:
             data = json.loads(user)
+            assert data["response_schema"] == schema == joint.REPAIR_SCHEMA
+            assert data["input_sha256"] == data["input"]["input_sha256"]
             assert data["editable_ids"] == ["c001"]
             replacement = dict(data["input"]["claims"][0])
             replacement.pop("id")
