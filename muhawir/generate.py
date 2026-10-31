@@ -356,6 +356,9 @@ TRANSLATE_SCHEMA = {
 }
 
 CHECK_PROMPT = """أمامك جمل كتبها مساعد، ومع كل جملة المقاطع التي استند إليها. مهمتك مراجعة صارمة: هل تقول الجملة ما في مقاطعها، لا أكثر منه ولا غيره؟
+بيان المقطع بين القوسين بيانات مصدر موثقة كالمعطاة للكاتب: يُستعمل لإثبات اسم صاحب الفتوى ونوع النص وموضعه ودرجة الرواية إن ذكرت.
+لا تعدّ اسم صاحب الفتوى زيادة لمجرد غيابه من متن فتواه إذا أثبته بيان مصدرها. أما تفاصيل القول وشواهده فتراجع من المتن نفسه.
+لا تجعل عنوانًا أو اسم مؤلف سندًا لحكم أو واقعة لم ترد في المتن، ولا تنسب كل قول ينقله كتاب إلى مؤلفه.
 لكل جملة، بالترتيب:
 0. on_topic: إن ذُكر في أول الرسالة «السؤال الذي يجيب عنه المساعد» فهل يتناول المقطع المذكور مع الجملة المسألة المحددة التي يسأل عنها هذا السؤال،
    أي هل هو جوابها أو أصل من أصول جوابها أو دليل عليها؟ وكل اسم محدد في السؤال (عبادة أو واقعة أو شخص) ينبغي أن يتناوله المقطع.
@@ -612,16 +615,25 @@ LANG_GUIDE = {
 }
 
 
+def _passage_block(p: Passage) -> str:
+    """The same catalog-backed caption for the writer and the support reader.
+
+    Metadata does not become source text: _has_evidence still checks witnesses
+    against Passage.text, not this caption.
+    """
+    grade = f" — حكم المحدث: {p.grade}" if p.grade else ""
+    who = attribution.label(p.source_id)
+    who = f" — {who}" if who else ""
+    return f"[{p.id}] ({KIND_AR.get(p.kind, 'نص')}{who} — {p.location}{grade})\n{p.text}"
+
+
 def build_user_prompt(question: str, passages: list[Passage], style: str, lang: str,
                       personal: bool, feedback: str = "", previous: str = "", kind: str = "",
                       feeling: str = "") -> str:
     """Build the message sent to the model: the numbered passages with their kind, source, location and grade, the approved translations when the language needs them, then the question and the instructions."""
     lines = ["المقاطع:"]
     for p in passages:
-        grade = f" — حكم المحدث: {p.grade}" if p.grade else ""
-        who = attribution.label(p.source_id)  # whose fatwa or book it is, from the source list
-        who = f" — {who}" if who else ""
-        lines.append(f"[{p.id}] ({KIND_AR.get(p.kind, 'نص')}{who} — {p.location}{grade})\n{p.text}")
+        lines.append(_passage_block(p))
         if lang == "en" and p.translation:
             lines.append(f"الترجمة الإنجليزية المعتمدة لهذه الآية (الهلالي ومحسن خان، مجمع الملك فهد): \"{p.translation}\"")
         elif lang == "ur" and p.translation:
@@ -1111,7 +1123,7 @@ class ModelGenerator:
         """(verdicts, why each rejected sentence was rejected) for these sentences, or None if unusable."""
         blocks = []
         for n, c in enumerate(claims, 1):
-            cited = "\n".join(f"[{pid}] {passages[pid].text}" for pid in c.passage_ids if pid in passages)
+            cited = "\n".join(_passage_block(passages[pid]) for pid in c.passage_ids if pid in passages)
             blocks.append(f"الجملة {n}: <<<{displayed_claim(c)}>>>\nالمقاطع:\n{cited}")
         user = "\n\n".join(blocks)
         if question:
