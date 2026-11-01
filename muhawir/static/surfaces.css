@@ -135,9 +135,9 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 
 /* Text size (November 2026): one control in the top bar enlarges Muhawir's answers only. */
 #thread > .msg { zoom:var(--text-zoom,1); }
-.text-size-pop { margin-inline-start:auto; }
-.text-size-pop + .lang-pop { margin-inline-start:-8px; }
-.text-size-pop .text-size-panel { inset-inline-end:0; display:flex; align-items:center; gap:4px; min-width:0; padding:6px; border-radius:14px; }
+.text-size-pop { margin-inline-start:0; }
+
+.text-size-pop .text-size-panel { inset-inline-start:0; inset-inline-end:auto; top:auto; bottom:calc(100% + 8px); display:flex; align-items:center; gap:4px; min-width:0; padding:6px; border-radius:14px; }
 .text-size-panel[hidden] { display:none !important; }
 .text-size-step { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--ink); cursor:pointer; }
 .text-size-step svg { width:20px; height:20px; }
