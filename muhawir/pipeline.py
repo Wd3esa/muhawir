@@ -370,6 +370,8 @@ _LOOSE_ID = re.compile(
     rf"\s*[\[(]?(?<![\w:])(?:[a-z]\d*|[فتبمأ]\d*|ق\d*(?={_NUMBERS}{_NUMBERS})){_NUMBERS}{{1,5}}(?![\w:])[\])]?")
 # the number of a hadith or a page written in the text: «رقم 7296», «برقم 7296»
 _NUMBER_OF = re.compile(r"\s*(?<!\w)ب?رقم\s*:?\s*[0-9٠-٩]+(?:\.[0-9٠-٩]+)?")
+# «الآية رقم 120», «سورة رقم 20»: the number IS the answer to «في أي آية؟», not a source number to remove
+_NUMBERS_ASKED = ("الآية", "آية", "الأية", "الآيات", "سورة", "السورة", "الاية")
 _EMPTY_BRACKETS = re.compile(r"\s*[\[(]\s*[\])]")
 
 
@@ -644,7 +646,8 @@ def _strip_ids(text: str, ids: set[str]) -> str:
     for pid in sorted(ids, key=len, reverse=True):
         text = re.sub(rf"\s*[\[(]?(?<![\w:]){re.escape(pid)}(?![\w:])[\])]?", "", text)
     text = _LOOSE_ID.sub("", text)
-    text = _EMPTY_BRACKETS.sub("", _NUMBER_OF.sub("", text))
+    text = _EMPTY_BRACKETS.sub("", _NUMBER_OF.sub(
+        lambda m: m.group(0) if text[:m.start()].rstrip().endswith(_NUMBERS_ASKED) else "", text))
     if text.count("(") > text.count(")"):  # a reference cut off in the middle, e.g. «(تفسير.»
         text = re.sub(r"\s*\([^()]*$", "", text).rstrip(" ،,:") + "."
     return re.sub(r"\s+([.،,؛])", r"\1", text).strip()
@@ -1637,6 +1640,8 @@ class Muhawir:
                         after = any(t["role"] == "assistant" for t in turns)
                         reply = "no_question_after_answer" if after else "no_question"
                         return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
+                    if u.get("reexplain") and lexical.asks_new_word(question, " ".join(t["text"] for t in turns)):
+                        u = {**u, "reexplain": False}  # a new word is asked: not «I did not understand»
                     if lexical.loses_asked_word(question, [u["question"], *(u["queries"] or [])],
                                                 getattr(self.retriever, "df", None)):
                         u = {**u, "question": question, "queries": []}  # the rewrite lost the word asked about

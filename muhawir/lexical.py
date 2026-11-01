@@ -192,3 +192,23 @@ def loses_asked_word(user_text: str, rewritten: list[str], df: Callable[[str], i
     if df is None:
         return False
     return any(not ok and (tokens := tokenize(t)) and df(tokens[0]) <= RARE_DF for t, ok in zip(terms, kept))
+
+
+# «meaning of»: the words that make a message a question about a word (not «explain», which also asks to re-explain)
+MEANING_WORDS = frozenset(normalize(w) for w in "معنى معاني المعنى معنا معناه معناها بمعنى يعني تعني المقصود مقصود المراد مراد".split())
+
+# words of a message about «the answer / this text» that are not a new word to ask about (incl. dialect «what»)
+_DEICTIC = frozenset(normalize(w) for w in
+                     "الكلام كلام الجواب جواب الاجابه الإجابة الاية الآية السابق السابقه اعلاه ايش إيش شو وش ايه شنو ليش كلمه كلمة هذا بهذا هذه بهذه ذلك بذلك هذي هاد هادا".split())
+
+
+def asks_new_word(message: str, history: str) -> bool:
+    """A question about the meaning of a word that the conversation has not used yet.
+
+    «معنى الفو ابائهم» came after an answer about «شجرة الخلد», and the model took it for «I did not understand»
+    (re-explain the last answer more simply). A request to explain again names nothing new; a question about the
+    meaning of a word that is not in the conversation is a new question, whatever the model flagged."""
+    if not any(w in MEANING_WORDS for w in normalize(message).split()):
+        return False
+    heard = set(normalize(history).split())
+    return any(not supports(t, heard) for t in raw_terms(message) if t not in _DEICTIC)

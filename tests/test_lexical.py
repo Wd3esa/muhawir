@@ -124,3 +124,19 @@ def test_whole_pipeline_with_a_model_that_rewrites_the_asked_word(retriever):
     shown = " ".join(c["text"] for c in res.claims)
     assert "ألفيت: وجدت" in shown          # the entry of «لفى»
     assert "المأوى" not in shown            # not the entry of «أوى»
+
+
+def test_asks_new_word_separates_a_new_word_from_a_request_to_explain_again():
+    from muhawir.lexical import asks_new_word
+    hist = "شجرة الخلد وملك لا يبلى. سياق الآية: هذه الآية تحكي وسوسة الشيطان لآدم"
+    for msg in ("معنى الفو ابائهم", "ما معنى ألفوا آباءهم", "ما المقصود بكلمة ألفوا"):
+        assert asks_new_word(msg, hist), msg
+    for msg in ("لم أفهم", "اشرح لي بطريقة أبسط", "ما معنى هذا الكلام؟", "ما معنى شجرة الخلد؟",
+                "ايش يعني هذا؟", "شو المقصود بهذا", "ما المراد بهذا الكلام"):
+        assert not asks_new_word(msg, hist), msg
+
+
+def test_strip_ids_keeps_verse_numbers_but_drops_hadith_numbers():
+    from muhawir.pipeline import _strip_ids
+    assert "٣٥" in _strip_ids("سورة البقرة، الآية رقم ٣٥", set())
+    assert "7296" not in _strip_ids("رواه البخاري برقم 7296", set())

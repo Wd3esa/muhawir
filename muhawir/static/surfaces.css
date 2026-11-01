@@ -103,17 +103,17 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .msg.plain-answer:not(.pending) { padding:0; margin-top:4px; background:none; border:0; border-radius:0; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; font-size:17px; line-height:1.85; }
 .plain-answer .answer-heading { display:none; }
 .plain-answer .answer { line-height:1.85; }
-.plain-answer .cite a { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-inline-start:2px; padding:0 4px; border-radius:9px; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:600; line-height:1; text-decoration:none; vertical-align:2px; }
+.plain-answer .cite a { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; margin-inline-start:2px; padding:0 5px; border-radius:10px; background:var(--accent); color:var(--accent-ink); font-size:12px; font-weight:700; line-height:1; text-decoration:none; vertical-align:2px; }
 .plain-answer .tools { flex-wrap:nowrap; gap:0; margin-top:8px; padding-top:0; border-top:0; overflow-x:auto; }
 .plain-answer .tools .action-btn { flex:0 0 40px; width:40px; min-width:40px; background:transparent; border:0; border-radius:10px; }
 .plain-answer .tools .sources-chip { flex:0 0 auto; width:auto; min-width:44px; padding:0 10px; margin-inline-end:4px; gap:4px; color:var(--ink); font-weight:600; }
 .plain-answer .tools .sources-chip[aria-expanded="true"] { background:var(--accent-soft); color:var(--accent); }
 .plain-answer .source-panel { margin:6px 0 2px; }
 .plain-answer .source-shelf { display:flex; gap:8px; margin:0 -2px; padding:2px 2px 8px; overflow-x:auto; border:0; scroll-snap-type:x proximity; animation:answer-sources-in .3s ease-out both; }
-.plain-answer .source-shelf .card { flex:0 0 min(270px,82%); scroll-snap-align:start; display:flex; flex-direction:column; gap:6px; padding:12px; border-radius:16px; background:var(--panel); border:1px solid var(--line); box-shadow:none; }
+.plain-answer .source-shelf .card { flex:0 0 min(270px,82%); max-height:min(26rem,62vh); overflow-y:auto; overscroll-behavior-y:auto; scroll-snap-align:start; display:flex; flex-direction:column; gap:6px; padding:12px; border-radius:16px; background:var(--panel); border:1px solid var(--line); box-shadow:none; }
 .plain-answer .card summary,.plain-answer .card[open] summary,.plain-answer .card summary:hover { text-shadow:none; min-height:0; display:flex; justify-content:flex-start; gap:6px; padding:0; border-radius:0; background:none; color:var(--muted); box-shadow:none; transform:none; font-size:12.5px; font-weight:500; }
 .plain-answer .card summary::before,.plain-answer .card summary::after { content:none; }
-.plain-answer .card summary .num { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:9px; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:600; font-family:inherit; }
+.plain-answer .card summary .num { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:10px; background:var(--accent); color:var(--accent-ink); font-size:12px; font-weight:700; font-family:inherit; }
 .plain-answer .card summary .book-title { text-shadow:none; max-width:none; font-size:12.5px; font-weight:500; color:var(--muted); }
 .plain-answer .card blockquote:not(.translation) { margin:4px 0 0; padding:0; border:0; font-family:"Muhawir Book",Amiri,serif; font-size:16px; line-height:1.8; color:var(--ink); }
 .plain-answer .card .about,.plain-answer .card .meta { font-size:12px; color:var(--muted); }
