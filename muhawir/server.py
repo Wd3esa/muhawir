@@ -627,3 +627,10 @@ def _mcp_ask(question: str, style: str, lang: str) -> dict:
 _mcp = mcp_server.build(engine, _mcp_ask)
 if _mcp is not None:
     mcp_server.mount(app, _mcp)
+
+
+@app.get("/api/mcp")
+def mcp_status() -> dict:
+    """For the page's «ربط مع مساعد آخر»: whether /mcp is served here, and whether ask_muhawir is offered."""
+    return {"enabled": _mcp is not None, "ask": _mcp is not None and mcp_server.ASK_ALLOWED,
+            "ask_needs_token": not mcp_server.ASK_OPEN}

@@ -1,21 +1,23 @@
 """Muhawir over MCP (November 2026): other AI assistants and models (Claude, ChatGPT, a local model…) can use
 Muhawir's indexed sources through the Model Context Protocol, with their own model writing the answer.
 
-Off unless MUHAWIR_MCP=1. Served at /mcp (streamable HTTP, stateless). Four tools:
+On unless MUHAWIR_MCP=0. Served at /mcp (streamable HTTP, stateless). Four tools:
 
 - search_sources   find passages for a question or phrase (no model call, no cost)
 - read_passage     one passage in full, with the passages before and after it in its book (no model call)
 - find_quote       where a quotation is in the sources, word for word or close (no model call)
 - ask_muhawir      Muhawir's own checked answer (uses Muhawir's model: an answer slot and the question budget)
 
-Set MUHAWIR_MCP_TOKEN to require «Authorization: Bearer <token>» on every request; without it anyone who knows the
-address can use the free tools, and ask_muhawir only if MUHAWIR_MCP_ASK=1. MUHAWIR_MCP_PER_MINUTE limits all tool
-calls together (default 120).
+The three free tools are open to anyone with the address (the page's «ربط مع مساعد آخر» shows it). ask_muhawir spends
+the model's credit, so it is offered only when MUHAWIR_MCP_TOKEN is set, and then answers only a request that carries
+«Authorization: Bearer <token>» (or to anyone, with MUHAWIR_MCP_ASK=1, not advised on a public address).
+MUHAWIR_MCP_PER_MINUTE limits all tool calls together (default 120).
 """
 from __future__ import annotations
 
 import collections
 import contextlib
+import contextvars
 import hmac
 import logging
 import os
@@ -29,9 +31,11 @@ from . import bayyinat, quote_check
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
-ENABLED = os.environ.get("MUHAWIR_MCP", "") == "1"
+ENABLED = os.environ.get("MUHAWIR_MCP", "1") != "0"
 TOKEN = os.environ.get("MUHAWIR_MCP_TOKEN", "")
-ASK_ALLOWED = bool(TOKEN) or os.environ.get("MUHAWIR_MCP_ASK", "") == "1"
+ASK_OPEN = os.environ.get("MUHAWIR_MCP_ASK", "") == "1"  # ask_muhawir without a token: not advised on a public address
+ASK_ALLOWED = bool(TOKEN) or ASK_OPEN
+_authorized: contextvars.ContextVar[bool] = contextvars.ContextVar("muhawir_mcp_authorized", default=False)
 PER_MINUTE = max(1, int(os.environ.get("MUHAWIR_MCP_PER_MINUTE", "120")))
 MAX_RESULTS = 12
 MAX_TEXT = 1500  # characters of a passage in a search result; read_passage gives the whole passage
@@ -149,6 +153,9 @@ def build(engine, run_ask: Callable[[str, str, str], dict]):
                                  "its sources. Slower (15–40 s) and limited. style: kids, youth, extended or newcomer; "
                                  "lang: ar, en or ur.")
         async def ask_muhawir(question: str, style: str = "youth", lang: str = "ar") -> dict:
+            if not (ASK_OPEN or _authorized.get()):
+                raise ValueError("ask_muhawir needs the access token from the site's owner "
+                                 "(Authorization: Bearer …). The other tools are open.")
             spend()
             question = question.strip()[:500]
             if not question:
@@ -173,8 +180,8 @@ def mount(app, server) -> None:
     sub = server.streamable_http_app(streamable_http_path="/mcp", stateless_http=True, json_response=True,
                                      transport_security=security)
     for route in sub.routes:
-        if getattr(route, "path", "") == "/mcp" and TOKEN:
-            route.app = _guarded(route.app)
+        if getattr(route, "path", "") == "/mcp":
+            route.app = _marked(route.app)
         app.router.routes.append(route)
     previous = app.router.lifespan_context
 
@@ -186,17 +193,13 @@ def mount(app, server) -> None:
     app.router.lifespan_context = lifespan
 
 
-def _guarded(inner):
-    """Refuse a request without «Authorization: Bearer MUHAWIR_MCP_TOKEN»."""
-    expected = f"Bearer {TOKEN}".encode()
-
-    async def guarded(scope, receive, send):
-        if scope["type"] == "http":
-            given = dict(scope.get("headers") or []).get(b"authorization", b"")
-            if not hmac.compare_digest(given, expected):
-                await send({"type": "http.response.start", "status": 401,
-                            "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
-                await send({"type": "http.response.body", "body": b'{"error":"unauthorized"}'})
-                return
-        await inner(scope, receive, send)
-    return guarded
+def _marked(inner):
+    """Note whether the request carries «Authorization: Bearer MUHAWIR_MCP_TOKEN»; only ask_muhawir needs it."""
+    async def marked(scope, receive, send):
+        given = dict(scope.get("headers") or []).get(b"authorization", b"") if scope["type"] == "http" else b""
+        token = _authorized.set(bool(TOKEN) and hmac.compare_digest(given, f"Bearer {TOKEN}".encode()))
+        try:
+            await inner(scope, receive, send)
+        finally:
+            _authorized.reset(token)
+    return marked

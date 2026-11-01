@@ -16,6 +16,7 @@ def _client(monkeypatch, token="", ask=False, per_minute=120, asked=None):
     monkeypatch.setattr(mcp_server, "ENABLED", True)
     monkeypatch.setattr(mcp_server, "TOKEN", token)
     monkeypatch.setattr(mcp_server, "ASK_ALLOWED", bool(token) or ask)
+    monkeypatch.setattr(mcp_server, "ASK_OPEN", ask)
     monkeypatch.setattr(mcp_server, "PER_MINUTE", per_minute)
     run_ask = lambda q, s, l: (asked.append((q, s, l)) if asked is not None else None) or {  # noqa: E731
         "status": "answered", "message": "", "claims": [], "sources": [], "debug_only": "x"}
@@ -37,7 +38,7 @@ def _call(client, method, params=None, headers=HEADERS, id=2):
     return client.post("/mcp", headers=headers, json={"jsonrpc": "2.0", "id": id, "method": method, "params": params or {}})
 
 
-def test_mcp_is_off_unless_switched_on(monkeypatch):
+def test_mcp_can_be_switched_off(monkeypatch):
     from muhawir import server
     monkeypatch.setattr(mcp_server, "ENABLED", False)
     assert mcp_server.build(server.engine, lambda *a: {}) is None
@@ -56,14 +57,18 @@ def test_the_free_tools_work_and_asking_muhawir_needs_a_token_or_a_switch(monkey
         assert passage["before"]["passage_id"] == "test-a:1" and passage["text"].startswith("يظهر القمر")
 
 
-def test_a_token_guards_every_request_and_opens_ask_muhawir(monkeypatch):
+def test_the_token_opens_only_ask_muhawir_and_the_free_tools_stay_open(monkeypatch):
     asked = []
     with _client(monkeypatch, token="s3cret", asked=asked) as client:
-        assert client.post("/mcp", headers=HEADERS, json=INIT).status_code == 401
-        assert client.post("/mcp", headers={**HEADERS, "Authorization": "Bearer wrong"}, json=INIT).status_code == 401
+        assert client.post("/mcp", headers=HEADERS, json=INIT).status_code == 200
+        names = [t["name"] for t in _call(client, "tools/list").json()["result"]["tools"]]
+        assert "ask_muhawir" in names and "search_sources" in names
+        found = _call(client, "tools/call", {"name": "search_sources", "arguments": {"query": "النخلة"}})
+        assert not found.json()["result"]["isError"]
+        refused = _call(client, "tools/call", {"name": "ask_muhawir", "arguments": {"question": "سؤال"}},
+                        headers={**HEADERS, "Authorization": "Bearer wrong"})
+        assert refused.json()["result"]["isError"] and not asked
         auth = {**HEADERS, "Authorization": "Bearer s3cret"}
-        names = [t["name"] for t in _call(client, "tools/list", headers=auth).json()["result"]["tools"]]
-        assert "ask_muhawir" in names
         reply = _call(client, "tools/call", {"name": "ask_muhawir",
                                              "arguments": {"question": "سؤال", "style": "bad", "lang": "xx"}}, headers=auth)
         answer = _payload(reply)
