@@ -171,3 +171,24 @@ def keeps(passage, user_text: str, df: Callable[[str], int] | None = None, **kw)
     # expanded phrase can bring an entry about another word («أوى» for «ألفوا»), which holds none of them
     words = set(normalize(passage.text).split())
     return any(supports(t, words, passage.keywords, **kw) for t in terms)
+
+
+def loses_asked_word(user_text: str, rewritten: list[str], df: Callable[[str], int] | None = None) -> bool:
+    """A question about a word's meaning whose model rewrite lost the word asked about.
+
+    «ما معنى ألفوا» was rewritten around «أوى», and every search after it was about «أوى». For a question about a
+    meaning the word asked IS the question, so a rewrite is not trusted when it holds none of the user's words (as
+    written, or within a spelling correction), or drops a rare one: the pipeline then searches and answers the user's
+    own words. Other questions keep their rewrite: there, putting a dialect word into plain words is the point."""
+    if not is_meaning_question(user_text):
+        return False
+    terms = raw_terms(user_text)
+    if not terms:
+        return False
+    words = set(normalize(" ".join(rewritten)).split())
+    kept = [supports(t, words) for t in terms]
+    if not any(kept):
+        return True
+    if df is None:
+        return False
+    return any(not ok and (tokens := tokenize(t)) and df(tokens[0]) <= RARE_DF for t, ok in zip(terms, kept))

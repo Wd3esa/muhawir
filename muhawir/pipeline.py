@@ -1637,6 +1637,9 @@ class Muhawir:
                         after = any(t["role"] == "assistant" for t in turns)
                         reply = "no_question_after_answer" if after else "no_question"
                         return Response(CHAT, TEXT[lang_ok][reply], synthetic=self.corpus.synthetic)
+                    if lexical.loses_asked_word(question, [u["question"], *(u["queries"] or [])],
+                                                getattr(self.retriever, "df", None)):
+                        u = {**u, "question": question, "queries": []}  # the rewrite lost the word asked about
                     queries = u["queries"]
                     kind = u.get("kind", "")
                     answer_request = u.get("answer_request") or {}

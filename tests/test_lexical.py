@@ -95,3 +95,32 @@ def test_pipeline_judges_the_users_words_not_the_models_rewrite(retriever):
     roots = [p.keywords for p in passages]
     assert "لفى" in roots
     assert "أوى" not in roots
+
+
+def test_a_rewrite_that_lost_the_word_asked_is_not_trusted(retriever):
+    user = "ما معنى الفوا اباءهم"
+    assert lexical.loses_asked_word(user, ["ما معنى أوى إلى في اللغة", "معنى أوى إلى"], retriever.df)
+    assert not lexical.loses_asked_word(user, ["ما معنى ألفوا آباءهم"], retriever.df)     # the same words
+    assert not lexical.loses_asked_word("ما معنى الصرات", ["ما معنى الصراط"], retriever.df)  # a spelling correction
+    # not a question about a meaning: the rewrite is the point of the understanding step (a dialect word in plain words)
+    assert not lexical.loses_asked_word("ايش حكم البيتكوين", ["ما حكم العملات الرقمية"], retriever.df)
+
+
+def test_whole_pipeline_with_a_model_that_rewrites_the_asked_word(retriever):
+    """The live path (a model that writes, `_gather`), not the offline one: the model rewrote «ألفوا» into «أوى»."""
+    from muhawir.generate import ExtractiveGenerator
+    from muhawir.pipeline import Muhawir
+
+    class Drifting(ExtractiveGenerator):
+        strict_retrieval = False
+
+        def understand(self, message, history):
+            return {"question": "ما معنى أوى إلى في اللغة", "queries": ["معنى أوى إلى"], "lang": "", "translate": "",
+                    "answer_request": {}, "reexplain": False, "kind": "", "feeling": "", "personal": False,
+                    "unsure": False}
+
+    engine = Muhawir(retriever.corpus, Drifting(), retriever)
+    res = engine.ask("ما معنى ألفوا آباءهم")
+    shown = " ".join(c["text"] for c in res.claims)
+    assert "ألفيت: وجدت" in shown          # the entry of «لفى»
+    assert "المأوى" not in shown            # not the entry of «أوى»
