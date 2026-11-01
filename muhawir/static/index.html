@@ -1782,10 +1782,12 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 .workspace:has(#thread > .empty-state) { background:var(--home-star),var(--home-light); }
 .workspace:has(#thread > .empty-state) .topbar { background:var(--home-glass); border-bottom-color:transparent; -webkit-backdrop-filter:blur(18px) saturate(1.4); backdrop-filter:blur(18px) saturate(1.4); }
 .workspace:has(#thread > .empty-state) #ask { background:var(--home-glass); border-color:rgba(255,255,255,.6); -webkit-backdrop-filter:blur(18px) saturate(1.4); backdrop-filter:blur(18px) saturate(1.4); }
-.home-hero { position:relative; display:flex; flex-direction:column; align-items:center; }
+.home-hero { --wm:200px; position:relative; display:flex; flex-direction:column; align-items:center; padding-bottom:40px; }
+.home-hero .welcome-wordmark { width:var(--wm); }
 .home-glow { position:absolute; left:50%; bottom:30px; width:300px; height:250px; margin-left:-150px; border-radius:50%; background:radial-gradient(ellipse 50% 58% at 50% 100%,var(--home-glow),color-mix(in srgb,var(--accent) 28%,transparent) 40%,transparent 75%); filter:blur(6px); transform-origin:50% 100%; pointer-events:none; animation:home-glow 1.3s ease-out 1s both; }
 .empty-state .welcome-wordmark { transform-origin:50% 100%; animation:home-rise 1.1s cubic-bezier(.2,.8,.2,1) 1.15s both; }
-.home-book { position:relative; width:150px; height:auto; margin-top:10px; overflow:visible; transform-origin:50% 100%; animation:home-book-in .5s ease-out both; }
+/* A small book under the name; once the name has risen from it, it settles above the ر. */
+.home-book { position:absolute; left:50%; bottom:0; width:64px; height:auto; margin-left:-32px; overflow:visible; transform-origin:50% 100%; --perch-x:calc(var(--wm) * -.343); --perch-y:calc(var(--wm) * -.231 - 44px); animation:home-book-in .5s ease-out both, home-perch .7s cubic-bezier(.4,0,.2,1) 2.35s both; }
 .home-book-cover { fill:var(--accent); }
 .home-book-ribbon { fill:var(--gold); }
 .home-book-turn { transform-box:fill-box; transform-origin:100% 50%; animation:home-turn .8s cubic-bezier(.45,.05,.35,1) .45s both; }
@@ -1795,14 +1797,17 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @keyframes home-turn { 0% { transform:scaleX(1); } 45% { transform:translateY(-5px) scaleX(.2) skewY(-10deg); } 100% { transform:scaleX(-1); } }
 @keyframes home-glow { 0% { opacity:0; transform:scaleY(.25) scaleX(.6); } 50% { opacity:1; } 100% { opacity:.7; transform:none; } }
 @keyframes home-rise { 0% { opacity:0; transform:translateY(96px) scale(.08); filter:blur(4px); } 30% { opacity:1; } 100% { opacity:1; transform:none; filter:blur(0); } }
+@keyframes home-perch { from { translate:0 0; scale:1; } to { translate:var(--perch-x) var(--perch-y); scale:.75; } }
 @keyframes home-fade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 .empty-state.is-still .home-glow,.empty-state.is-still .welcome-wordmark,.empty-state.is-still .home-book,.empty-state.is-still .welcome-description { animation:none; }
 .empty-state.is-still .home-book-turn { animation:none; transform:scaleX(-1); }
+.empty-state.is-still .home-book { translate:var(--perch-x) var(--perch-y); scale:.75; }
 .empty-state.is-still .home-glow { opacity:.7; }
-@media(max-width:620px) { .home-book { width:128px; } .home-glow { width:260px; margin-left:-130px; } .empty-state.is-returning .welcome-description { font-size:20px; } }
+@media(max-width:620px) { .home-hero { --wm:175px; } .home-glow { width:240px; margin-left:-120px; } .empty-state.is-returning .welcome-description { font-size:20px; } }
 @media(prefers-reduced-motion:reduce) {
   .home-glow,.empty-state .welcome-wordmark,.home-book,.empty-state .welcome-description { animation:none; }
   .home-book-turn { animation:none; transform:scaleX(-1); }
+  .home-book { translate:var(--perch-x) var(--perch-y); scale:.75; }
   .home-glow { opacity:.7; }
 }
 
