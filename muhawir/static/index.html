@@ -1790,13 +1790,13 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 .empty-state .welcome-wordmark { transform-origin:50% 100%; animation:home-rise 1.1s cubic-bezier(.2,.8,.2,1) 1.15s both; }
 /* The ُ of the name opens as the source book, turns its page, and closes back into the ُ. */
 .wm-damma,.wm-book { transform-box:fill-box; transform-origin:50% 50%; }
-.wm-damma { animation:wm-damma 3.95s ease-out both; }
-.wm-book { opacity:0; animation:wm-book 3.95s ease-out both; }
-.wm-page { transform-box:fill-box; transform-origin:100% 50%; animation:wm-flip 1.1s cubic-bezier(.45,.05,.35,1) 2.6s both; }
+.wm-damma { animation:wm-damma 4.3s ease-in-out both; }
+.wm-book { opacity:0; animation:wm-book 4.3s ease-in-out both; }
+.wm-page { transform-box:fill-box; transform-origin:100% 50%; animation:wm-flip .9s cubic-bezier(.45,.05,.35,1) 2.5s both; }
 .empty-state .welcome-description { animation:home-fade .5s ease-out 2s both; }
 .empty-state.is-returning .welcome-description { font-size:22px; font-weight:500; color:var(--ink); margin-top:10px; }
-@keyframes wm-damma { 0%,60% { opacity:0; transform:scale(.5); } 100% { opacity:1; transform:none; } }
-@keyframes wm-book { 0%,55% { opacity:0; transform:scale(.7); } 63% { opacity:1; transform:none; } 86% { opacity:1; transform:none; } 100% { opacity:0; transform:scale(1.15); } }
+@keyframes wm-damma { 0%,72% { opacity:0; transform:scale(.78); filter:blur(3px); } 100% { opacity:1; transform:none; filter:blur(0); } }
+@keyframes wm-book { 0%,52% { opacity:0; transform:scale(.7); } 58% { opacity:1; transform:none; filter:blur(0); fill-opacity:0; } 75% { opacity:1; transform:none; filter:blur(0); fill-opacity:0; } 90% { opacity:.7; fill-opacity:.85; filter:blur(1.5px); } 100% { opacity:0; transform:scale(1.12); fill-opacity:1; filter:blur(3px); } }
 @keyframes wm-flip { 0% { transform:scaleX(1); } 50% { transform:scaleX(.08) skewY(-8deg); } 100% { transform:scaleX(-1); } }
 @keyframes home-glow { 0% { opacity:0; transform:scaleY(.25) scaleX(.6); } 50% { opacity:1; } 100% { opacity:.7; transform:none; } }
 @keyframes home-rise { 0% { opacity:0; transform:translateY(96px) scale(.08); filter:blur(4px); } 30% { opacity:1; } 100% { opacity:1; transform:none; filter:blur(0); } }
@@ -1915,7 +1915,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
           <h2 class="welcome-wordmark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="185 13 350 218" fill="currentColor" aria-hidden="true" focusable="false">
             <path d="m 493.83031,82.360011 q 6.3,0 10.98,2.52 4.68,2.34 4.68,5.76 0,8.82 -2.88,17.459999 -2.88,8.46 -7.74,14.94 -4.68,6.3 -9.9,9.18 -15.12,5.94 -39.24,8.46 l 10.44,-27.36 5.04,-0.54 q 3.6,-0.36 5.4,-0.72 -1.08,-2.16 -1.08,-3.96 0,-3.96 2.88,-11.519999 3.06,-7.74 6.12,-9.9 2.7,-1.98 6.66,-3.06 4.14,-1.26 8.64,-1.26 z"/>
             <g class="wm-damma"><path d="m 507.33047,46.900008 q 3.24,0 7.02,-0.72 l -3.96,11.52 q -1.08,0.36 -2.7,0.36 -3.24,0 -7.2,-1.8 -6.12,5.76 -11.34,6.3 -4.14,-0.36 -9.18,-2.88 -4.86,-2.52 -6.84,-5.4 9.36,-1.98 19.8,-4.68 -1.98,-3.06 -1.98,-6.66 0,-2.7 1.44,-6.84 1.62,-4.14 3.06,-5.94 1.26,-1.26 3.24,-1.98 2.16,-0.9 3.96,-0.9 3.24,0 5.4,2.34 2.16,2.34 2.16,6.84 0,4.68 -2.88,10.44 z m -8.1,-7.74 q -2.88,0 -4.68,1.44 2.52,5.22 9.36,6.12 0,-7.56 -4.68,-7.56 z"/></g>
-            <g transform="translate(470.5 21.5) scale(1.92)"><g class="wm-book" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5 5.2 17.8V5.6l3.1.9"/><path class="wm-page" d="M8.3 3.4c1.7.2 3.2 1.2 3.7 2.5v14.6c-1.1-1.7-2.3-2.6-3.7-2.8V3.4Z"/><path d="M12 7.4c2.4-1.7 4.8-2.2 7.2-1.6v12.5c-2.3-.6-4.8.1-7.2 2.2"/></g></g>
+            <g transform="translate(470.5 21.5) scale(1.92)"><g class="wm-book" fill="currentColor" fill-opacity="0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5 5.2 17.8V5.6l3.1.9"/><path class="wm-page" d="M8.3 3.4c1.7.2 3.2 1.2 3.7 2.5v14.6c-1.1-1.7-2.3-2.6-3.7-2.8V3.4Z"/><path d="M12 7.4c2.4-1.7 4.8-2.2 7.2-1.6v12.5c-2.3-.6-4.8.1-7.2 2.2"/></g></g>
             <path d="m 461.25036,116.38012 -7.74,21.06 -3.78,3.24 q -17.28,1.8 -33.84,4.68 8.28,0.72 16.74,2.52 8.46,1.62 13.68,3.42 0,8.82 -3.6,21.06 -3.42,12.24 -7.56,18.18 -6.3,5.22 -19.8,9.9 -13.32,4.5 -31.32,6.3 l 10.44,-27.36 q 13.32,-1.26 21.6,-2.88 8.46,-1.8 16.56,-4.14 -7.2,-2.16 -19.62,-3.96 -12.24,-1.8 -21.24,-2.16 7.38,-24.12 17.46,-40.5 19.62,-9.18 50.94,-12.42 z"/>
             <path d="m 395.5501,182.44 -7.74,21.06 -3.78,3.24 -17.28,1.8 q -0.18,-17.64 -1.8,-43.02 -1.44,-25.56 -3.24,-45.36 5.04,-6.12 11.34,-11.7 6.3,-5.58 11.34,-8.28 0.9,3.6 0.9,11.34 0.18,13.86 -1.8,37.26 -1.98,23.22 -3.6,32.22 l 14.58,-1.62 z"/>
             <path d="m 349.10994,155.26 q 0,13.86 -5.22,26.64 -5.04,12.78 -14.4,20.88 -9.36,7.92 -21.06,7.92 -8.1,0 -18.72,-3.96 -10.62,-4.14 -15.66,-9 14.22,-4.14 31.68,-10.44 17.64,-6.48 28.98,-11.7 l -1.08,-6.3 h -8.46 q -6.84,0 -10.98,-1.98 -4.14,-2.16 -4.14,-5.94 0,-4.5 4.86,-12.06 4.86,-7.56 11.52,-13.32 6.66,-5.94 11.52,-5.94 4.86,0 7.92,7.02 3.24,7.02 3.24,18.18 z"/>
@@ -1932,14 +1932,6 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
         <div class="composer-row">
           <button type="button" class="mic attach" id="attach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-t="upload"></span></button>
           <input type="file" id="attachFile" accept="image/*,.pdf,.docx,.odt,.txt,.html,.htm,.md" hidden>
-        <div class="pop-wrap text-size-pop" id="textSizePop">
-          <button class="icon-button" id="textSizeButton" type="button" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5h11v2M8.5 5v14M6.5 19h4M14 12.5V11h7v1.5M17.5 11v8M16 19h3"/></svg></button>
-          <div class="pop-panel text-size-panel" id="textSizePanel" role="dialog" hidden>
-            <button type="button" class="text-size-step" id="textSmaller"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-            <output id="textSizeValue" aria-live="polite">100%</output>
-            <button type="button" class="text-size-step" id="textBigger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-          </div>
-        </div>
           <details class="explanation-picker" id="explanationPicker">
             <summary id="explanationSummary"><span class="explanation-current" id="selectedExplanation"></span></summary>
             <fieldset class="explanation-options"><legend class="explanation-title" data-t="style"></legend><label class="explanation-option"><input type="radio" name="explanation-choice" value="kids"><span data-t="kids"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="youth"><span data-t="youth"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="extended"><span data-t="extended"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="newcomer"><span data-t="newcomer"></span></label></fieldset><select id="style" hidden><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></details>
@@ -2418,29 +2410,44 @@ function appearancePanel() {
 }
 // Text size (November 2026), for weak eyesight: the answers grow
 const TEXT_SIZES = [.9, 1, 1.15, 1.3, 1.5];
-function textSizeControl() {
-  const button = $("textSizeButton"), panel = $("textSizePanel"), wrap = button.parentElement;
-  let size = 1;
-  try { const saved = parseFloat(localStorage.getItem("muhawir-text-size")); if (TEXT_SIZES.includes(saved)) size = saved; } catch {}
-  const apply = () => {
-    document.documentElement.style.setProperty("--text-zoom", size);
-    $("textSizeValue").textContent = Math.round(size * 100) + "%";
-    $("textSmaller").disabled = size === TEXT_SIZES[0];
-    $("textBigger").disabled = size === TEXT_SIZES[TEXT_SIZES.length - 1];
-    try { localStorage.setItem("muhawir-text-size", String(size)); } catch {}
+const textSize = { size: 1, listeners: new Set() };
+try { const saved = parseFloat(localStorage.getItem("muhawir-text-size")); if (TEXT_SIZES.includes(saved)) textSize.size = saved; } catch {}
+function applyTextSize() {
+  document.documentElement.style.setProperty("--text-zoom", textSize.size);
+  try { localStorage.setItem("muhawir-text-size", String(textSize.size)); } catch {}
+  textSize.listeners.forEach((f) => f());
+}
+function stepTextSize(by) {
+  textSize.size = TEXT_SIZES[Math.max(0, Math.min(TEXT_SIZES.length - 1, TEXT_SIZES.indexOf(textSize.size) + by))];
+  applyTextSize();
+}
+// A text-size button for one answer: it sits with the answer's other actions and opens a small − 100% + stepper beside them.
+function textSizeAction(t) {
+  const button = makeActionButton(t.textSize, "textsize", "textsize-btn", "textSize");
+  button.setAttribute("aria-expanded", "false");
+  const box = el("span", "text-size-stepper");
+  box.hidden = true;
+  const mk = (cls, by, path, label) => {
+    const b = el("button", "text-size-step " + cls);
+    b.type = "button"; b.setAttribute("aria-label", label); b.title = label;
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="' + path + '"/></svg>';
+    b.addEventListener("click", () => stepTextSize(by));
+    return b;
   };
-  const step = (by) => { size = TEXT_SIZES[Math.max(0, Math.min(TEXT_SIZES.length - 1, TEXT_SIZES.indexOf(size) + by))]; apply(); };
-  $("textSmaller").addEventListener("click", () => step(-1));
-  $("textBigger").addEventListener("click", () => step(1));
-  const close = () => { panel.hidden = true; button.setAttribute("aria-expanded", "false"); };
+  const smaller = mk("smaller", -1, "M5 12h14", t.textSmaller), bigger = mk("bigger", 1, "M12 5v14M5 12h14", t.textBigger);
+  const out = el("output", "text-size-value"); out.setAttribute("aria-live", "polite");
+  box.append(smaller, out, bigger);
+  const sync = () => {
+    out.textContent = Math.round(textSize.size * 100) + "%";
+    smaller.disabled = textSize.size === TEXT_SIZES[0];
+    bigger.disabled = textSize.size === TEXT_SIZES[TEXT_SIZES.length - 1];
+  };
+  textSize.listeners.add(sync); sync();
   button.addEventListener("click", () => {
-    const opening = panel.hidden;
-    closePops();
-    if (opening) { panel.hidden = false; button.setAttribute("aria-expanded", "true"); $("textBigger").focus(); }
+    box.hidden = !box.hidden;
+    button.setAttribute("aria-expanded", String(!box.hidden));
   });
-  panel.addEventListener("keydown", (e) => { if (e.key === "Escape") { close(); button.focus(); } });
-  popMenus.push({ wrap, close, sync: apply });
-  apply();
+  return [button, box];
 }
 // Connect-assistant (November 2026): a switch, then the assistant the person uses, with its own steps to add Muhawir's
 // sources over MCP (the server's /mcp). The switch is a remembered preference of this browser: it opens the guide
@@ -2800,8 +2807,6 @@ function applyLang() {
   $("mic").title = recognizing ? t.micStop : t.mic;
   if ($("voiceMode")) setVoiceModeLabel(voiceMode ? t.voiceModeStop : t.voiceMode);
   $("lang").setAttribute("aria-label", t.lang);
-  $("textSizeButton").setAttribute("aria-label", t.textSize); $("textSizeButton").title = t.textSize;
-  $("textSizePanel").setAttribute("aria-label", t.textSize);
   $("textSmaller").setAttribute("aria-label", t.textSmaller); $("textSmaller").title = t.textSmaller;
   $("textBigger").setAttribute("aria-label", t.textBigger); $("textBigger").title = t.textBigger;
   $("answerPalette").setAttribute("aria-label", t.answerPalette);
@@ -2916,6 +2921,7 @@ let activeReadAloud = null;
 function stopReadAloud() { if (activeReadAloud) activeReadAloud.stop(); }
 
 const ACTION_ICONS = {
+  textsize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5h11v2M8.5 5v14M6.5 19h4M14 12.5V11h7v1.5M17.5 11v8M16 19h3"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M5 14v6h14v-6"/></svg>',
   listen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m8 4 12 8-12 8V4Z"/></svg>',
@@ -3696,6 +3702,7 @@ function renderAnswer(res, style, context) {
     catch { setActionStatus(status, "copyFailed"); }
   });
   actions.append(copy);
+  actions.append(...textSizeAction(t));
 
   // Display only: keep res, history, source cards and clipboard content original.
   const tashkeelLang = context?.lang || lang;
@@ -4574,7 +4581,7 @@ fitQuestionBox();
 
 popList($("lang"), $("langButton"), $("langPop"));
 appearancePanel();
-textSizeControl();
+applyTextSize();
 mcpConnect();
 </script>
 </body>

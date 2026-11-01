@@ -133,18 +133,16 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 @media(max-width:620px) { .plain-answer .tools .action-btn { flex-basis:36px; width:36px; min-width:36px; } .plain-answer .tools .sources-chip { flex-basis:auto; width:auto; padding:0 8px; } }
 .plain-answer .cite { font-size:16px; vertical-align:baseline; white-space:nowrap; }
 
-/* Text size (November 2026): one control in the top bar enlarges Muhawir's answers only. */
+/* Text size (November 2026): each answer has a button among its actions; it enlarges Muhawir's answers only. */
 #thread > .msg { zoom:var(--text-zoom,1); }
-.text-size-pop { margin-inline-start:0; }
-
-.text-size-pop .text-size-panel { inset-inline-start:0; inset-inline-end:auto; top:auto; bottom:calc(100% + 8px); display:flex; align-items:center; gap:4px; min-width:0; padding:6px; border-radius:14px; }
-.text-size-panel[hidden] { display:none !important; }
-.text-size-step { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--ink); cursor:pointer; }
-.text-size-step svg { width:20px; height:20px; }
+.text-size-stepper { display:inline-flex; align-items:center; gap:4px; }
+.text-size-stepper[hidden] { display:none; }
+.text-size-step { width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--ink); cursor:pointer; }
+.text-size-step svg { width:18px; height:18px; }
 .text-size-step:hover:not(:disabled) { background:var(--accent-soft); color:var(--accent); }
 .text-size-step:disabled { opacity:.35; cursor:default; }
 .text-size-step:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
-#textSizeValue { min-width:52px; text-align:center; font-size:15px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.text-size-value { min-width:44px; text-align:center; font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 
 /* Connect-assistant (November 2026): the MCP switch and the steps for the chosen assistant. */
 .mcp-dialog { width:min(520px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow:auto; box-sizing:border-box; padding:18px 18px 16px; border:1px solid var(--line); border-radius:20px; background:var(--panel); color:var(--ink); box-shadow:0 20px 60px rgba(0,0,0,.25); }
