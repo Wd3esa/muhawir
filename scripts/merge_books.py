@@ -20,15 +20,17 @@ def merge(live: Path, candidate: Path, out: Path) -> tuple[int, int, list[str]]:
     """Copy `live` to `out`, then append every source that only `candidate` has. Returns (live, added, sources)."""
     if out.exists():
         raise SystemExit(f"{out} already exists; remove it or choose another name")
-    src = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
-    dst = sqlite3.connect(out)
+    src = sqlite3.connect(live.resolve().as_uri() + "?mode=ro", uri=True)
+    # ATTACH uses this connection's URI setting too. Do not depend on the
+    # SQLite build enabling URI filenames globally, or treat ?/# in paths as SQL options.
+    dst = sqlite3.connect(out.resolve().as_uri(), uri=True)
     try:
         src.backup(dst)
     finally:
         src.close()
     try:
         before = [r[0] for r in dst.execute("SELECT id FROM passages ORDER BY rid")]
-        dst.execute("ATTACH DATABASE ? AS k", (f"file:{candidate}?mode=ro",))
+        dst.execute("ATTACH DATABASE ? AS k", (candidate.resolve().as_uri() + "?mode=ro",))
         new = [r[0] for r in dst.execute(
             "SELECT id FROM k.sources WHERE id NOT IN (SELECT id FROM main.sources) ORDER BY rowid")]
         for sid in new:

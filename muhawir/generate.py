@@ -28,7 +28,8 @@ from . import attribution
 from .corpus import Passage
 from .normalize import normalize, tokenize
 from .verify import Claim
-from .writer_plan import PLAN_INSTRUCTION, UNUSABLE_EVIDENCE_PLAN, planned_schema, read_plan, requirements_for
+from .writer_plan import (PLAN_INSTRUCTION, UNUSABLE_EVIDENCE_PLAN, OVERSIZED_DRAFT, DraftTooLarge,
+                          bounded_schema, check_draft_size, planned_prompt, planned_schema, read_plan, requirements_for)
 
 STYLE_GUIDE = {
     "kids": "القارئ اختار شرحًا يناسب طفلًا بين 9 و12 سنة؛ لا تفترض عمر السائل أو معرفته السابقة. "
@@ -1263,8 +1264,8 @@ class ModelGenerator:
             if not passages:
                 self.last_note = "no passages provided for evidence planning"
                 return []
-            system += "\n\n" + PLAN_INSTRUCTION
-            schema = planned_schema(SCHEMA, len(tasks), [p.id for p in passages])
+            system = planned_prompt(SYSTEM_PROMPT, style)
+            schema = bounded_schema(planned_schema(SCHEMA, len(tasks), [p.id for p in passages]), style)
         replied = False
         for name, call in self.calls:
             try:
@@ -1274,6 +1275,20 @@ class ModelGenerator:
                 continue
             replied = True
             self.last_used = name
+            if self.evidence_plan:
+                try:
+                    check_draft_size(load_json(raw), style)
+                except DraftTooLarge:
+                    # No truncation, rescue by deduplication, provider fallback or
+                    # rewrite: stop this attempt before any sentence checker runs.
+                    self.last_note = OVERSIZED_DRAFT
+                    self.last_as_list = False
+                    self.last_follow_up = ""
+                    log.warning("model %s exceeded the writer draft size budget", name)
+                    return []
+                except (TypeError, ValueError):
+                    self.last_note = UNUSABLE_EVIDENCE_PLAN
+                    continue
             claims = parse_draft(raw)
             if self.evidence_plan:
                 try:

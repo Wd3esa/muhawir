@@ -71,7 +71,7 @@ def prepare(saved, style, repeats):
     case = {'question': saved['question'], 'style': style, 'lang': 'ar',
             'passages': [asdict(p) for p in passages],
             'answer_request': saved.get('answer_request')}
-    plan = {'version': 1, 'scope': 'paired_writer_development_not_release',
+    plan = {'version': 1, 'scope': 'paired_writer_development_not_release', 'candidate_budget_version': 1,
             'input_sha256': digest(saved), 'code_sha256': revision(),
             'runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             'model': saved['model'], 'generation': GENERATION, 'case': case, 'repeats': repeats,
@@ -90,6 +90,8 @@ def validate(plan):
         raise ValueError('code changed; prepare and review a new plan')
     if plan.get('generation') != GENERATION:
         raise ValueError('generation settings changed')
+    if type(plan.get('candidate_budget_version')) is not int or plan['candidate_budget_version'] != 1:
+        raise ValueError('prepare a new plan for the bounded candidate contract')
     expected = {name: payload(plan['case'], candidate)
                 for name, candidate in [('current', False), ('candidate', True)]}
     if plan['payloads'] != expected or plan['payload_sha256'] != digest(expected):
@@ -111,10 +113,10 @@ def reported_cost(data):
         return None
 
 
-def inspect_draft(data, variant, case):
+def inspect_draft(data, variant, case, *, budget_version=1):
     from muhawir.corpus import Passage
     from muhawir.generate import load_json, parse_draft
-    from muhawir.writer_plan import read_plan, requirements_for
+    from muhawir.writer_plan import check_draft_size, read_plan, requirements_for
     choices = data.get('choices')
     choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
     message = choice.get('message') or {}
@@ -139,6 +141,10 @@ def inspect_draft(data, variant, case):
         raise ValueError('unknown or missing citation')
     plan = None
     if variant == 'candidate':
+        if type(budget_version) is not int or budget_version not in (0, 1):
+            raise ValueError('unsupported recorded candidate budget')
+        if budget_version == 1:
+            check_draft_size(parsed, case['style'])
         plan = read_plan(parsed, len(requirements_for(case['question'], case.get('answer_request'))),
                          [Passage(**p) for p in case['passages']], claims)
         if plan is None:
@@ -221,7 +227,10 @@ def analyze(events):
             if key not in responses or key in parsed:
                 raise ValueError('missing response or duplicate parsed draft')
             # Re-parse the raw recording, never trust a precomputed approval/count.
-            parsed[key] = inspect_draft(responses[key]['response'], key[1], plan['case'])
+            # Reassess old runs under their recorded contract, not a new size
+            # rule introduced after they were paid for. Execution requires v1.
+            parsed[key] = inspect_draft(responses[key]['response'], key[1], plan['case'],
+                                        budget_version=plan.get('candidate_budget_version', 0))
     pairs, review, mapping = [], [], []
     for trial in range(plan['repeats']):
         pair = {'trial': trial, 'both_responses_present': all((trial, v) in responses for v in ['current', 'candidate'])}

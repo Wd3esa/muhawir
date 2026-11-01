@@ -156,7 +156,7 @@ def test_full_pipeline_checks_only_one_copy_of_an_identical_claim():
     condition = Claim('The box must be empty before moving.', (P.id,))
     calls = {'draft': 0, 'support': 0, 'review': 0}
     def call(system, user, schema):
-        if system.startswith(generate.SYSTEM_PROMPT):
+        if 'claims' in schema.get('properties', {}):
             calls['draft'] += 1
             data = response()
             data['claims'] = [{'text': claim.text, 'passage_ids': list(claim.passage_ids)}

@@ -176,7 +176,7 @@ def test_real_api_retrieval_writer_and_checker_run_for_both_arms_without_network
         calls.append(system)
         if system == generate.UNDERSTAND_PROMPT:
             return json.dumps({'queries': [], 'answer_request': {'form': 'explanation', 'requirements': ['بيان الحاجة.']}})
-        if system.startswith(generate.SYSTEM_PROMPT):
+        if 'claims' in schema.get('properties', {}):
             return json.dumps({'abstain': False, 'claims': [{'text': p.text, 'passage_ids': [p.id]}],
                 'plan': [{'requirement': 0, 'passage_ids': [p.id]}] if schema['properties']['plan']['type'] == 'array' else 'write'})
         if system == generate.CHECK_PROMPT:
@@ -202,7 +202,7 @@ def test_real_api_retrieval_writer_and_checker_run_for_both_arms_without_network
         assert any(e['stage'] == 'model.understand' for e in events)
     assert calls.count(generate.UNDERSTAND_PROMPT) >= 2
     assert calls.count(generate.CHECK_PROMPT) >= 2
-    assert sum(system.startswith(generate.SYSTEM_PROMPT) for system in calls) == 2
+    assert sum(system.startswith(generate.SYSTEM_PROMPT.split('ثانيًا: كيف تشرح')[0]) for system in calls) == 2
     assert rows[0]['route_ids'] == rows[1]['route_ids']
 
 
