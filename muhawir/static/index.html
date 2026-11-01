@@ -477,7 +477,6 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .pop-item[lang="ur"] { font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Alvi Nastaleeq",inherit; line-height:1.9; }
 .verify-go { margin-top:10px; padding:9px 18px; font:inherit; color:#fff; background:var(--accent); border:0; border-radius:10px; cursor:pointer; }
 .mic.attach span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-@media (min-width:720px) { .mic.attach span { position:static; width:auto; height:auto; clip:auto; } }
 .verify-verdict { font-weight:700; }
 .verify-verdict[data-tone="exact"] { color:var(--status-found,#16a34a); }
 .verify-verdict[data-tone="close"] { color:var(--accent); }
@@ -1808,7 +1807,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 }
 
 </style>
-<link rel="stylesheet" href="/book-answer.css?v=question-divider-6">
+<link rel="stylesheet" href="/book-answer.css?v=composer-1">
 <link rel="stylesheet" href="/surfaces.css?v=turquoise-1">
 </head>
 <body>
@@ -1895,12 +1894,12 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
       <form id="ask">
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
-          <details class="explanation-picker" id="explanationPicker" hidden>
-            <summary id="explanationSummary"><span data-t="style"></span><span class="explanation-current" id="selectedExplanation"></span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></summary>
-            <fieldset class="explanation-options"><legend class="sr-only" data-t="style"></legend><label class="explanation-option"><input type="radio" name="explanation-choice" value="kids"><span data-t="kids"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="youth"><span data-t="youth"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="extended"><span data-t="extended"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="newcomer"><span data-t="newcomer"></span></label></fieldset><select id="style" hidden><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></details>
-
-          <button type="button" class="mic attach" id="attach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l8.6-8.6a3.7 3.7 0 015.2 5.2l-8.6 8.6a1.8 1.8 0 01-2.6-2.6l7.9-7.9"/></svg><span data-t="upload"></span></button>
+          <button type="button" class="mic attach" id="attach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-t="upload"></span></button>
           <input type="file" id="attachFile" accept="image/*,.pdf,.docx,.odt,.txt,.html,.htm,.md" hidden>
+          <details class="explanation-picker" id="explanationPicker">
+            <summary id="explanationSummary"><span class="explanation-current" id="selectedExplanation"></span></summary>
+            <fieldset class="explanation-options"><legend class="explanation-title" data-t="style"></legend><label class="explanation-option"><input type="radio" name="explanation-choice" value="kids"><span data-t="kids"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="youth"><span data-t="youth"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="extended"><span data-t="extended"></span></label><label class="explanation-option"><input type="radio" name="explanation-choice" value="newcomer"><span data-t="newcomer"></span></label></fieldset><select id="style" hidden><option value="kids" data-t="kids"></option><option value="youth" data-t="youth" selected></option><option value="extended" data-t="extended"></option><option value="newcomer" data-t="newcomer"></option></select></details>
+
           <button type="button" class="mic" id="mic" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg><span data-t="mic"></span></button>
           <button type="button" class="stop-request" id="stopRequest" hidden aria-label=""><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span data-t="stopRequest"></span></button>
           <button type="button" class="send composer-voice" id="composerVoice" aria-label=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 10v4m4-8v12m3-15v18m3-15v12m4-8v4"/></svg></button>
@@ -3938,8 +3937,6 @@ function fitQuestionBox() {
   const field = $("q");
   const hasQuestion = Boolean(field.value.trim());
   $("ask").classList.toggle("has-question", hasQuestion);
-  $("explanationPicker").hidden = !hasQuestion;
-  if (!hasQuestion) $("explanationPicker").open = false;
   $("composerVoice").hidden = hasQuestion || Boolean(activeRequest);
   $("send").hidden = !hasQuestion || Boolean(activeRequest);
   const style = getComputedStyle(field);

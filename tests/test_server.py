@@ -182,7 +182,7 @@ def test_ask_stream_names_the_books_it_searches():
     assert names and all(isinstance(n, str) and n for group in names for n in group)
 def test_book_answer_assets_are_served():
     page = client.get("/")
-    css = client.get("/book-answer.css?v=question-divider-6")
+    css = client.get("/book-answer.css?v=composer-1")
     assert page.status_code == 200 and 'id="explanationPicker"' in page.text
     assert css.status_code == 200 and css.headers["content-type"].startswith("text/css")
     assert ".msg.plain-answer" in css.text
