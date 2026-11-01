@@ -1803,6 +1803,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 @keyframes home-glow-out { from { opacity:.7; } to { opacity:0; } }
 @keyframes home-settle { to { padding-bottom:6px; } }
 @keyframes home-fade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+.empty-state:not(.is-playing):not(.is-still) .home-hero,.empty-state:not(.is-playing):not(.is-still) .home-hero *,.empty-state:not(.is-playing):not(.is-still) .welcome-description { animation-play-state:paused; }
 .empty-state.is-still .home-glow,.empty-state.is-still .welcome-wordmark,.empty-state.is-still .home-book,.empty-state.is-still .welcome-description { animation:none; }
 .empty-state.is-still .home-book-turn { animation:none; transform:scaleX(-1); }
 .empty-state.is-still .home-book { translate:var(--perch-x) var(--perch-y); scale:.6; }
@@ -1832,19 +1833,21 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 :root[data-theme="dark"] .workspace:has(#thread > .empty-state) { background:var(--night-stars),var(--night-sky); }
 :root[data-theme="dark"] .workspace:has(#thread > .empty-state) #ask { border-color:rgba(255,255,255,.12); }
 :root[data-theme="dark"] .home-hero::before { content:""; position:absolute; left:50%; top:calc(var(--wm) * .33); width:calc(var(--wm) * 1.25); aspect-ratio:1; translate:-50% -50%; border-radius:50%; background:radial-gradient(circle,rgba(255,240,205,.16) 0%,rgba(255,240,205,.07) 38%,rgba(160,215,235,.04) 55%,transparent 70%); pointer-events:none; animation:home-fade 1.2s ease-out 1.6s both; }
-:root[data-theme="dark"] .home-hero::after { content:""; position:absolute; inset:-140px -50vw; background:var(--night-twinkle); pointer-events:none; z-index:-1; animation:night-twinkle 4.5s ease-in-out infinite alternate; }
+:root[data-theme="dark"] .workspace:has(#thread > .empty-state) .ambient { background:var(--night-twinkle); animation:night-twinkle 4.5s ease-in-out infinite alternate; }
+#thread { overflow-x:hidden; }
 :root[data-theme="dark"] .empty-state .welcome-wordmark { color:var(--moon); }
 :root[data-theme="dark"] .empty-state .welcome-wordmark svg { filter:drop-shadow(0 0 6px rgba(255,238,200,.55)) drop-shadow(0 0 22px rgba(255,232,185,.28)); }
 @keyframes night-twinkle { from { opacity:.25; } to { opacity:1; } }
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more),(forced-colors:active) {
   .workspace:has(#thread > .empty-state),:root[data-theme="dark"] .workspace,:root[data-theme="dark"] .workspace:has(#thread > .empty-state) { background:var(--bg); }
-  :root[data-theme="dark"] .home-hero::before,:root[data-theme="dark"] .home-hero::after { content:none; }
+  :root[data-theme="dark"] .home-hero::before { content:none; }
+  :root[data-theme="dark"] .workspace:has(#thread > .empty-state) .ambient { background:none; animation:none; }
   :root[data-theme="dark"] .empty-state .welcome-wordmark svg { filter:none; }
 }
-@media (prefers-reduced-motion:reduce) { :root[data-theme="dark"] .home-hero::after { animation:none; opacity:.7; } :root[data-theme="dark"] .home-hero::before { animation:none; } }
+@media (prefers-reduced-motion:reduce) { :root[data-theme="dark"] .workspace:has(#thread > .empty-state) .ambient { animation:none; opacity:.7; } :root[data-theme="dark"] .home-hero::before { animation:none; } }
 </style>
 <link rel="stylesheet" href="/book-answer.css?v=composer-1">
-<link rel="stylesheet" href="/surfaces.css?v=answer-2">
+<link rel="stylesheet" href="/surfaces.css?v=answer-3">
 </head>
 <body>
 <!-- One outline for the wordmark, identity marks and static source buttons. -->
@@ -1974,7 +1977,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
 // 1. Text: one entry per language; the page picks UI[lang] and fills every data-t element from it.
 const UI = {
   ar: { lang: "اللغة", usageWarn: "استخدمت {pct}% من حد الأسئلة ({used} من {limit}). يتجدد بعد {wait}.", minutes: "{n} دقيقة",  voiceMode: "الوضع الصوتي", voiceModeStop: "إيقاف الوضع الصوتي", vmOn: "الوضع الصوتي يعمل: تكلّم بعد النغمة، وسأقرأ لك الجواب ومصادره ثم أستمع لسؤالك التالي. للإيقاف اضغط الزر نفسه أو Escape.", vmListening: "أستمع إليك… تكلّم الآن.", vmReading: "أقرأ الجواب.", vmNotHeard: "لم أسمعك. تكلّم بعد النغمة.", vmOff: "توقف الوضع الصوتي.", vmNoMic: "هذا المتصفح لا يتيح التحدث إليه. جرّب Chrome أو Edge أو Safari.", vmTranslation: "ترجمة معاني الآية:", vmRecitation: "تلاوة الآية:",  tagline: "يساعدك مُحاور على فهم المسائل الإسلامية بإجابات واضحة مستندة إلى مصادر معتمدة، ويحيلك إلى مختص عند الحاجة.",
-        qlabel: "سؤالك", placeholder: "اسأل عن أي مسألة إسلامية…", replyPlaceholder: "ردّ على مُحاور…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
+        qlabel: "سؤالك", placeholder: "اسألني…", replyPlaceholder: "ردّ على مُحاور…", empty: "اكتب سؤالك أو تحدّث، وسأجيبك من المصادر.", brandCaption: "حوار معرفي وإجابات موثوقة",
         newChat: "محادثة جديدة", historyHeading: "المحادثات", historySearch: "ابحث في محادثاتك", historyEmpty: "ستظهر المحادثات التي تبدأها هنا.", noMatches: "لا توجد محادثة بهذا الاسم.", privacyNote: "يُحفظ السجل في هذا المتصفح. عند السؤال، يُرسل السؤال وسياقه القريب إلى خدمة مُحاور ومزوّد النموذج لإعداد الإجابة. يمكنك حذف السجل.", favorite: "أضف إلى المفضلة", unfavorite: "أزل من المفضلة", deleteChat: "احذف المحادثة", deleteAll: "احذف كل المحادثات", deleteAllConfirm: "هل تريد حذف كل المحادثات المحفوظة في هذا المتصفح؟", openHistory: "فتح سجل المحادثات", closeHistory: "إغلاق سجل المحادثات", showHistory: "إظهار سجل المحادثات", hideHistory: "إخفاء سجل المحادثات", historyLabel: "سجل المحادثات", recent: "المحادثات الأخيرة", trustLabel: "مصادر موثوقة",
         welcomeDescription: "اسأل في الدين، وأجيبك من المصدر", greetMorning: "السلام عليكم، صباح الخير", greetDay: "السلام عليكم، نهارك سعيد", greetEvening: "السلام عليكم، مساء الخير", settings: "كيف تحب الشرح؟", appearance: "المظهر", voiceSettings: "الصوت", welcomeKicker: "اسأل وتحقق من المصادر",
         topicQuran: "القرآن", topicFiqh: "فقه", topicAqidah: "عقيدة", promptQuran: "كيف أتدبّر القرآن؟", promptFiqh: "ما الفرق بين الفرض والسنّة؟", promptAqidah: "ما معنى التوحيد؟", assistant: "مُحاور",
@@ -1989,11 +1992,11 @@ const UI = {
         topics: "موضوعات الآية بحسب المصدر", chapter: "الباب", location: "الموضع", grade: "حكم المحدث", hadith: "حديث", sources: "المصادر", source: "المصدر", verify: "تحقق في الدرر السنية", open: "فتح المصدر", error: "تعذّر الاتصال. حاول مرة أخرى.", tooMany: "وصلت أسئلة كثيرة في وقت قصير. انتظر دقيقة ثم أعد السؤال.",
         status: { answered: "إجابة من المصادر", abstained: "لم أجد إجابة في المصادر", referred: "إحالة إلى مختص", declined: "خارج النطاق", invalid: "", chat: "", unavailable: "" } },
   en: { lang: "Language", usageWarn: "You have used {pct}% of your question limit ({used} of {limit}). It resets in {wait}.", minutes: "{n} min",  voiceMode: "Voice mode", voiceModeStop: "Stop voice mode", vmOn: "Voice mode is on: speak after the tone; I will read the answer and its sources, then listen for your next question. To stop, press the same button or Escape.", vmListening: "Listening… speak now.", vmReading: "Reading the answer.", vmNotHeard: "I did not hear you. Speak after the tone.", vmOff: "Voice mode stopped.", vmNoMic: "This browser cannot listen to speech. Try Chrome, Edge or Safari.", vmTranslation: "Translation of the meaning of the verse:", vmRecitation: "Recitation of the verse:",  tagline: "Muhawir helps you understand Islamic topics with clear answers grounded in approved sources, and refers you to a specialist when needed.",
-        qlabel: "Your question", placeholder: "Ask about any Islamic topic…", replyPlaceholder: "Reply to Muhawir…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
+        qlabel: "Your question", placeholder: "Ask me…", replyPlaceholder: "Reply to Muhawir…", empty: "Type or speak your question, and I will answer from the sources.", brandCaption: "Knowledge dialogue and trusted answers",
         newChat: "New conversation", historyHeading: "Your conversations", historySearch: "Search conversations", historyEmpty: "Conversations you start will appear here.", noMatches: "No conversations match that search.", privacyNote: "History is saved in this browser. When you ask, your question and recent context go to Muhawir's service and model provider to prepare a reply. You can delete the history.", favorite: "Add to favorites", unfavorite: "Remove from favorites", deleteChat: "Delete conversation", deleteAll: "Delete all conversations", deleteAllConfirm: "Delete all conversations saved in this browser?", openHistory: "Open conversation history", closeHistory: "Close conversation history", showHistory: "Show conversation history", hideHistory: "Hide conversation history", historyLabel: "Conversation history", recent: "Recent conversations", trustLabel: "Trusted sources",
         welcomeDescription: "Ask about the faith, and I will answer from the source.", greetMorning: "Peace be upon you. Good morning", greetDay: "Peace be upon you. Good afternoon", greetEvening: "Peace be upon you. Good evening", settings: "How would you like it explained?", welcomeKicker: "Ask and check the sources",
         topicQuran: "Quran", topicFiqh: "Fiqh", topicAqidah: "Aqidah", promptQuran: "How can I reflect on the Quran?", promptFiqh: "What is the difference between fard and sunnah?", promptAqidah: "What does tawhid mean?", assistant: "Muhawir",
-        qlabel: "Your question", placeholder: "Ask about any Islamic topic…", empty: "Type or speak your question, and I will answer from the sources.",
+        qlabel: "Your question", placeholder: "Ask me…", empty: "Type or speak your question, and I will answer from the sources.",
         appearance: "Appearance", voiceSettings: "Voice", style: "Explanation style", kids: "For children", youth: "For teens", extended: "Detailed", newcomer: "New to Islam", send: "Ask", stopRequest: "Stop waiting", requestStopped: "Stopped waiting. You can edit and resend your question.", darkTheme: "Switch to dark mode", lightTheme: "Switch to light mode", answerLayout: "Answer appearance", layoutBook: "Book page", layoutPlain: "Plain answer", answerPalette: "Answer page colour", paletteSage: "Sage", paletteBlue: "Blue", paletteSepia: "Paper", palettePlum: "Plum",
         mic: "🎤 Speak", micStop: "⏹ Stop", voiceNote: "When you use the microphone, your browser may send your voice to an outside service to turn it into text.",
         exampleTag: "An illustration by Muhawir", recite: "Listen to the recitation", reciter: "Recited by Mishary Alafasy (everyayah.com)", reciteFailed: "Could not play the recitation", listen: "Listen", stop: "Stop", responseActions: "Answer actions", copyAnswer: "Copy answer", copied: "Answer copied", copyFailed: "Could not copy the answer", shareAnswer: "Share answer", shareFailed: "Could not share the answer", shareFallback: "Sharing is unavailable; the answer was copied instead", regenerate: "Regenerate answer", clear: "Clear", unclear: "Needs more clarity", thanks: "Thank you for rating", thanksUnclear: "Thank you. You can ask for a simpler explanation under «More actions».", regenerating: "Preparing a new answer…", related: "Related questions", textSize: "Text size", textSmaller: "Smaller text", textBigger: "Larger text", showSources: "Show sources", hideSources: "Hide sources", more: "More actions", copyWithSources: "Copy answer with source passages", simplifyAnswer: "Explain more simply", moreDetail: "Explain more", simplifyPrompt: "Explain your previous answer more simply", searchIn: "Searching", upload: "Upload a file or photo", uploadLimit: "Accepted: images, PDF, Word, text. Maximum file size: 8 MB.", uploading: "Reading the file…", uploadCut: "The text was cut to fit the limit.", uploadFormats: "Images, PDF, Word, text", e_too_large: "The file is too large; the limit is 8 MB.", e_unsupported: "This file type is not supported.", e_unreadable: "The file could not be read.", e_no_text: "No text was found in the file or photo. Try a clearer image.", e_encrypted: "The file is password protected.", e_ocr_unavailable: "Reading images is unavailable right now.", e_too_slow: "Reading took too long; try a smaller file.", e_busy: "The service is busy; try again shortly.", e_failed: "The upload failed.", quoteAsk: "Ask about it", verifyExact: "Found exactly as written in the sources", verifyAlso: "Also in", verifyGrade: "Grading", verifyCoverage: "Match",  pending: "Typing…", thinking: ["Reading your question…", "Searching the sources…", "Writing the answer from the passages found…", "Checking each sentence against its source…"], readContext: "Read what comes before and after", hideContext: "Hide what comes before and after", contextBefore: "Before it in the book", contextAfter: "After it in the book", contextNone: "Nothing before or after it in this book", contextFailed: "Could not load the text", found: "I found the answer", notFound: "I found nothing in the sources", settled: "Review complete",
@@ -2005,7 +2008,7 @@ const UI = {
         topics: "Topics listed by the source", chapter: "Chapter", location: "Location", grade: "Grading", hadith: "Hadith", sources: "Sources", source: "Source", verify: "Check on dorar.net", open: "Open source", error: "Could not connect. Please try again.", tooMany: "Too many questions in a short time. Please wait a minute and ask again.",
         status: { answered: "Answer from the sources", abstained: "No answer found in the sources", referred: "Referred to a specialist", declined: "Out of scope", invalid: "", chat: "", unavailable: "" } },
   ur: { appearance:"ظاہری شکل", voiceSettings:"آواز", answerLayout:"جواب کی شکل", layoutBook:"کتاب کا صفحہ", layoutPlain:"سادہ جواب", lang: "زبان", usageWarn: "آپ سوالوں کی حد کا {pct}% استعمال کر چکے ہیں ({limit} میں سے {used})۔ یہ {wait} بعد دوبارہ شروع ہوگی۔", minutes: "{n} منٹ",  voiceMode: "آواز موڈ", voiceModeStop: "آواز موڈ بند کریں", vmOn: "آواز موڈ چل رہا ہے: ٹون کے بعد بولیں؛ میں جواب اور اس کے مصادر پڑھ کر سناؤں گا، پھر آپ کا اگلا سوال سنوں گا۔ بند کرنے کے لیے یہی بٹن یا Escape دبائیں۔", vmListening: "سن رہا ہوں… اب بولیں۔", vmReading: "جواب پڑھ رہا ہوں۔", vmNotHeard: "میں آپ کو سن نہیں سکا۔ ٹون کے بعد بولیں۔", vmOff: "آواز موڈ بند ہو گیا۔", vmNoMic: "یہ براؤزر آواز نہیں سن سکتا۔ Chrome، Edge یا Safari آزمائیں۔", vmTranslation: "آیت کے معانی کا ترجمہ:", vmRecitation: "آیت کی تلاوت:",  tagline: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے، اور ضرورت ہو تو کسی ماہر کی طرف رہنمائی کرتا ہے۔",
-        qlabel: "آپ کا سوال", placeholder: "اپنا سوال یہاں لکھیں…", replyPlaceholder: "مُحاور کو جواب دیں…", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
+        qlabel: "آپ کا سوال", placeholder: "مجھ سے پوچھیں…", replyPlaceholder: "مُحاور کو جواب دیں…", empty: "اپنا سوال لکھیں یا بولیں، میں مصادر سے جواب دوں گا۔", brandCaption: "علمی مکالمہ اور معتبر جوابات",
         newChat: "نئی گفتگو", historyHeading: "آپ کی گفتگوئیں", historySearch: "اپنی گفتگوؤں میں تلاش کریں", historyEmpty: "جو گفتگو آپ شروع کریں گے وہ یہاں نظر آئے گی۔", noMatches: "اس نام کی کوئی گفتگو نہیں۔", privacyNote: "تاریخچہ اسی براؤزر میں محفوظ رہتا ہے۔ سوال پوچھنے پر سوال اور اس کا قریبی سیاق جواب کی تیاری کے لیے محاور کی سروس اور ماڈل فراہم کنندہ کو بھیجا جاتا ہے۔ آپ تاریخچہ حذف کر سکتے ہیں۔", favorite: "پسندیدہ میں شامل کریں", unfavorite: "پسندیدہ سے نکالیں", deleteChat: "گفتگو حذف کریں", deleteAll: "تمام گفتگوئیں حذف کریں", deleteAllConfirm: "کیا آپ اس براؤزر میں محفوظ تمام گفتگوئیں حذف کرنا چاہتے ہیں؟", openHistory: "گفتگو کا تاریخچہ کھولیں", closeHistory: "گفتگو کا تاریخچہ بند کریں", showHistory: "گفتگو کا تاریخچہ دکھائیں", hideHistory: "گفتگو کا تاریخچہ چھپائیں", historyLabel: "گفتگو کا تاریخچہ", recent: "حالیہ گفتگوئیں", trustLabel: "معتبر مصادر",
         welcomeDescription: "محاور معتبر مصادر پر مبنی واضح جوابات کے ذریعے اسلامی مسائل سمجھنے میں آپ کی مدد کرتا ہے۔", greetMorning: "السلام علیکم، صبح بخیر", greetDay: "السلام علیکم، دن بخیر", greetEvening: "السلام علیکم، شام بخیر", settings: "آپ وضاحت کس انداز میں چاہتے ہیں؟", welcomeKicker: "پوچھیے اور مصادر سے تصدیق کیجیے",
         topicQuran: "قرآن", topicFiqh: "فقہ", topicAqidah: "عقیدہ", promptQuran: "میں قرآن میں تدبر کیسے کروں؟", promptFiqh: "فرض اور سنت میں کیا فرق ہے؟", promptAqidah: "توحید کا کیا مطلب ہے؟", assistant: "محاور",
@@ -2049,6 +2052,15 @@ const emptyTemplate = $("empty").cloneNode(true);
 const welcomeMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 // the book opens and the name rises on the first home screen of a visit; later new chats show the finished screen
 let homeIntroPlayed = false;
+// The opening plays once the page and its fonts are ready and shown; before that it waits on its first frame, so a
+// slow phone does not finish it unseen (the book opens, then the name rises from it)
+function playHomeIntro(empty) {
+  const start = () => requestAnimationFrame(() => requestAnimationFrame(() => empty.classList.add("is-playing")));
+  const ready = () => (document.fonts?.ready || Promise.resolve()).then(start, start);
+  if (document.readyState === "complete") ready(); else window.addEventListener("load", ready, { once: true });
+  setTimeout(start, 4000);  // never left waiting
+}
+if ($("empty")) { playHomeIntro($("empty")); homeIntroPlayed = true; }  // the first screen of the page
 
 function homeGreetingKey() {
   const hour = new Date().getHours();
@@ -2399,7 +2411,7 @@ function appearancePanel() {
   popMenus.push({ wrap, close, sync });
   sync();
 }
-// Text size (November 2026), for weak eyesight: the questions, answers and the question box grow together
+// Text size (November 2026), for weak eyesight: the answers grow
 const TEXT_SIZES = [.9, 1, 1.15, 1.3, 1.5];
 function textSizeControl() {
   const button = $("textSizeButton"), panel = $("textSizePanel"), wrap = button.parentElement;
@@ -2527,6 +2539,7 @@ function renderConversation(conversation) {
       empty.querySelector(".welcome-description").dataset.t = homeGreetingKey();
     }
     if (homeIntroPlayed) empty.classList.add("is-still");
+    else playHomeIntro(empty);
     homeIntroPlayed = true;
     empty.querySelectorAll("[data-t]").forEach((node) => { node.textContent = UI[lang][node.dataset.t]; });
     $("thread").append(empty);
