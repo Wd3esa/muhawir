@@ -140,3 +140,14 @@ def test_strip_ids_keeps_verse_numbers_but_drops_hadith_numbers():
     from muhawir.pipeline import _strip_ids
     assert "٣٥" in _strip_ids("سورة البقرة، الآية رقم ٣٥", set())
     assert "7296" not in _strip_ids("رواه البخاري برقم 7296", set())
+
+
+def test_every_element_the_page_script_looks_up_exists_in_the_page():
+    """A lookup of an id that was removed from the HTML throws while the page starts, and nothing after it is wired
+    (the theme switch and the assistant-connection dialog stopped answering that way)."""
+    import re
+    from pathlib import Path
+    html = (Path(__file__).resolve().parent.parent / "muhawir" / "static" / "index.html").read_text(encoding="utf-8")
+    ids = set(re.findall(r'\bid="([^"]+)"', html))
+    used = set(re.findall(r'\$\("([A-Za-z0-9_-]+)"\)', html))
+    assert not used - ids, sorted(used - ids)

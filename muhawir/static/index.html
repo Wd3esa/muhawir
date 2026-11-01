@@ -2807,8 +2807,6 @@ function applyLang() {
   $("mic").title = recognizing ? t.micStop : t.mic;
   if ($("voiceMode")) setVoiceModeLabel(voiceMode ? t.voiceModeStop : t.voiceMode);
   $("lang").setAttribute("aria-label", t.lang);
-  $("textSmaller").setAttribute("aria-label", t.textSmaller); $("textSmaller").title = t.textSmaller;
-  $("textBigger").setAttribute("aria-label", t.textBigger); $("textBigger").title = t.textBigger;
   $("answerPalette").setAttribute("aria-label", t.answerPalette);
   $("answerLayout").setAttribute("aria-label", t.answerLayout);
   syncPickMenus();
