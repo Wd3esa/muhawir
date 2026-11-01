@@ -20,7 +20,7 @@ from .telemetry import ThreadPoolExecutor
 from . import telemetry
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, quote_check, quran_count, referrals, sahihayn, sections
+from . import attribution, bayyinat, bidaya, classify, keyboard, lexical, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import Corpus, Passage
 from .generate import AnswerReview, Generator, ModelGenerator, is_example
@@ -33,6 +33,7 @@ from .verify import Rejected, invented_definition, verify
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
+HEADING_ALIGNMENT = 0.6  # an entry found by its root must also hold a word this close to the asked word
 
 MAX_QUESTION_CHARS = 500
 NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
@@ -1037,10 +1038,15 @@ class Muhawir:
         prepare = getattr(self.retriever, "prepare_queries", None)
         if callable(prepare):
             prepare(queries)
+        df = getattr(self.retriever, "df", None)
+        user_words = f"{original} {question}"
         def found(query: str) -> list:
+            # a dictionary entry must be about the rare word the USER asked about, not about the word an expanded
+            # phrase or a vector search drifted to («ما معنى ألفوا» must not be answered from the entry «أوى»)
             hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
                     and h.coverage >= MODEL_MIN_COVERAGE
-                    and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)]
+                    and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)
+                    and lexical.keeps(h.passage, user_words, df, heading_alignment=HEADING_ALIGNMENT)]
             return hits
         # Local embeddings are prepared together above; BM25/ANN searches still run
         # in parallel, and pool.map preserves phrase order for the round-robin merge.

@@ -11,6 +11,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .corpus import Corpus, Passage
+from . import lexical
 from .normalize import tokenize
 
 MIN_SCORE = 1.0      # BM25 score of the best passage
@@ -39,11 +40,16 @@ class Retriever:
         n = len(self.docs)
         self.idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
 
+    def df(self, token: str) -> int:
+        """In how many passages a (normalized) token is."""
+        return sum(1 for tf in self.tfs if token in tf)
+
     def search(self, question: str, k: int = 3) -> list[Hit]:
         """The best k passages for a question, by BM25 score."""
         terms = list(dict.fromkeys(tokenize(question)))
         if not terms:
             return []
+        focus = [t for t in terms if t in set(lexical.focus_terms(question))] or terms  # no «معنى» in the coverage
         hits = []
         for passage, tf, doc in zip(self.corpus.passages, self.tfs, self.docs):
             score, matched = 0.0, 0
@@ -55,7 +61,7 @@ class Retriever:
                 denom = f + self.k1 * (1 - self.b + self.b * len(doc) / self.avgdl)
                 score += self.idf[t] * f * (self.k1 + 1) / denom
             if score > 0:
-                hits.append(Hit(passage, score, matched / len(terms)))
+                hits.append(Hit(passage, score, sum(1 for t in focus if tf.get(t, 0)) / len(focus)))
         hits.sort(key=lambda h: h.score, reverse=True)
         return hits[:k]
 

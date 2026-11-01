@@ -454,6 +454,10 @@ class HybridRetriever:
         return [self.vectors.ids[int(i)] for i in order]
 
 
+    def df(self, token: str) -> int:
+        """In how many passages a token is (the keyword index decides what a rare word is)."""
+        return self.sqlite_retriever.df(token)
+
     def search(self, question: str, k: int = 3) -> list[Hit]:
         """Hybrid search: BM25 and vector hits merged by rank; if the vector part fails the BM25 hits are returned."""
         with telemetry.span("bm25"):

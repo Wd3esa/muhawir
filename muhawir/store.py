@@ -12,9 +12,9 @@ import sqlite3
 import threading
 from pathlib import Path
 
-from . import bayyinat
+from . import bayyinat, lexical
 from .corpus import Passage, Source, parse_corpus
-from .normalize import tokenize
+from .normalize import normalize, tokenize
 from .retrieve import Hit
 
 SCHEMA = """
@@ -142,6 +142,7 @@ class SqliteCorpus:
 
 MAX_PHRASE_HITS = 8     # passages that contain the search words one after the other, listed before the rest
 MAX_PHRASE_MATCHES = 60  # a phrase found in more passages than this (e.g. «قال رسول الله») identifies none of them
+HEADING_SCORE = 100.0    # score of an entry found through the root heading: above any BM25 score
 MIN_SUBPHRASE = 3        # shortest piece of a long phrase tried when the whole phrase is not found
 # among passages holding the same phrase, the text itself comes before the books that discuss it
 _ORIGINAL_FIRST = {"quran": 0, "hadith": 1}
@@ -159,6 +160,42 @@ class SqliteRetriever:
 
     def __init__(self, corpus: SqliteCorpus) -> None:
         self.corpus = corpus
+        self._headings: lexical.RootIndex | None = None
+
+    def df(self, token: str) -> int:
+        """In how many passages of the index a (normalized) token is."""
+        row = self.corpus.con.execute("SELECT count(*) FROM passages_fts WHERE passages_fts MATCH ?",
+                                      ('"' + token.replace('"', '""') + '"',)).fetchone()
+        return row[0]
+
+    def _heading_rows(self, question: str) -> list:
+        """The entries of a dictionary arranged by root («لفى») that the words of a question may come from.
+
+        Only for a question about a meaning («ما معنى ألفوا»): the entry of the root explains a form the book does
+        not spell. Their score is above any BM25 score, so they come first after the phrase matches."""
+        if not lexical.is_meaning_question(question):
+            return []
+        if self._headings is None:
+            self._headings = lexical.RootIndex(
+                r[0] for r in self.corpus.con.execute("SELECT DISTINCT keywords FROM passages WHERE kind = 'gharib'"))
+        roots: set[str] = set()
+        for term in lexical.raw_terms(question):
+            roots |= self._headings.candidates(term)
+        if not roots:
+            return []
+        marks = ", ".join("?" for _ in roots)
+        rows = self.corpus.con.execute(
+            "SELECT p.id, p.source_id, p.location, p.kind, p.grade, p.text, p.keywords, p.tokens, 0 "
+            f"FROM passages p WHERE p.kind = 'gharib' AND p.keywords IN ({marks})", sorted(roots)).fetchall()
+        # the entry that holds a form closest to a word asked comes first, then the next root
+        terms = lexical.raw_terms(question)
+
+        def closeness(row) -> float:
+            words = set(normalize(row[5]).split())
+            return max((max((lexical.alignment(t, w) for w in words if abs(len(w) - len(t)) <= 2), default=0.0)
+                        for t in terms), default=0.0)
+        scored = sorted(((closeness(r), r) for r in rows), key=lambda x: -x[0])
+        return [r[:8] + (-(HEADING_SCORE + c),) for c, r in scored[:lexical.MAX_HEADING_PASSAGES]]
 
     def _match(self, match: str, limit: int, originals: bool = False) -> list:
         only = f" AND p.kind IN ({', '.join(repr(k) for k in _ORIGINAL_FIRST)})" if originals else ""
@@ -195,12 +232,19 @@ class SqliteRetriever:
         terms = list(dict.fromkeys(ordered))
         if not terms:
             return []
+        # words that frame a question about a meaning («معنى») are in most entries of a dictionary: they say
+        # nothing about the topic, so they do not count as covered (fall back to all words if nothing else is left)
+        focus = lexical.focus_terms(question) or terms
         quote = lambda t: '"' + t.replace('"', '""') + '"'  # noqa: E731
         # A Bayyinat objection is split into question, gist and answer passages.
         # Look slightly deeper so question-only parts do not consume answer slots.
         scan = k + 8
         rows = self._phrase_rows(ordered, min(scan, MAX_PHRASE_HITS))
         seen = {r[0] for r in rows}
+        for r in self._heading_rows(question):
+            if r[0] not in seen:
+                rows.append(r)
+                seen.add(r[0])
         rows += [r for r in self._match(" OR ".join(quote(t) for t in terms), scan + len(rows)) if r[0] not in seen]
         hits = []
         for r in rows:
@@ -208,7 +252,9 @@ class SqliteRetriever:
             if not bayyinat.is_answer_part(passage):
                 continue
             doc_terms = set(r[7].split())
-            coverage = sum(1 for t in terms if t in doc_terms) / len(terms)
+            coverage = sum(1 for t in focus if t in doc_terms) / len(focus)
+            if r[8] <= -HEADING_SCORE:
+                coverage = 1.0  # found by the heading of its root: the word is in it under another form
             hits.append(Hit(passage, -r[8], coverage))  # FTS5 bm25: lower is better
             if len(hits) == k:
                 break
