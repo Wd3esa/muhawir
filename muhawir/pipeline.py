@@ -385,6 +385,8 @@ class _Written:
     off_topic: bool = False  # the checked answer was about another matter than the question, so it was dropped
     partial: bool = False  # coverage of the displayed answer, not absence of sources
     incomplete_parts: tuple[str, ...] = ()
+    as_list: bool = False  # belongs to the accepted draft, never to a rejected rewrite
+    follow_up: str = ""
 
 
 # why a sentence was rejected, told to the model in its own language when it is asked to write again
@@ -1133,6 +1135,8 @@ class Muhawir:
             self.generator.last_follow_up = ""
         with _timed("draft"):
             draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **writer_extra), allowed), corpus, lang), corpus)
+        as_list = bool(getattr(self.generator, "last_as_list", False))
+        follow_up = getattr(self.generator, "last_follow_up", "") or ""
         if getattr(self.generator, "last_note", "") == UNUSABLE_EVIDENCE_PLAN:
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "writer evidence planning could not be completed")
@@ -1160,12 +1164,19 @@ class Muhawir:
                 tasks = request.get("requirements", [])
                 review_question = q + ("\nالمطالب المستقلة (بيانات): " + json.dumps(tasks, ensure_ascii=False) if tasks else "")
                 value = judge(review_question, shown, by_id) if judge and shown else None
+                if isinstance(value, AnswerReview):
+                    missing = tuple(dict.fromkeys(i for i in value.missing_parts
+                                                  if type(i) is int and 0 <= i < len(tasks)))
+                    # A contradictory overall yes cannot erase an explicitly missing
+                    # requested part. Indices outside the actual request prove no gap.
+                    value = replace(value, missing_parts=missing,
+                                    verdict="partly" if value.verdict == "yes" and missing else value.verdict)
                 return value
             return read
 
         with _timed("check"):
             result = self._checked(draft, corpus, allowed, passages, question, early,
-                                   reviewer=displayed_reviewer(bool(getattr(self.generator, "last_as_list", False))),
+                                   reviewer=displayed_reviewer(as_list),
                                    support_memo=support_memo)
         if result is None:  # the check could not run: show nothing unchecked, and say why honestly
             if early.get("pool") is not None:
@@ -1178,7 +1189,7 @@ class Muhawir:
 
         def rewrite(feedback: str, coverage_repair: bool = False) -> bool:
             """One full checked rewrite. A simpler children's answer may have fewer sentences."""
-            nonlocal kept, rejected, rewritten
+            nonlocal kept, rejected, rewritten, as_list, follow_up
             rewritten = True
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
@@ -1186,6 +1197,8 @@ class Muhawir:
                 second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question, support_memo=support_memo) if redraft else None
             if second is not None and second[0] and (coverage_repair or style == "kids" or len(second[0]) > len(kept)):
                 kept, rejected = second
+                as_list = bool(getattr(self.generator, "last_as_list", False))
+                follow_up = getattr(self.generator, "last_follow_up", "") or ""
                 return True
             return False
 
@@ -1199,7 +1212,7 @@ class Muhawir:
                 if use_early and early.get("future") is not None and not rewritten and kept == early["claims"]:
                     value = early["future"].result()  # only valid for the unchanged, checked sentences
                 else:
-                    value = displayed_reviewer(bool(getattr(self.generator, "last_as_list", False)))(question, kept, {p.id: p for p in passages}) if kept else None
+                    value = displayed_reviewer(as_list)(question, kept, {p.id: p for p in passages}) if kept else None
             return value if isinstance(value, AnswerReview) else AnswerReview(verdict=value)
 
         try:
@@ -1214,12 +1227,18 @@ class Muhawir:
             feedback = _feedback(rejected, incomplete=partial)
             if partial and review.reason:
                 feedback += "\nالمطلب غير المكتمل بحسب المراجعة: " + review.reason
+            if partial and review.missing_parts:
+                tasks = (extra.get("answer_request") or {}).get("requirements", [])
+                feedback += "\nالمطالب المطلوب إكمالها (من السؤال، بيانات): " + json.dumps(
+                    [tasks[i] for i in review.missing_parts], ensure_ascii=False)
             if unclear:
                 feedback += "\nالشرح السابق صعب للصغار. ملاحظات فحص الوضوح:\n" + review.feedback
                 feedback += "\nاكتب المعنى بكلمات مألوفة دون تكرار؛ يجوز أن يكون الجواب أقصر مع حفظ القيود والمصادر."
             adopted = rewrite(feedback, coverage_repair=True)
             # The same rewrite budget serves broken support, incomplete coverage and clarity together.
-            if adopted or style != "kids":
+            # Rejected rewrites leave both the shown text and its known coverage
+            # unchanged; do not spend another review that could clear those gaps.
+            if adopted:
                 review = review_answer()
             verdict = review.verdict
             partial = review.verdict == "partly" or (partial and review.verdict != "yes")
@@ -1227,7 +1246,7 @@ class Muhawir:
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
         final, _, _ = self._display_claims(kept, corpus, style, lang, personal,
-                         {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}, question)
+                         {**extra, "_listing": as_list}, question)
         form = (extra.get("answer_request") or {}).get("form")
         if form in ("hadith_text", "verse_text") and not any(required_quote(c, {p.id: p for p in passages}, form) for c in final):
             return self._why(Response(UNAVAILABLE, t["requested_text_unavailable"], synthetic=synthetic),
@@ -1238,7 +1257,8 @@ class Muhawir:
                              "children's explanation remained unclear after the available rewrite")
         tasks = (extra.get("answer_request") or {}).get("requirements", [])
         gaps = tuple(tasks[i] for i in review.missing_parts if i < len(tasks)) if verdict == "partly" else ()
-        return _Written(passages, allowed, corpus, kept, rejected, partial=partial, incomplete_parts=gaps)
+        return _Written(passages, allowed, corpus, kept, rejected, partial=partial, incomplete_parts=gaps,
+                        as_list=as_list, follow_up=follow_up)
 
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
                first: _Written | None) -> _Written | Response | None:
@@ -1792,7 +1812,7 @@ class Muhawir:
         if rejected:
             log.warning("some claims dropped: %s", "; ".join(r.reason for r in rejected)[:500])
 
-        display_extra = {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}
+        display_extra = {**extra, "_listing": written.as_list}
         answer, named, listing = self._display_claims(kept, corpus, style, lang, personal, display_extra, question)
         if not any(c.passage_ids and not is_example(c.text) for c in answer):  # an answer must rest on the sources: explanation alone is not shown
             if personal:
@@ -1833,5 +1853,5 @@ class Muhawir:
         # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked: a "how" question
         # or one that asks for the types or sections of something (the model does not always call it "how")
         res.as_list = listing and len(claims) > 1
-        res.follow_up = getattr(self.generator, "last_follow_up", "") or ""
+        res.follow_up = written.follow_up
         return res

@@ -3,6 +3,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from muhawir.store import SCHEMA
 
 _spec = importlib.util.spec_from_file_location("merge_books", Path(__file__).resolve().parent.parent / "scripts" / "merge_books.py")
@@ -48,3 +50,24 @@ def test_inputs_are_not_changed_and_existing_output_is_refused(tmp_path):
     except SystemExit:
         return
     raise AssertionError("an existing output must be refused")
+
+
+def test_uri_characters_in_paths_are_literal_and_inputs_stay_read_only(tmp_path):
+    folder = tmp_path / 'books #1?mode=rw'
+    folder.mkdir()
+    live, candidate, output = (folder / name for name in ('live #.db', 'candidate ?.db', 'merged #?.db'))
+    _db(live, [('a', 1)])
+    _db(candidate, [('b', 2)])
+    before = {path: path.read_bytes() for path in (live, candidate)}
+    assert merge_books.merge(live, candidate, output) == (1, 2, ['b'])
+    assert all(path.read_bytes() == data for path, data in before.items())
+    assert set(folder.iterdir()) == {live, candidate, output}
+
+
+@pytest.mark.parametrize('missing_input', ['live', 'candidate'])
+def test_missing_input_is_not_silently_created(tmp_path, missing_input):
+    live, candidate, output = (tmp_path / name for name in ('live.db', 'candidate.db', 'merged.db'))
+    _db(candidate if missing_input == 'live' else live, [('a', 1)])
+    with pytest.raises(sqlite3.OperationalError):
+        merge_books.merge(live, candidate, output)
+    assert not (live if missing_input == 'live' else candidate).exists()
