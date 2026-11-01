@@ -387,12 +387,18 @@ body { font-family:"Muhawir Book","Muhawir Arabic",serif; }
   .explanation-picker > summary { padding-inline:4px; gap:4px; }
 }
 
-/* Empty: one compact pill. A typed question reveals the explanation row. */
-#ask:not(.has-question) { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px; border-radius:28px; padding:5px 7px; }
-#ask:not(.has-question) .composer-row { width:auto; }
-#ask:not(.has-question) #q { min-height:44px; height:44px; padding-block:7px; }
-#ask:not(.has-question) .voice-note { grid-column:1/-1; }
-.explanation-picker[hidden] { display:none; }
+/* Two rows like modern chat boxes: the question, then + · style · mic · send. */
+#ask .attach { border:1px solid var(--line); }
+.explanation-picker { margin-inline-start:auto; margin-inline-end:0; }
+.explanation-picker > summary { font-size:14px; }
+.explanation-current { color:var(--ink); font-weight:600; }
+.explanation-options { inset-inline-start:auto; inset-inline-end:0; }
+.explanation-title { float:inline-start; width:100%; box-sizing:border-box; padding:6px 10px 4px; font-size:12px; color:var(--muted); }
+.explanation-option input { position:absolute; opacity:0; pointer-events:none; }
+.explanation-option span { flex:1; }
+.explanation-title + .explanation-option { clear:both; }
+.explanation-option:has(input:checked)::after { content:""; width:16px; height:16px; flex:none; background:var(--accent); -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat; }
+.explanation-option:has(input:focus-visible) { outline:2px solid var(--focus); outline-offset:-2px; }
 /* One consistent, unboxed icon strip. Smaller screens can swipe it without wrapping. */
 .msg .tools { display:flex; flex-wrap:nowrap; align-items:center; justify-content:flex-start; gap:0; width:100%; overflow-x:auto; overflow-y:hidden; padding:6px 0 2px; margin-top:14px; border-top:1px solid var(--line); scrollbar-width:thin; }
 .msg .tools .action-btn { display:inline-flex; align-items:center; justify-content:center; flex:0 0 36px; width:36px; min-width:36px; height:44px; min-height:44px; padding:0; margin:0; border:0; border-radius:9px; background:transparent; color:var(--muted); box-shadow:none; font:inherit; cursor:pointer; }
