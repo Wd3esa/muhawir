@@ -1035,11 +1035,13 @@ class Muhawir:
         said = set(tokenize(f"{original} {question}"))
         extra = extra + [f"ال{sections.SYNONYMS[t]}" for t in said if t in sections.SYNONYMS]
         queries = extra + [question]  # phrases in the sources' own wording first, the user's words last
+        if original and original != question and original not in queries:
+            queries.append(original)  # the rewrite may have changed a word: what the user typed is searched too
         prepare = getattr(self.retriever, "prepare_queries", None)
         if callable(prepare):
             prepare(queries)
         df = getattr(self.retriever, "df", None)
-        user_words = f"{original} {question}"
+        user_words = original or question  # only what the user typed: the model's rewrite of it may have drifted
         def found(query: str) -> list:
             # a dictionary entry must be about the rare word the USER asked about, not about the word an expanded
             # phrase or a vector search drifted to («ما معنى ألفوا» must not be answered from the entry «أوى»)

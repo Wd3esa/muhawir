@@ -83,3 +83,15 @@ def test_gate_rejects_a_heading_found_for_a_word_that_is_not_arabic(retriever):
 def test_existing_behaviour_of_other_questions_is_unchanged(retriever):
     hits = retriever.search("التطهير", k=3)
     assert hits and hits[0].passage.keywords == "طهر"
+
+
+def test_pipeline_judges_the_users_words_not_the_models_rewrite(retriever):
+    """Live case: the question was rewritten around «أوى» and its search phrase too; the entry of «أوى» must not be
+    offered for what the user typed («ألفوا»)."""
+    from muhawir.generate import ExtractiveGenerator
+    from muhawir.pipeline import Muhawir
+    engine = Muhawir(retriever.corpus, ExtractiveGenerator(), retriever)
+    passages, _ = engine._gather("ما معنى أوى إلى في اللغة", "ما معنى الفوا اباءهم", ["معنى أوى إلى"])
+    roots = [p.keywords for p in passages]
+    assert "لفى" in roots
+    assert "أوى" not in roots
