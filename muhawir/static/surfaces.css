@@ -111,10 +111,10 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .plain-answer .source-panel { margin:6px 0 2px; }
 .plain-answer .source-shelf { display:flex; gap:8px; margin:0 -2px; padding:2px 2px 8px; overflow-x:auto; border:0; scroll-snap-type:x proximity; animation:answer-sources-in .3s ease-out both; }
 .plain-answer .source-shelf .card { flex:0 0 min(270px,82%); scroll-snap-align:start; display:flex; flex-direction:column; gap:6px; padding:12px; border-radius:16px; background:var(--panel); border:1px solid var(--line); box-shadow:none; }
-.plain-answer .card summary,.plain-answer .card[open] summary,.plain-answer .card summary:hover { min-height:0; display:flex; justify-content:flex-start; gap:6px; padding:0; border-radius:0; background:none; color:var(--muted); box-shadow:none; transform:none; font-size:12.5px; font-weight:500; }
+.plain-answer .card summary,.plain-answer .card[open] summary,.plain-answer .card summary:hover { text-shadow:none; min-height:0; display:flex; justify-content:flex-start; gap:6px; padding:0; border-radius:0; background:none; color:var(--muted); box-shadow:none; transform:none; font-size:12.5px; font-weight:500; }
 .plain-answer .card summary::before,.plain-answer .card summary::after { content:none; }
 .plain-answer .card summary .num { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:9px; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:600; font-family:inherit; }
-.plain-answer .card summary .book-title { max-width:none; font-size:12.5px; font-weight:500; color:var(--muted); }
+.plain-answer .card summary .book-title { text-shadow:none; max-width:none; font-size:12.5px; font-weight:500; color:var(--muted); }
 .plain-answer .card blockquote:not(.translation) { margin:4px 0 0; padding:0; border:0; font-family:"Muhawir Book",Amiri,serif; font-size:16px; line-height:1.8; color:var(--ink); }
 .plain-answer .card .about,.plain-answer .card .meta { font-size:12px; color:var(--muted); }
 .related { margin-top:18px; }
@@ -132,3 +132,16 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .plain-answer .sources-title { min-height:0; height:0; margin:0; padding:0; overflow:hidden; }
 @media(max-width:620px) { .plain-answer .tools .action-btn { flex-basis:36px; width:36px; min-width:36px; } .plain-answer .tools .sources-chip { flex-basis:auto; width:auto; padding:0 8px; } }
 .plain-answer .cite { font-size:16px; vertical-align:baseline; white-space:nowrap; }
+
+/* Text size (November 2026): one control in the top bar enlarges the conversation and the question box together. */
+.conversation-frame { zoom:var(--text-zoom,1); }
+.text-size-pop { margin-inline-start:auto; }
+.text-size-pop + .lang-pop { margin-inline-start:-8px; }
+.text-size-pop .text-size-panel { inset-inline-end:0; display:flex; align-items:center; gap:4px; min-width:0; padding:6px; border-radius:14px; }
+.text-size-panel[hidden] { display:none !important; }
+.text-size-step { width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--ink); cursor:pointer; }
+.text-size-step svg { width:20px; height:20px; }
+.text-size-step:hover:not(:disabled) { background:var(--accent-soft); color:var(--accent); }
+.text-size-step:disabled { opacity:.35; cursor:default; }
+.text-size-step:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+#textSizeValue { min-width:52px; text-align:center; font-size:15px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
