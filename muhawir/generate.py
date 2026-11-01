@@ -197,8 +197,9 @@ SYSTEM_PROMPT = """أنت «مُحاور»: معلّم هادئ يشرح الإ�
    وإذا كان للشيء اسمان مشهوران فاجمعهما بـ«أو» في جملة التعريف (مثل: «العادة السرية أو الاستمناء…»)، لا بـ«وهي».
    للصغار: عنوانان على الأكثر أو بلا عناوين، وجمل مترابطة لا ملخص مستقل لكل مصدر. لا تفرض قائمة على سؤال تعريف بسيط.
    والأرقام تُكتب بالأرقام، ويجوز تحويل الكسور إلى نسب (ربع العشر = 2.5%، العشر = 10%) إذا كانت مطلوبة لفهم الجواب.
-   وفي آخر الجواب اقترح على السائل في الحقل follow_up سؤالًا قصيرًا واحدًا يواصل به الحوار، مما تجيب عنه المقاطع المعطاة
-   (مثل: «هل تريد أن تعرف لمن تُعطى الزكاة؟»)، بلا معلومة جديدة فيه.
+   واترك follow_up فارغًا في أغلب الأجوبة. لا تقترح فيه سؤالًا إلا إذا كانت للسؤال خطوة تالية طبيعية يحتاجها السائل غالبًا،
+   وفي المقاطع المعطاة جواب واضح عنها (مثل: «هل تريد أن تعرف لمن تُعطى الزكاة؟» بعد جواب عن وجوبها)، سؤالًا قصيرًا واحدًا
+   بلا معلومة جديدة فيه. ولا تقترح سؤالًا لمجرد مواصلة الحوار، ولا بعد جواب ناقص أو امتناع أو إحالة أو مواساة أو حالة شخصية.
    وإن عدّد الجواب أنواعًا أو أقسامًا أو أركانًا فلا تقترح السؤال عن واحد منها دون غيره، بل عنها كلها أو عن الفرق بينها
    (مثل: «هل تريد أن تعرف الفرق بين ربا الفضل وربا النسيئة؟»)، حتى لا يبدو أن الجواب أسقط بعضها.
    واستثناءً للصغار: اترك follow_up فارغًا افتراضيًا، ولا تنقل الطفل إلى موضوع آخر بعد تعريف جديد.
@@ -225,7 +226,7 @@ SYSTEM_PROMPT = """أنت «مُحاور»: معلّم هادئ يشرح الإ�
  {"section": "", "label": "", "text": "يخبرنا الله تعالى أنه هو الأول، وقد شرح النبي ﷺ معنى ذلك بأنه ليس قبله شيء، فلا يوجد قبله من يخلقه.", "passage_ids": ["x1", "x2"]},
  {"section": "", "label": "", "text": "ويخبرنا الله تعالى أيضًا أنه لم يولد، فليس له أصل جاء منه كما يأتي المخلوق من غيره.", "passage_ids": ["x3"]},
  {"section": "", "label": "", "text": "وبيّن النبي ﷺ أن الشيطان يحاول أن يجرّ الإنسان إلى هذا السؤال خطوة خطوة، وعلّمنا إذا وصل إليه أن نستعيذ بالله ونتوقف عنده.", "passage_ids": ["x4"]}
-], "views": [], "follow_up": "هل تريد أن تعرف معنى سورة الإخلاص؟"}
+], "views": [], "follow_up": ""}
 
 المثال الثاني: سؤال عن شروط، بأسلوب «لليافعين». السؤال: «ما هو الحول في الزكاة؟»
 المقاطع: [x5] (فقه، بداية المجتهد) جمهور الفقهاء يشترطون في وجوب الزكاة في الذهب والفضة والماشية الحول، لثبوت ذلك عن الخلفاء الأربعة وانتشاره في الصحابة… وقد روي مرفوعًا من حديث ابن عمر: لا زكاة في مال حتى يحول عليه الحول… وسبب الاختلاف أنه لم يرد في ذلك حديث ثابت · [x6] (آية) وآتوا حقه يوم حصاده
@@ -238,7 +239,7 @@ SYSTEM_PROMPT = """أنت «مُحاور»: معلّم هادئ يشرح الإ�
  {"section": "", "label": "الزروع والثمار", "text": "يخبرنا الله تعالى أن حقها يُخرج يوم حصادها: ﴿وآتوا حقه يوم حصاده﴾.", "passage_ids": ["x6"]}
 ], "views": [], "follow_up": "هل تريد أن تعرف مقدار الزكاة في كل مال؟"}
 
-أعد JSON فقط بهذا الترتيب: {"plan": "...", "abstain": false, "as_list": false, "claims": [{"section": "", "label": "", "text": "...", "passage_ids": ["..."]}], "views": [{"school": "...", "text": "...", "passage_ids": ["..."]}], "follow_up": "...؟"}"""
+أعد JSON فقط بهذا الترتيب: {"plan": "...", "abstain": false, "as_list": false, "claims": [{"section": "", "label": "", "text": "...", "passage_ids": ["..."]}], "views": [{"school": "...", "text": "...", "passage_ids": ["..."]}], "follow_up": ""}"""
 
 SCHEMA = {
     "type": "object",
@@ -553,6 +554,10 @@ READ_EACH_SENTENCE = os.environ.get("MUHAWIR_READ_EACH_SENTENCE", "1") != "0"
 # readings of the second check made at the same time: 3 for the free hosts, which limit concurrency; a paid host
 # (OpenRouter) takes more, so an answer's sentences are read together instead of three by three (MUHAWIR_PARALLEL_CHECKS)
 MAX_PARALLEL_CHECKS = max(1, int(os.environ.get("MUHAWIR_PARALLEL_CHECKS") or 3))
+# Check-groups (opt-in trial, November 2026): sentences that cite exactly the same passages are read together in one
+# request, each with its own verdict; others are still read one by one. Off by default: reading sentences together
+# was found more lenient, so it is switched on only after a measured comparison of verdicts on the same answers
+CHECK_GROUPS = os.environ.get("MUHAWIR_CHECK_GROUPS", "") == "1"
 
 
 SEVERE_PROBLEMS = ("distortion", "dropped_condition")
@@ -1132,8 +1137,31 @@ class ModelGenerator:
                 batch = self._check_once(group, passages, question) or self._check_once(group, passages, question)
                 if batch is not None:
                     return [([ok], [why]) for ok, why in zip(*batch)]
+            if CHECK_GROUPS and len(group) > 1:
+                return read_grouped(group)
             with ThreadPoolExecutor(max_workers=MAX_PARALLEL_CHECKS) as pool:
                 return list(pool.map(read, group))
+
+        def read_grouped(group: list[Claim]) -> list:
+            """Check-groups: one request for the sentences citing the same passages; a single sentence, an example, or a
+            group whose reply is unusable twice is read on its own as before."""
+            groups: dict[tuple, list[int]] = {}
+            for i, c in enumerate(group):
+                key = ("example", i) if is_example(c.text) else tuple(sorted(set(c.passage_ids)))
+                groups.setdefault(key, []).append(i)
+            def read_set(indexes: list[int]) -> list:
+                members = [group[i] for i in indexes]
+                if len(members) > 1:
+                    batch = self._check_once(members, passages, question) or self._check_once(members, passages, question)
+                    if batch is not None:
+                        return [([ok], [why]) for ok, why in zip(*batch)]
+                return [read(c) for c in members]
+            out: list = [None] * len(group)
+            with ThreadPoolExecutor(max_workers=MAX_PARALLEL_CHECKS) as pool:
+                for indexes, results in zip(groups.values(), pool.map(read_set, groups.values())):
+                    for i, result in zip(indexes, results):
+                        out[i] = result
+            return out
 
         # The free cloud models answer the same question differently from one call to the next, and a good sentence
         # lost to a chance "no" leaves an answer incomplete. So a sentence is dropped only when two readings both

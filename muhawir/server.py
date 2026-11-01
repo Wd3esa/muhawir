@@ -26,7 +26,7 @@ from .corpus import load_corpus
 from .generate import USAGE, get_generator
 from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir, _progress
 from .store import SqliteCorpus, SqliteRetriever
-from . import extract, quote_check, tts, telemetry
+from . import extract, mcp_server, quote_check, tts, telemetry
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ DEFAULT_DB = ROOT.parent / "data" / "muhawir.db"
 
 
 NOT_IN_ANSWERS = frozenset({"server.py", "tts.py", "build_data.py", "tashkeel.py", "tashkeel_worker.py", "extract.py",
-                            "quote_check.py", "extra_sources.py", "telemetry.py"})
+                            "quote_check.py", "extra_sources.py", "telemetry.py", "mcp_server.py"})
 
 
 def answers_version(sources: Path, generator) -> str:
@@ -138,7 +138,8 @@ _ask_slots = threading.BoundedSemaphore(max(1, int(os.environ.get("MUHAWIR_ASK_C
 # Bound waiting requests separately. Raising generation concurrency on a small VM
 # would multiply model calls and could exhaust the upstream provider's free quota.
 ASK_QUEUE_SIZE = max(0, int(os.environ.get("MUHAWIR_ASK_QUEUE_SIZE", "12")))
-ASK_QUEUE_TIMEOUT = max(0.0, float(os.environ.get("MUHAWIR_ASK_QUEUE_TIMEOUT", "10")))
+# A new answer takes about 15–25 s, so a shorter wait almost never reached a free slot (November 2026)
+ASK_QUEUE_TIMEOUT = max(0.0, float(os.environ.get("MUHAWIR_ASK_QUEUE_TIMEOUT", "45")))
 _ask_waiters = threading.BoundedSemaphore(ASK_QUEUE_SIZE) if ASK_QUEUE_SIZE else None
 _ask_calls: deque[float] = deque()
 _ask_lock = threading.Lock()
@@ -233,6 +234,27 @@ def ask(body: Ask, request: Request = None) -> dict:  # type: ignore[assignment]
 
 
 
+def _admit_or_queue(request) -> tuple[str, bool]:
+    """Rate check, then a free answer slot now (True) or a place in the waiting line (False: the caller holds a
+    waiter permit and must wait for a slot with _wait_for_slot). 429 when the line is full too."""
+    address = request.client.host if request is not None and request.client else "unknown"
+    if not _allow_question(address):
+        raise HTTPException(status_code=429, detail="Too many questions; please wait a minute", headers={"Retry-After": "60"})
+    if _ask_slots.acquire(blocking=False):
+        return address, True
+    if _ask_waiters is None or not _ask_waiters.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="All answer slots are busy; please try again shortly", headers={"Retry-After": "5"})
+    return address, False
+
+
+def _wait_for_slot() -> bool:
+    """For a request admitted to the waiting line: wait for a free answer slot, then leave the line."""
+    try:
+        return _ask_slots.acquire(timeout=ASK_QUEUE_TIMEOUT)
+    finally:
+        _ask_waiters.release()
+
+
 @app.post("/api/ask_stream")
 def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type: ignore[assignment]
     """Server-ask stream: the same answer as /api/ask, sent as lines of JSON. {"stage": ...} lines tell which step the
@@ -243,7 +265,7 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
     with telemetry.bind(trace):
         try:
             with telemetry.span("admission"):
-                address = _admit(request)
+                address, admitted = _admit_or_queue(request)
         except BaseException as exc:
             if trace:
                 trace.finish("rejected" if isinstance(exc, HTTPException) else "error",
@@ -252,6 +274,18 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
     events: queue.Queue = queue.Queue()
 
     def work() -> None:
+        # Queued-stage: when every slot is busy the stream starts at once with {"stage": "queued"}, so the page says
+        # the question is waiting its turn instead of showing nothing; it then waits for a slot (November 2026)
+        if not admitted:
+            events.put({"stage": "queued"})
+            with telemetry.bind(trace), telemetry.span("queue"):
+                got = _wait_for_slot()
+            if not got:
+                if trace:
+                    trace.finish("rejected", 429)
+                events.put({"error": 429})
+                events.put(None)
+                return
         with telemetry.bind(trace):
             token = _progress.set(lambda stage, data=None: events.put({"stage": stage, **({"data": data} if data else {})}))
             status, http_status = "error", 500
@@ -281,7 +315,10 @@ def ask_stream(body: Ask, request: Request = None) -> StreamingResponse:  # type
     try:
         threading.Thread(target=work, daemon=True).start()
     except BaseException:
-        _ask_slots.release()
+        if admitted:
+            _ask_slots.release()
+        else:
+            _ask_waiters.release()
         if trace:
             trace.finish("error", 500)
         raise
@@ -572,3 +609,28 @@ def index() -> FileResponse:
     # no-cache: the browser asks again each time and gets the new page at once after an update (a stale copy kept
     # the old menus on a phone), yet still uses its copy when nothing changed
     return FileResponse(ROOT / "static" / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+# Muhawir over MCP (off unless MUHAWIR_MCP=1): other assistants and models use the sources at /mcp (mcp_server.py)
+def _mcp_ask(question: str, style: str, lang: str) -> dict:
+    """ask_muhawir: the same answer slots, waiting line and question budget as a visitor's question."""
+    if not _ask_slots.acquire(timeout=ASK_QUEUE_TIMEOUT):
+        raise ValueError("All of Muhawir's answer slots are busy; try again shortly.")
+    try:
+        return _run_ask(Ask(question=question, style=style, lang=lang))
+    except HTTPException as exc:
+        raise ValueError("Too many questions to Muhawir; wait a minute and try again.") from exc
+    finally:
+        _ask_slots.release()
+
+
+_mcp = mcp_server.build(engine, _mcp_ask)
+if _mcp is not None:
+    mcp_server.mount(app, _mcp)
+
+
+@app.get("/api/mcp")
+def mcp_status() -> dict:
+    """For the page's «ربط مع مساعد آخر»: whether /mcp is served here, and whether ask_muhawir is offered."""
+    return {"enabled": _mcp is not None, "ask": _mcp is not None and mcp_server.ASK_ALLOWED,
+            "ask_needs_token": not mcp_server.ASK_OPEN}
