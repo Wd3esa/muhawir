@@ -1,36 +1,36 @@
-/* Final surface layer: shared by chrome, both answer layouts and source panels.
+/* Final surface layer: shared by chrome, both answer layouts and source panels. Turquoise and gold (November 2026).
    Keep after book-answer.css. Reading surfaces have at least 96% opacity. */
 :root {
-  --bg:#eef2ee; --panel:#fafcf8; --sidebar:#e7ede7;
-  --ink:#20372b; --muted:#495e50; --muted-soft:#53695a;
-  --accent:#285e42; --accent-ink:#ffffff; --accent-soft:#dbe9dd;
-  --line:#adbdaf; --mine:#e0ebe0; --card:var(--panel); --focus:#285e42;
-  --surface-chrome:rgba(231,237,231,.86);
-  --surface-panel:rgba(250,252,248,.90);
-  --surface-reading:rgba(250,252,248,.97);
-  --surface-question:rgba(224,235,224,.96);
+  --bg:#f1f7f8; --panel:#fcfefe; --sidebar:#e6f1f2;
+  --ink:#15303a; --muted:#4a6670; --muted-soft:#557079;
+  --accent:#0b6e77; --accent-ink:#ffffff; --accent-soft:#d9f0f2;
+  --line:#a9c3c8; --mine:#dfeff1; --card:var(--panel); --focus:#0b6e77;
+  --surface-chrome:rgba(230,241,242,.86);
+  --surface-panel:rgba(252,254,254,.90);
+  --surface-reading:rgba(252,254,254,.97);
+  --surface-question:rgba(223,239,241,.96);
   --surface-edge:rgba(255,255,255,.9);
-  --surface-shadow:0 8px 24px rgba(29,53,38,.08),inset 0 1px 0 var(--surface-edge);
-  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(95,143,110,.18),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(159,172,129,.17),transparent 48%);
+  --surface-shadow:0 8px 24px rgba(21,48,58,.08),inset 0 1px 0 var(--surface-edge);
+  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(127,207,214,.22),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(242,217,166,.24),transparent 48%);
   --book-paper:var(--panel); --book-ink:var(--ink); --book-muted:var(--muted);
-  --book-quote:var(--accent); --book-bar:#345b43; --book-tint:var(--accent-soft);
+  --book-quote:var(--accent); --book-bar:#0a5960; --book-tint:var(--accent-soft);
   --book-line:var(--line); --book-white:#fff;
 }
 :root[data-theme="dark"] {
   color-scheme:dark;
-  --bg:#0b100d; --panel:#1c2821; --sidebar:#152019;
-  --ink:#f0f5ee; --muted:#c1d1c4; --muted-soft:#b7cabc;
-  --accent:#b0e2bd; --accent-ink:#102317; --accent-soft:#2c4434;
-  --line:#607d68; --mine:#263c2d; --card:var(--panel); --focus:#c1edcc;
-  --surface-chrome:rgba(21,32,25,.90);
-  --surface-panel:rgba(28,40,33,.92);
-  --surface-reading:rgba(28,40,33,.97);
-  --surface-question:rgba(38,60,45,.97);
-  --surface-edge:rgba(212,247,221,.21);
+  --bg:#0f1719; --panel:#19252a; --sidebar:#121c1f;
+  --ink:#e8f3f4; --muted:#b7ccd0; --muted-soft:#a9c1c6;
+  --accent:#5ccfd8; --accent-ink:#052126; --accent-soft:#1e3a3f;
+  --line:#5c7c83; --mine:#213238; --card:var(--panel); --focus:#7fdde4;
+  --surface-chrome:rgba(18,28,31,.90);
+  --surface-panel:rgba(25,37,42,.92);
+  --surface-reading:rgba(25,37,42,.97);
+  --surface-question:rgba(33,50,56,.97);
+  --surface-edge:rgba(200,240,244,.21);
   --surface-shadow:0 8px 24px rgba(0,0,0,.23),inset 0 1px 0 var(--surface-edge);
-  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(107,176,129,.15),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(133,159,110,.09),transparent 48%);
+  --surface-scene:radial-gradient(ellipse at 0 8%,rgba(92,207,216,.14),transparent 52%),radial-gradient(ellipse at 100% 90%,rgba(227,180,90,.07),transparent 48%);
   --book-paper:var(--panel); --book-ink:var(--ink); --book-muted:var(--muted);
-  --book-quote:var(--accent); --book-bar:#3d6549; --book-tint:var(--accent-soft);
+  --book-quote:var(--accent); --book-bar:#3e6e74; --book-tint:var(--accent-soft);
   --book-line:var(--line); --book-white:#fff;
 }
 :root[data-answer-palette="blue"] { --book-quote:#315d76; --book-bar:#365f75; }
