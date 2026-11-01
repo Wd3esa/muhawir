@@ -915,9 +915,12 @@ class Muhawir:
 
     @staticmethod
     def _broken(kept: list, rejected: list, draft: list) -> bool:
-        """True when the checks removed the first sentence or a third or more of the answer."""
+        """True when the checks removed the first sentence or half or more of the answer. A smaller loss is left to the
+        relevance review: it asks for a rewrite only when the answer no longer covers the question («partly»), so a
+        complete answer that lost one sentence of several costs no second draft and no second round of readings
+        (November 2026: it was a third or more, the most frequent cause of 25–30 model calls for one answer)."""
         first = draft[0] if draft else None
-        return not kept or (first is not None and first not in kept) or len(rejected) * 2 >= len(kept)
+        return not kept or (first is not None and first not in kept) or len(rejected) >= len(kept)
 
     def _neighbours(self, passages: list[Passage], best: int = NEIGHBOUR_OF, limit: int = MAX_NEIGHBOURS) -> list[Passage]:
         """The passage before and after each of the first fiqh passages, when in the same section."""
@@ -1826,5 +1829,6 @@ class Muhawir:
         # kinds, conditions, pillars or steps are always shown as a list, whatever the model marked: a "how" question
         # or one that asks for the types or sections of something (the model does not always call it "how")
         res.as_list = listing and len(claims) > 1
-        res.follow_up = getattr(self.generator, "last_follow_up", "") or ""
+        # a suggested next question only after a complete answer: never one that leads away from a part left unanswered
+        res.follow_up = "" if getattr(written, "partial", False) else (getattr(self.generator, "last_follow_up", "") or "")
         return res
