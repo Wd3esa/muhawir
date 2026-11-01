@@ -30,7 +30,7 @@ from .normalize import normalize, tokenize
 from .retrieve import Hit, Retriever, is_sufficient
 from .sections import SectionIndex
 from .verify import Rejected, invented_definition, verify
-from .writer_plan import UNUSABLE_EVIDENCE_PLAN
+from .writer_plan import UNUSABLE_EVIDENCE_PLAN, OVERSIZED_DRAFT, STYLE_LIMITS
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
@@ -140,7 +140,6 @@ def as_question(text: str) -> str:
 # a list of steps or kinds (which may need a few more), and for children the longest sentence kept when shorter ones
 # are enough. The model often writes past them (style check of 6 October 2026: 13 sentences for a child, sentences of
 # 24 words), so they are applied here, after the checks, keeping the order the answer was written in.
-STYLE_LIMITS = {"kids": (5, 7), "youth": (6, 10), "newcomer": (8, 10), "extended": (12, 16)}
 KIDS_LONGEST = 18
 
 
@@ -1137,7 +1136,7 @@ class Muhawir:
             draft = retain_inline_qualification(compact_provenance(self._tidy(self.generator.generate(question, passages, style, lang, personal=personal, **writer_extra), allowed), corpus, lang), corpus)
         as_list = bool(getattr(self.generator, "last_as_list", False))
         follow_up = getattr(self.generator, "last_follow_up", "") or ""
-        if getattr(self.generator, "last_note", "") == UNUSABLE_EVIDENCE_PLAN:
+        if getattr(self.generator, "last_note", "") in (UNUSABLE_EVIDENCE_PLAN, OVERSIZED_DRAFT):
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "writer evidence planning could not be completed")
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:

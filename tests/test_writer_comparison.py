@@ -38,7 +38,8 @@ def test_builds_both_actual_writer_requests_with_full_evidence():
     assert b['schema']['properties']['plan']['type'] == 'array'
     assert b['schema']['properties']['plan']['maxItems'] == 2
     assert 'State the color' in a['user'] and 'State the color' in b['user']
-    assert a['system'] in b['system']
+    assert a['system'] != b['system']
+    assert '"plan": "' in a['system'] and '"plan": "' not in b['system']
 
 
 @pytest.mark.parametrize('mutation', ['payload', 'evidence', 'revision', 'runner', 'pairs'])
