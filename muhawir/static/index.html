@@ -2504,8 +2504,12 @@ function mcpConnect() {
     }));
     const c = MCP_CLIENTS[client], how = [el("p", "mcp-note-line", c.note[lang] || c.note.en)];
     if (c.path || c.file) {  // where to go: always left to right, one chip per menu name (or the file name)
-      const row = el("div", "mcp-path"); row.dir = "ltr";
-      (c.path || [c.file]).forEach((name) => row.append(el("span", c.file ? "mcp-file" : "mcp-step", name)));
+      const row = el("ol", "mcp-path");
+      (c.path || [c.file]).forEach((name) => {
+        const item = el("li", c.file ? "mcp-file" : "mcp-step"), text = el("span", "mcp-text", name);
+        text.dir = "ltr";  // menu and file names are English: kept left to right inside the Arabic page
+        item.append(text); row.append(item);
+      });
       how.push(row);
     }
     $("mcpSteps").replaceChildren(...how);

@@ -181,7 +181,19 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-step,.mcp-file { padding:4px 10px; border-radius:8px; background:var(--accent-soft); color:var(--ink); font:600 13px/1.5 ui-sans-serif,system-ui,sans-serif; }
 .mcp-file { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:500; }
 .mcp-sep { color:var(--muted); }
-.mcp-path { justify-content:flex-end; }
-.mcp-step + .mcp-step::before { content:"›"; margin-inline-end:8px; color:var(--muted); font-weight:400; }
 .mcp-code pre { padding-inline-end:14px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .mcp-copy { position:static; display:block; width:100%; margin-top:8px; min-height:40px; }
+
+/* Assistant dialog, tidy layout: an even grid of assistants, numbered steps, full-width boxes */
+.mcp-clients { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:14px; }
+.mcp-client { flex-direction:column; justify-content:center; gap:6px; min-height:68px; padding:10px 4px; border-radius:14px; font-size:13px; text-align:center; }
+.mcp-client-icon,.mcp-client-icon svg,.mcp-client-icon img { width:24px; height:24px; }
+.mcp-note-line { margin:16px 0 10px; font-size:14px; color:var(--muted); }
+.mcp-path { list-style:none; margin:0 0 12px; padding:0; display:flex; flex-direction:column; gap:6px; counter-reset:mcp; }
+.mcp-step,.mcp-file { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--accent-soft); color:var(--ink); }
+.mcp-step { counter-increment:mcp; }
+.mcp-step::before { content:counter(mcp); flex:none; width:22px; height:22px; border-radius:50%; background:var(--accent); color:var(--accent-ink); font:700 12px/22px ui-sans-serif,system-ui,sans-serif; text-align:center; }
+.mcp-text { flex:1; min-width:0; text-align:left; font:600 14px/1.5 ui-sans-serif,system-ui,sans-serif; }
+.mcp-file .mcp-text { font:500 13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+.mcp-code { margin-top:0; }
+.mcp-path { align-items:stretch; justify-content:flex-start; }
