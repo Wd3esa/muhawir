@@ -1889,7 +1889,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
     <p class="mcp-off" id="mcpOff" data-t="mcpOff" hidden></p>
     <div class="mcp-body" id="mcpBody" hidden>
       <div class="mcp-clients" id="mcpClients" role="radiogroup"></div>
-      <ol class="mcp-steps" id="mcpSteps"></ol>
+      <div class="mcp-steps" id="mcpSteps"></div>
       <div class="mcp-code"><pre id="mcpCode" dir="ltr"></pre><button type="button" class="mcp-copy" id="mcpCopy" data-t="mcpCopy"></button></div>
     </div>
   </dialog>
@@ -2451,23 +2451,21 @@ function textSizeAction(t) {
 // Each assistant: a kind (for the generic icon until its own logo file is added at /static/clients/<key>.svg),
 // the shortest steps that work, and the text to copy.
 const MCP_CLIENTS = {
-  claude: { name: "Claude", kind: "chat", steps: {
-    ar: ["Customize ← Connectors ← Add custom connector، ثم الصق الرابط (بلا مصادقة)."],
-    en: ["Customize → Connectors → Add custom connector, paste the link (no sign-in)."] }, code: (url) => url },
-  chatgpt: { name: "ChatGPT", kind: "chat", steps: {
-    ar: ["Settings ← Apps & Connectors ← Advanced ← فعّل Developer Mode، ثم Create والصق الرابط."],
-    en: ["Settings → Apps & Connectors → Advanced → turn on Developer Mode, then Create and paste the link."] }, code: (url) => url },
-  claudecode: { name: "Claude Code", kind: "terminal", steps: {
-    ar: ["نفّذ في الطرفية:"], en: ["Run in your terminal:"] },
+  claude: { name: "Claude", kind: "chat", path: ["Customize", "Connectors", "Add custom connector"],
+    note: { ar: "افتح المسار ثم الصق الرابط (بلا مصادقة):", en: "Open the path, then paste the link (no sign-in):" }, code: (url) => url },
+  chatgpt: { name: "ChatGPT", kind: "chat", path: ["Settings", "Apps & Connectors", "Advanced", "Developer Mode"],
+    note: { ar: "فعّل Developer Mode، ثم Create والصق الرابط:", en: "Turn on Developer Mode, then Create and paste the link:" }, code: (url) => url },
+  claudecode: { name: "Claude Code", kind: "terminal",
+    note: { ar: "نفّذ في الطرفية:", en: "Run in your terminal:" },
     code: (url) => `claude mcp add --transport http muhawir ${url}` },
-  cursor: { name: "Cursor", kind: "code", steps: {
-    ar: ["أضف إلى `~/.cursor/mcp.json`:"], en: ["Add to `~/.cursor/mcp.json`:"] },
+  cursor: { name: "Cursor", kind: "code", file: "~/.cursor/mcp.json",
+    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
     code: (url) => JSON.stringify({ mcpServers: { muhawir: { url } } }, null, 2) },
-  vscode: { name: "VS Code", kind: "code", steps: {
-    ar: ["أضف إلى `.vscode/mcp.json`:"], en: ["Add to `.vscode/mcp.json`:"] },
+  vscode: { name: "VS Code", kind: "code", file: ".vscode/mcp.json",
+    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
     code: (url) => JSON.stringify({ servers: { muhawir: { type: "http", url } } }, null, 2) },
-  gemini: { name: "Gemini CLI", kind: "terminal", steps: {
-    ar: ["أضف إلى `~/.gemini/settings.json`:"], en: ["Add to `~/.gemini/settings.json`:"] },
+  gemini: { name: "Gemini CLI", kind: "terminal", file: "~/.gemini/settings.json",
+    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
     code: (url) => JSON.stringify({ mcpServers: { muhawir: { httpUrl: url } } }, null, 2) },
 };
 const MCP_KIND_ICONS = {
@@ -2491,7 +2489,7 @@ function mcpConnect() {
   try { on = localStorage.getItem("muhawir-mcp") === "on"; client = localStorage.getItem("muhawir-mcp-client") || client; } catch {}
   if (!MCP_CLIENTS[client]) client = "claude";
   const render = () => {
-    const t = UI[lang] || UI.ar, steps = MCP_CLIENTS[client].steps;
+    const t = UI[lang] || UI.ar;
     toggle.setAttribute("aria-checked", String(on && serverOn));
     toggle.disabled = !serverOn;
     $("mcpOff").hidden = serverOn;
@@ -2504,15 +2502,13 @@ function mcpConnect() {
       b.addEventListener("click", () => { client = key; try { localStorage.setItem("muhawir-mcp-client", key); } catch {} render(); });
       return b;
     }));
-    // `…` marks a file path, kept left to right inside the Arabic sentence
-    $("mcpSteps").replaceChildren(...(steps[lang] || steps.en).map((step) => {
-      const li = el("li");
-      step.split(/`([^`]+)`/).forEach((part, i) => {
-        if (!part) return;
-        if (i % 2) { const code = el("code", "", part); code.dir = "ltr"; li.append(code); } else li.append(part);
-      });
-      return li;
-    }));
+    const c = MCP_CLIENTS[client], how = [el("p", "mcp-note-line", c.note[lang] || c.note.en)];
+    if (c.path || c.file) {  // where to go: always left to right, one chip per menu name (or the file name)
+      const row = el("div", "mcp-path"); row.dir = "ltr";
+      (c.path || [c.file]).forEach((name) => row.append(el("span", c.file ? "mcp-file" : "mcp-step", name)));
+      how.push(row);
+    }
+    $("mcpSteps").replaceChildren(...how);
     $("mcpCode").textContent = MCP_CLIENTS[client].code(url);
     $("mcpCopy").textContent = t.mcpCopy;
   };

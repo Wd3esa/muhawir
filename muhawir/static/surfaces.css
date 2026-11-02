@@ -176,3 +176,12 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-client-icon svg,.mcp-client-icon img { width:20px; height:20px; object-fit:contain; }
 .mcp-clients { margin-top:12px; }
 .mcp-steps { list-style:none; padding-inline-start:0; margin-top:12px; }
+.mcp-note-line { margin:0 0 8px; font-size:14.5px; line-height:1.8; }
+.mcp-path { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:12px; }
+.mcp-step,.mcp-file { padding:4px 10px; border-radius:8px; background:var(--accent-soft); color:var(--ink); font:600 13px/1.5 ui-sans-serif,system-ui,sans-serif; }
+.mcp-file { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:500; }
+.mcp-sep { color:var(--muted); }
+.mcp-path { justify-content:flex-end; }
+.mcp-step + .mcp-step::before { content:"›"; margin-inline-end:8px; color:var(--muted); font-weight:400; }
+.mcp-code pre { padding-inline-end:14px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.mcp-copy { position:static; display:block; width:100%; margin-top:8px; min-height:40px; }
