@@ -163,7 +163,7 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-body[hidden],.mcp-off[hidden] { display:none; }
 .mcp-label { margin:16px 0 8px; font-size:14px; font-weight:600; }
 .mcp-clients { display:flex; flex-wrap:wrap; gap:6px; }
-.mcp-client { min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:20px; background:transparent; color:var(--ink); font:inherit; font-size:14px; cursor:pointer; }
+.mcp-client { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 14px; border:1px solid var(--line); border-radius:20px; background:transparent; color:var(--ink); font:inherit; font-size:14px; cursor:pointer; }
 .mcp-client[aria-checked="true"] { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600; }
 .mcp-steps { margin:14px 0 0; padding-inline-start:22px; font-size:14.5px; line-height:1.9; }
 .mcp-code { position:relative; margin-top:10px; }
@@ -171,3 +171,8 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-copy { position:absolute; top:8px; right:8px; min-height:32px; padding:0 12px; border:1px solid var(--line); border-radius:9px; background:var(--panel); color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
 .mcp-copy:hover { background:var(--accent-soft); color:var(--accent); }
 .mcp-steps code { padding:1px 6px; border-radius:6px; background:color-mix(in srgb,var(--ink) 7%,var(--panel)); font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; unicode-bidi:isolate; }
+
+.mcp-client-icon { display:inline-flex; width:20px; height:20px; }
+.mcp-client-icon svg,.mcp-client-icon img { width:20px; height:20px; object-fit:contain; }
+.mcp-clients { margin-top:12px; }
+.mcp-steps { list-style:none; padding-inline-start:0; margin-top:12px; }

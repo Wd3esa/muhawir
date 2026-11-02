@@ -1885,15 +1885,12 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
   <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
   <dialog class="mcp-dialog" id="mcpDialog" aria-labelledby="mcpTitle">
     <div class="mcp-head"><h2 id="mcpTitle" data-t="mcpTitle"></h2><button type="button" class="icon-button" id="mcpClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button></div>
-    <p class="mcp-intro" data-t="mcpIntro"></p>
     <label class="mcp-switch"><span data-t="mcpToggle"></span><button type="button" role="switch" id="mcpToggle" aria-checked="false"><span class="mcp-knob"></span></button></label>
     <p class="mcp-off" id="mcpOff" data-t="mcpOff" hidden></p>
     <div class="mcp-body" id="mcpBody" hidden>
-      <p class="mcp-label" data-t="mcpChoose"></p>
       <div class="mcp-clients" id="mcpClients" role="radiogroup"></div>
       <ol class="mcp-steps" id="mcpSteps"></ol>
       <div class="mcp-code"><pre id="mcpCode" dir="ltr"></pre><button type="button" class="mcp-copy" id="mcpCopy" data-t="mcpCopy"></button></div>
-      <p class="mcp-note" data-t="mcpNote"></p>
     </div>
   </dialog>
   <main class="workspace">
@@ -2451,26 +2448,43 @@ function textSizeAction(t) {
 }
 // Connect-assistant (November 2026): a switch, then the assistant the person uses, with its own steps to add Muhawir's
 // sources over MCP (the server's /mcp). The switch is a remembered preference of this browser: it opens the guide
+// Each assistant: a kind (for the generic icon until its own logo file is added at /static/clients/<key>.svg),
+// the shortest steps that work, and the text to copy.
 const MCP_CLIENTS = {
-  claude: { name: "Claude", steps: {
-    ar: ["في Claude (الموقع أو التطبيق) افتح Customize ← Connectors.", "اضغط Add custom connector.", "الصق الرابط في MCP server URL، واختر No sign-in، ثم Add.", "في المحادثة: زر + ← Connectors ← فعّل مُحاور."],
-    en: ["In Claude (web or app), open Customize → Connectors.", "Click Add custom connector.", "Paste the link as the MCP server URL, choose No sign-in, then Add.", "In a chat: + → Connectors → turn Muhawir on."] }, code: (url) => url },
-  chatgpt: { name: "ChatGPT", steps: {
-    ar: ["في ChatGPT افتح Settings ← Apps & Connectors ← Advanced settings، وفعّل Developer Mode.", "ارجع إلى Apps & Connectors واضغط Create.", "اكتب الاسم «مُحاور» والصق الرابط، بلا مصادقة، ثم Scan Tools ← Create.", "في المحادثة: زر + ← More ← مُحاور."],
-    en: ["In ChatGPT open Settings → Apps & Connectors → Advanced settings and turn on Developer Mode.", "Back in Apps & Connectors, click Create.", "Name it Muhawir, paste the link, no authentication, then Scan Tools → Create.", "In a chat: + → More → Muhawir."] }, code: (url) => url },
-  claudecode: { name: "Claude Code", steps: {
-    ar: ["شغّل هذا الأمر في الطرفية:"], en: ["Run this in your terminal:"] },
+  claude: { name: "Claude", kind: "chat", steps: {
+    ar: ["Customize ← Connectors ← Add custom connector، ثم الصق الرابط (بلا مصادقة)."],
+    en: ["Customize → Connectors → Add custom connector, paste the link (no sign-in)."] }, code: (url) => url },
+  chatgpt: { name: "ChatGPT", kind: "chat", steps: {
+    ar: ["Settings ← Apps & Connectors ← Advanced ← فعّل Developer Mode، ثم Create والصق الرابط."],
+    en: ["Settings → Apps & Connectors → Advanced → turn on Developer Mode, then Create and paste the link."] }, code: (url) => url },
+  claudecode: { name: "Claude Code", kind: "terminal", steps: {
+    ar: ["نفّذ في الطرفية:"], en: ["Run in your terminal:"] },
     code: (url) => `claude mcp add --transport http muhawir ${url}` },
-  cursor: { name: "Cursor", steps: {
-    ar: ["أضف هذا إلى الملف `~/.cursor/mcp.json` ثم أعد تشغيل Cursor:"], en: ["Add this to `~/.cursor/mcp.json`, then restart Cursor:"] },
+  cursor: { name: "Cursor", kind: "code", steps: {
+    ar: ["أضف إلى `~/.cursor/mcp.json`:"], en: ["Add to `~/.cursor/mcp.json`:"] },
     code: (url) => JSON.stringify({ mcpServers: { muhawir: { url } } }, null, 2) },
-  vscode: { name: "VS Code", steps: {
-    ar: ["أضف هذا إلى الملف `.vscode/mcp.json` في مشروعك:"], en: ["Add this to `.vscode/mcp.json` in your project:"] },
+  vscode: { name: "VS Code", kind: "code", steps: {
+    ar: ["أضف إلى `.vscode/mcp.json`:"], en: ["Add to `.vscode/mcp.json`:"] },
     code: (url) => JSON.stringify({ servers: { muhawir: { type: "http", url } } }, null, 2) },
-  gemini: { name: "Gemini CLI", steps: {
-    ar: ["أضف هذا إلى الملف `~/.gemini/settings.json`:"], en: ["Add this to `~/.gemini/settings.json`:"] },
+  gemini: { name: "Gemini CLI", kind: "terminal", steps: {
+    ar: ["أضف إلى `~/.gemini/settings.json`:"], en: ["Add to `~/.gemini/settings.json`:"] },
     code: (url) => JSON.stringify({ mcpServers: { muhawir: { httpUrl: url } } }, null, 2) },
 };
+const MCP_KIND_ICONS = {
+  chat: '<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-7l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/>',
+  terminal: '<path d="m5 8 4 4-4 4M12 17h7"/>',
+  code: '<path d="m9 8-4 4 4 4M15 8l4 4-4 4"/>',
+};
+// The assistant's own logo if its file is in /static/clients/, otherwise a plain icon for its kind.
+function mcpClientIcon(key, kind) {
+  const box = el("span", "mcp-client-icon");
+  box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + MCP_KIND_ICONS[kind] + "</svg>";
+  const img = new Image();
+  img.alt = ""; img.decoding = "async";
+  img.onload = () => box.replaceChildren(img);
+  img.src = "/static/clients/" + key + ".svg";
+  return box;
+}
 function mcpConnect() {
   const dialog = $("mcpDialog"), toggle = $("mcpToggle"), url = location.origin + "/mcp";
   let on = false, client = "claude", serverOn = true;
@@ -2484,7 +2498,8 @@ function mcpConnect() {
     $("mcpBody").hidden = !(on && serverOn);
     $("mcpClose").setAttribute("aria-label", t.mcpClose);
     $("mcpClients").replaceChildren(...Object.entries(MCP_CLIENTS).map(([key, c]) => {
-      const b = el("button", "mcp-client", c.name);
+      const b = el("button", "mcp-client");
+      b.append(mcpClientIcon(key, c.kind), el("span", "", c.name));
       b.type = "button"; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(key === client));
       b.addEventListener("click", () => { client = key; try { localStorage.setItem("muhawir-mcp-client", key); } catch {} render(); });
       return b;
