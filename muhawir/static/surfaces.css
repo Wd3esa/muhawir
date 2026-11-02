@@ -197,3 +197,82 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-file .mcp-text { font:500 13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
 .mcp-code { margin-top:0; }
 .mcp-path { align-items:stretch; justify-content:flex-start; }
+
+
+/* Illuminated manuscript frame — visual layer only; preserve the original SVG wordmark.
+   CSS-drawn corner ornaments avoid embedding the reference image or its unrelated text. */
+:root {
+  --illum-navy:#142c46; --illum-gold:#b78335; --illum-red:#883c42;
+  --illum-paper:#fff5df; --illum-edge:#d2aa67;
+  --bg:#f6edda; --panel:#fff8e9; --sidebar:#142c46;
+  --ink:#2e261d; --muted:#655b4d; --accent:#8c3f42;
+  --accent-ink:#fff9ed; --accent-soft:#f0dfc3; --line:#c8a66e;
+  --mine:#f5e8d3; --focus:#9a6228;
+  --book-paper:#fff8e9; --book-ink:#2e261d; --book-line:#c8a66e;
+  --book-quote:#38614e; --book-bar:#28543f; --book-white:#fff8e9;
+  --surface-scene:radial-gradient(ellipse at top,#fff9ec 0%,#f1e2c5 100%);
+}
+:root[data-theme="dark"] {
+  --illum-navy:#0c192a; --illum-gold:#b98a4e; --illum-red:#c18782;
+  --illum-paper:#1d2530; --illum-edge:#846b48;
+  --bg:#111b27; --panel:#1d2834; --sidebar:#0c192a;
+  --ink:#f5e9d4; --muted:#d3c1a7; --accent:#d8a66a;
+  --accent-ink:#1b2630; --accent-soft:#37404b; --line:#796b55;
+  --mine:#303948; --focus:#e2b77b;
+  --book-paper:#1d2834; --book-ink:#f5e9d4; --book-line:#796b55;
+  --book-quote:#b9d9c2; --book-bar:#315942; --book-white:#fff8e9;
+  --surface-scene:linear-gradient(135deg,#111b27,#1c2630);
+}
+.sidebar { background:var(--sidebar)!important; color:#fff1d7; border-inline-end:3px double var(--illum-gold); }
+.sidebar .brand-name,.sidebar .sidebar-setting > summary { color:#fff1d7; }
+.sidebar a,.sidebar button { --focus:#e6bb79; }
+.topbar { background:var(--panel); border-bottom:3px double var(--illum-gold); }
+.workspace { position:relative; }
+.workspace::before {
+  content:""; position:absolute; inset:6px; pointer-events:none; z-index:0;
+  border:2px solid var(--illum-gold); outline:1px solid var(--illum-navy);
+  outline-offset:3px; border-radius:12px; opacity:.65;
+}
+.workspace > * { position:relative; }
+.msg.book-answer:not(.pending) {
+  position:relative; isolation:isolate;
+  background:var(--book-paper)!important; color:var(--book-ink);
+  border:3px double var(--illum-gold); border-radius:18px;
+  padding:clamp(18px,3vw,32px);
+  box-shadow:inset 0 0 0 5px var(--book-paper),inset 0 0 0 7px var(--illum-edge),0 9px 26px #3e2a1420;
+}
+.msg.book-answer:not(.pending)::before,.msg.book-answer:not(.pending)::after {
+  content:""; position:absolute; pointer-events:none; width:70px; height:70px;
+  background:
+    radial-gradient(circle at 20% 20%,var(--illum-red) 0 4px,transparent 5px),
+    radial-gradient(circle at 48% 40%,var(--illum-gold) 0 4px,transparent 5px),
+    repeating-conic-gradient(from 45deg at 0 0,var(--illum-navy) 0 12deg,var(--illum-gold) 13deg 19deg,transparent 20deg 45deg);
+  opacity:.75; -webkit-mask:radial-gradient(circle at 0 0,#000 0 64%,transparent 66%);
+  mask:radial-gradient(circle at 0 0,#000 0 64%,transparent 66%);
+}
+.msg.book-answer:not(.pending)::before { inset-block-start:6px; inset-inline-start:6px; }
+.msg.book-answer:not(.pending)::after { inset-block-end:6px; inset-inline-end:6px; transform:rotate(180deg); }
+.book-answer .book-folio { margin:0 0 14px; border-radius:8px; background:var(--book-bar); }
+.book-answer .answer-section {
+  padding:4px 14px; border-radius:5px; text-align:center;
+  background:var(--book-bar); color:var(--book-white);
+  border-block:1px solid var(--illum-gold);
+}
+.book-answer .answer-list li::before {
+  background:var(--illum-navy); border:2px solid var(--illum-gold); border-radius:5px;
+}
+.book-answer .answer-heading::after { color:var(--illum-gold); }
+#ask { border:1px solid var(--illum-gold); background:var(--panel); }
+@media(max-width:620px) {
+  .workspace::before { display:none; }
+  .msg.book-answer:not(.pending) { padding:16px 12px; border-width:2px; }
+  .msg.book-answer:not(.pending)::before,.msg.book-answer:not(.pending)::after { width:34px; height:34px; opacity:.4; }
+  .book-answer .answer-section { text-align:start; }
+}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more) {
+  .msg.book-answer:not(.pending) { background:var(--book-paper)!important; }
+}
+@media(forced-colors:active) {
+  .workspace::before,.msg.book-answer:not(.pending)::before,.msg.book-answer:not(.pending)::after { display:none; }
+  .msg.book-answer:not(.pending) { background:Canvas!important; color:CanvasText; border-color:CanvasText; }
+}
