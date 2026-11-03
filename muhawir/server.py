@@ -568,7 +568,7 @@ async def extract_file(request: Request) -> dict:
     try:
         result = await run_in_threadpool(extract.extract, b"".join(chunks))
     except extract.ExtractError as exc:
-        raise HTTPException(status_code=_EXTRACT_ERRORS.get(exc.code, 422), detail=exc.code) from None
+        raise HTTPException(status_code=_EXTRACT_ERRORS.get(exc.code, 422), detail=exc.code + (":" + exc.note if exc.note else "")) from None
     finally:
         OCR_SLOTS.release()
     result["pieces"] = extract.pieces(result["text"])

@@ -2784,7 +2784,8 @@ const uploadText = async (file) => {
   let code = "";
   try { code = (await res.json()).detail || ""; } catch { /* no body */ }
   if (res.status === 429) code = "busy";
-  throw new Error(t["e_" + code] || t.e_failed);
+  const [kind, hint] = code.split(":");  // «vision_failed:HTTP 429»: the hint tells the owner what the model service said
+  throw new Error((t["e_" + kind] || t.e_failed) + (hint ? " (" + hint + ")" : ""));
 };
 (function () {
   const btn = $("attach"), file = $("attachFile"), q = $("q"), box = $("attachPreview");

@@ -44,9 +44,10 @@ ARABIC_LETTER = re.compile("[؀-ۿﭐ-﷿ﹰ-﻿]")
 class ExtractError(Exception):
     """A file that cannot be read; `code` is what the page translates, never a path or a library message."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, note: str = "") -> None:
         super().__init__(code)
         self.code = code
+        self.note = note  # a short technical hint for the owner (an HTTP status), never a path or a key
 
 
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]")
@@ -316,7 +317,7 @@ def from_image(data: bytes, deadline: float) -> str:
         if count(seen) > count(text):
             return seen
         if problem and count(text) < MIN_OCR_LETTERS:
-            raise ExtractError("vision_failed")
+            raise ExtractError("vision_failed", problem)
         return text
     finally:
         pool.shutdown(wait=False)

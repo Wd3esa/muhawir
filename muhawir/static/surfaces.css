@@ -198,46 +198,6 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-code { margin-top:0; }
 .mcp-path { align-items:stretch; justify-content:flex-start; }
 
-/* ---- Ornament layer (November 2026): a gold frame with corner ornaments around the page, and star medallions for the
-   numbers of an answer. Colours stay the app's own (--accent, --gold); nothing here changes the palette or the layout. ---- */
-:root { --medal:polygon(50% 0%,64.6% 14.6%,85.4% 14.6%,85.4% 35.4%,100% 50%,85.4% 64.6%,85.4% 85.4%,64.6% 85.4%,50% 100%,35.4% 85.4%,14.6% 85.4%,14.6% 64.6%,0% 50%,14.6% 35.4%,14.6% 14.6%,35.4% 14.6%); --corner-light:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 44 44%22 fill=%22none%22 stroke=%22%23B7791F%22 stroke-width=%221.3%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M11 3.5l2.4 3.6 4.2-.3-.3 4.2 3.6 2.4-3.6 2.4.3 4.2-4.2-.3L11 24.4l-2.4-3.6-4.2.3.3-4.2L1.1 14.5l3.6-2.4-.3-4.2 4.2.3L11 3.5z%22 transform=%22translate%282 2%29 scale%28.9%29%22/%3E%3Ccircle cx=%2213%22 cy=%2213%22 r=%223.2%22/%3E%3Cpath d=%22M24 13c5 0 8-2 10-5M13 24c0 5 2 8 5 10%22/%3E%3Ccircle cx=%2235%22 cy=%227%22 r=%221.2%22 fill=%22%23B7791F%22/%3E%3Ccircle cx=%227%22 cy=%2235%22 r=%221.2%22 fill=%22%23B7791F%22/%3E%3C/svg%3E"); --corner-dark:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 44 44%22 fill=%22none%22 stroke=%22%23E3B45A%22 stroke-width=%221.3%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M11 3.5l2.4 3.6 4.2-.3-.3 4.2 3.6 2.4-3.6 2.4.3 4.2-4.2-.3L11 24.4l-2.4-3.6-4.2.3.3-4.2L1.1 14.5l3.6-2.4-.3-4.2 4.2.3L11 3.5z%22 transform=%22translate%282 2%29 scale%28.9%29%22/%3E%3Ccircle cx=%2213%22 cy=%2213%22 r=%223.2%22/%3E%3Cpath d=%22M24 13c5 0 8-2 10-5M13 24c0 5 2 8 5 10%22/%3E%3Ccircle cx=%2235%22 cy=%227%22 r=%221.2%22 fill=%22%23E3B45A%22/%3E%3Ccircle cx=%227%22 cy=%2235%22 r=%221.2%22 fill=%22%23E3B45A%22/%3E%3C/svg%3E"); --corner:var(--corner-light); }
-:root[data-theme="dark"] { --corner:var(--corner-dark); }
-.workspace { position:relative; isolation:isolate; }
-.workspace::before {
-  content:""; position:absolute; inset:5px; z-index:-1; pointer-events:none; border-radius:14px;
-  border:1px solid color-mix(in srgb,var(--gold) 70%,transparent);
-  outline:1px solid color-mix(in srgb,var(--gold) 32%,transparent); outline-offset:3px;
-  background:var(--corner) left top/40px 40px no-repeat,var(--corner) right top/40px 40px no-repeat,
-             var(--corner) left bottom/40px 40px no-repeat,var(--corner) right bottom/40px 40px no-repeat;
-}
-.workspace::before { background-blend-mode:normal; }
-@media(max-width:620px) { .workspace::before { inset:3px; border-radius:12px; outline-offset:2px; background-size:28px 28px; } }
-/* the numbers of an answer's points: a gold eight-point star with the number on an accent disc, in every answer style */
-.msg .answer-list { counter-reset:medal; list-style:none; }
-.msg .answer-list li { counter-increment:medal; position:relative; padding-inline-start:42px; }
-.msg.msg .answer-list li::before {
-  content:counter(medal); position:absolute; inset-inline-start:0; inset-block-start:.35em; display:grid; place-items:center;
-  width:30px; height:30px; border-radius:0; clip-path:var(--medal);
-  background:radial-gradient(circle,var(--accent) 0 56%,var(--gold) 58% 100%); color:var(--accent-ink);
-  font:700 13px/1 var(--font-ui,system-ui,sans-serif); text-align:center;
-}
-/* the source numbers of a plain answer use the same star */
-.plain-answer .cite a,.plain-answer .card summary .num {
-  min-width:24px; width:24px; height:24px; padding:0; border-radius:0; clip-path:var(--medal);
-  background:radial-gradient(circle,var(--accent) 0 56%,var(--gold) 58% 100%); color:var(--accent-ink); font-size:11px;
-}
-@media(forced-colors:active) { .workspace::before { display:none; } .msg.msg .answer-list li::before { clip-path:none; background:Canvas; color:CanvasText; border:1px solid CanvasText; } }
-/* the top corners sit above the top bar (which has its own background) */
-.workspace::after {
-  content:""; position:absolute; inset:5px 5px auto 5px; height:40px; z-index:3; pointer-events:none;
-  background:var(--corner) left top/40px 40px no-repeat,var(--corner) right top/40px 40px no-repeat;
-}
-@media(max-width:620px) { .workspace::after { inset:3px 3px auto 3px; height:28px; background-size:28px 28px; } }
-@media(forced-colors:active) { .workspace::after { display:none; } }
-.msg.msg .answer-list li::before { inset-block-start:.2em; }
-.msg .answer-list li { margin-block:0 14px; min-height:30px; }
-@media(max-width:620px) { .workspace::after { inset:2px 2px auto 2px; height:22px; background-size:22px 22px; } }
-
 /* An attached photo or file: a small preview in the question box with a remove button */
 .attach-preview { display:flex; gap:8px; padding:2px 2px 6px; }
 .attach-preview[hidden] { display:none; }
@@ -254,22 +214,3 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .attach-chip.is-error { border-color:#b3261e; box-shadow:0 0 0 2px color-mix(in srgb,#b3261e 35%,transparent); }
 @keyframes attach-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .attach-chip.is-reading .attach-spinner::after { animation:none; } }
-
-/* ---- Frame and plain ground (November 2026): a patterned teal-and-gold band around the whole page, on a plain background ---- */
-:root { --frame-w:14px; --frame-img:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22%3E%3Crect width=%2260%22 height=%2260%22 fill=%22%230b6e77%22/%3E%3Crect x=%221.5%22 y=%221.5%22 width=%2257%22 height=%2257%22 fill=%22none%22 stroke=%22%23e3b45a%22 stroke-width=%221.2%22/%3E%3Crect x=%2218.8%22 y=%2218.8%22 width=%2222.4%22 height=%2222.4%22 fill=%22none%22 stroke=%22%23e3b45a%22 stroke-width=%221.6%22/%3E%3Cg fill=%22%23e3b45a%22%3E%3Cpath d=%22M30 5.5l4 4.5-4 4.5-4-4.5z%22/%3E%3Cpath d=%22M30 45.5l4 4.5-4 4.5-4-4.5z%22/%3E%3Cpath d=%22M5.5 30l4.5-4 4.5 4-4.5 4z%22/%3E%3Cpath d=%22M45.5 30l4.5-4 4.5 4-4.5 4z%22/%3E%3C/g%3E%3Cg fill=%22%230a5960%22 stroke=%22%23e3b45a%22 stroke-width=%221%22%3E%3Cpath id=%22s%22 d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%2840 -2.5%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%28-2.5 40%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%2840 40%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3C/g%3E%3C/svg%3E"); }
-:root[data-theme="dark"] { --frame-img:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22%3E%3Crect width=%2260%22 height=%2260%22 fill=%22%230d3a42%22/%3E%3Crect x=%221.5%22 y=%221.5%22 width=%2257%22 height=%2257%22 fill=%22none%22 stroke=%22%23e3b45a%22 stroke-width=%221.2%22/%3E%3Crect x=%2218.8%22 y=%2218.8%22 width=%2222.4%22 height=%2222.4%22 fill=%22none%22 stroke=%22%23e3b45a%22 stroke-width=%221.6%22/%3E%3Cg fill=%22%23e3b45a%22%3E%3Cpath d=%22M30 5.5l4 4.5-4 4.5-4-4.5z%22/%3E%3Cpath d=%22M30 45.5l4 4.5-4 4.5-4-4.5z%22/%3E%3Cpath d=%22M5.5 30l4.5-4 4.5 4-4.5 4z%22/%3E%3Cpath d=%22M45.5 30l4.5-4 4.5 4-4.5 4z%22/%3E%3C/g%3E%3Cg fill=%22%2308262c%22 stroke=%22%23e3b45a%22 stroke-width=%221%22%3E%3Cpath id=%22s%22 d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%2840 -2.5%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%28-2.5 40%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3Cpath d=%22M10 2.5l2.2 4 4.5-.8-.8 4.5 4 2.2-4 2.2.8 4.5-4.5-.8L10 22.5 7.8 18.5l-4.5.8.8-4.5-4-2.2 4-2.2-.8-4.5 4.5.8z%22 transform=%22translate%2840 40%29 scale%28.8%29 translate%282.5 2.5%29%22/%3E%3C/g%3E%3C/svg%3E"); }
-@media(min-width:900px) { :root { --frame-w:22px; } }
-body::after {
-  content:""; position:fixed; inset:0; z-index:60; pointer-events:none;
-  border:var(--frame-w) solid transparent; border-image:var(--frame-img) 20 round;
-}
-:root { --app-h:calc(var(--chat-viewport-height,100dvh) - 2 * var(--frame-w)); }
-.app-shell { margin:var(--frame-w); height:var(--app-h); min-height:0; overflow:hidden; }
-.workspace { height:var(--app-h); }
-.sidebar { height:var(--app-h); }
-@media(max-width:860px) { .workspace { height:100%; } }
-/* the plain ground: one flat colour, no gradient and no pattern */
-body,.workspace,.workspace:has(#thread > .empty-state),:root[data-theme="dark"] .workspace { background:var(--bg) !important; background-image:none !important; }
-.ambient,.home-glow { display:none !important; }
-.workspace::before,.workspace::after { display:none !important; }
-@media(forced-colors:active) { body::after { display:none; } }
