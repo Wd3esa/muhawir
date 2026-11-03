@@ -2,7 +2,8 @@
 
 Everything happens in memory or in a temporary folder that is removed at once: the upload is never kept, and the text
 read from it is returned to the visitor's page only. No language model is called, so a file costs nothing but a little
-processor time on the server. Text is read from:
+processor time on the server, with one opt-in exception: a photo that Tesseract cannot read (handwriting) is sent to
+the Gemini vision model to be transcribed, only when the owner sets MUHAWIR_VISION_OCR=1 and the Gemini key. Text is read from:
 
   photos and scans   Tesseract (Arabic and English) on the server, after a little cleaning of the picture
   PDF                the text layer (pypdf); a page with no usable text layer, or whose layer holds visually ordered
@@ -244,8 +245,54 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
     return done.stdout if done.returncode == 0 else ""
 
 
+MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
+
+
+def vision_enabled() -> bool:
+    return (os.environ.get("MUHAWIR_VISION_OCR") == "1" and bool(os.environ.get("GEMINI_API_KEY"))
+            and bool(os.environ.get("GEMINI_MODEL")))
+
+
+def vision_text(image, deadline: float) -> str:
+    """The text of a picture (handwriting included) as transcribed by the Gemini vision model; "" when it has none."""
+    import base64
+    import httpx
+    remaining = deadline - time.monotonic()
+    if remaining < 5:
+        raise ExtractError("too_slow")
+    shown = image.copy()
+    shown.thumbnail((2000, 2000))
+    buffer = io.BytesIO()
+    shown.convert("RGB").save(buffer, "JPEG", quality=90)
+    prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
+              "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
+    try:
+        r = httpx.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{os.environ['GEMINI_MODEL']}:generateContent",
+            headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
+            json={"contents": [{"role": "user", "parts": [
+                {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}]},
+            timeout=min(30.0, remaining))
+        r.raise_for_status()
+        parts = r.json()["candidates"][0]["content"]["parts"]
+    except (httpx.HTTPError, KeyError, IndexError, ValueError):
+        return ""
+    return "".join(p.get("text", "") for p in parts).strip()
+
+
 def from_image(data: bytes, deadline: float) -> str:
-    return ocr_image(_prepare(data), deadline)
+    image = _prepare(data)
+    try:
+        text = ocr_image(image, deadline)
+    except ExtractError:
+        if not vision_enabled():
+            raise
+        text = ""
+    if len(ARABIC_LETTER.findall(text)) < MIN_OCR_LETTERS and vision_enabled():
+        seen = vision_text(image, deadline)
+        if len(ARABIC_LETTER.findall(seen)) > len(ARABIC_LETTER.findall(text)):
+            return seen
+    return text
 
 
 # ---- PDF ---------------------------------------------------------------------------------------------------------
