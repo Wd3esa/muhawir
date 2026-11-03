@@ -246,6 +246,7 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
     return done.stdout if done.returncode == 0 else ""
 
 
+VISION_TIMEOUT = 55.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
 
 
@@ -258,11 +259,8 @@ def vision_text(image, deadline: float) -> str:
     """The text of a picture (handwriting included) as transcribed by the Gemini vision model; "" when it has none."""
     import base64
     import httpx
-    remaining = deadline - time.monotonic()
-    if remaining < 5:
-        raise ExtractError("too_slow")
     shown = image.copy()
-    shown.thumbnail((2000, 2000))
+    shown.thumbnail((1600, 1600))
     buffer = io.BytesIO()
     shown.convert("RGB").save(buffer, "JPEG", quality=90)
     prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
@@ -273,11 +271,11 @@ def vision_text(image, deadline: float) -> str:
             headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
             json={"contents": [{"role": "user", "parts": [
                 {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}]},
-            timeout=min(30.0, remaining))
+            timeout=httpx.Timeout(VISION_TIMEOUT, connect=10.0))
         r.raise_for_status()
         parts = r.json()["candidates"][0]["content"]["parts"]
     except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-        logging.getLogger("muhawir.extract").warning("vision transcription failed: %s", error)
+        logging.getLogger("muhawir.extract").warning("vision transcription failed: %s: %s", type(error).__name__, error)
         return ""
     return "".join(p.get("text", "") for p in parts).strip()
 
