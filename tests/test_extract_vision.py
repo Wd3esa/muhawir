@@ -67,3 +67,30 @@ def test_a_flash_model_is_asked_without_thinking_and_retried_plain_on_a_refusal(
     monkeypatch.setattr(httpx, "post", post)
     assert extract.extract(_photo())["text"].startswith("اللهم")
     assert seen == [True, False]
+
+
+def test_a_busy_model_service_is_asked_again(monkeypatch):
+    import time
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "m")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    calls = []
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append(1)
+        request = httpx.Request("POST", url)
+        if len(calls) < 3:
+            return httpx.Response(503, json={"error": {"status": "UNAVAILABLE"}}, request=request)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "اللهم يا فارج الهم ويا كاشف الغم"}]}}]}, request=request)
+    monkeypatch.setattr(httpx, "post", post)
+    assert extract.extract(_photo())["text"].startswith("اللهم") and len(calls) == 3
+
+
+def test_a_service_that_stays_busy_gives_up_with_its_status(monkeypatch):
+    import time
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "m")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    monkeypatch.setattr(httpx, "post", lambda url, **k: httpx.Response(503, json={}, request=httpx.Request("POST", url)))
+    with pytest.raises(extract.ExtractError) as err:
+        extract.extract(_photo())
+    assert err.value.code == "vision_failed" and err.value.note == "HTTP 503"
