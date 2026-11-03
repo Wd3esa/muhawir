@@ -1844,45 +1844,9 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
   :root[data-theme="dark"] .empty-state .welcome-wordmark svg { filter:none; }
 }
 @media (prefers-reduced-motion:reduce) { :root[data-theme="dark"] .workspace:has(#thread > .empty-state) .ambient { animation:none; opacity:.7; } :root[data-theme="dark"] .home-hero::before { animation:none; } }
-
-/* Heritage frame for the actual landing view (no figures or animals). */
-:root .workspace:has(#thread > .empty-state),
-:root[data-theme="dark"] .workspace:has(#thread > .empty-state) {
-  background:radial-gradient(ellipse at 50% 24%,#fff9eb 0%,#f5e6ca 75%,#e6d0a7 100%)!important;
-}
-:root[data-theme="dark"] .workspace:has(#thread > .empty-state) {
-  background:linear-gradient(145deg,#172a40,#0d1b2c)!important;
-}
-.workspace:has(#thread > .empty-state) .ambient { display:none!important; }
-.workspace:has(#thread > .empty-state) .home-hero::before { display:none!important; }
-.workspace:has(#thread > .empty-state) .topbar {
-  background:#fff7e7!important; border-bottom:3px double #b78335!important;
-  -webkit-backdrop-filter:none;backdrop-filter:none;
-}
-:root[data-theme="dark"] .workspace:has(#thread > .empty-state) .topbar { background:#142c46!important; }
-.workspace:has(#thread > .empty-state) #ask {
-  background:#fff9ed!important; border:2px solid #b78335!important;
-  box-shadow:0 8px 28px #5d421b20!important;
-}
-:root[data-theme="dark"] .workspace:has(#thread > .empty-state) #ask { background:#1d2834!important; }
-.workspace:has(#thread > .empty-state) .welcome-wordmark { color:#153e56!important; }
-:root[data-theme="dark"] .workspace:has(#thread > .empty-state) .welcome-wordmark { color:#e4bc7e!important; }
-.workspace:has(#thread > .empty-state) .empty-state {
-  position:relative; isolation:isolate;
-}
-.workspace:has(#thread > .empty-state) .empty-state::before {
-  content:"";position:absolute;inset:10px 6px;pointer-events:none;z-index:-1;
-  border:3px double #b78335;border-radius:20px;
-  box-shadow:inset 0 0 0 6px #f5e6ca,inset 0 0 0 7px #b78335;
-  opacity:.55;
-}
-@media(max-width:620px) {
-  .workspace:has(#thread > .empty-state) .empty-state::before { inset:5px 2px; opacity:.35; }
-}
-
 </style>
 <link rel="stylesheet" href="/book-answer.css?v=composer-1">
-<link rel="stylesheet" href="/surfaces.css?v=illuminated-2">
+<link rel="stylesheet" href="/surfaces.css?v=mcp-1">
 </head>
 <body>
 <!-- One outline for the wordmark, identity marks and static source buttons. -->
