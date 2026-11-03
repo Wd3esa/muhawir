@@ -106,13 +106,13 @@ app.mount("/static/clients", StaticFiles(directory=ROOT / "static" / "clients"),
 @app.get("/book-answer.css")
 def book_answer_styles() -> FileResponse:
     """The stylesheet of the book-page view of an answer."""
-    return FileResponse(ROOT / "static" / "book-answer.css", media_type="text/css")
+    return FileResponse(ROOT / "static" / "book-answer.css", media_type="text/css", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/surfaces.css")
 def surface_styles() -> FileResponse:
     """The final shared surface layer, loaded after the book layout."""
-    return FileResponse(ROOT / "static" / "surfaces.css", media_type="text/css")
+    return FileResponse(ROOT / "static" / "surfaces.css", media_type="text/css", headers={"Cache-Control": "no-cache"})
 
 
 engine = build()
