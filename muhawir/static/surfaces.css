@@ -197,3 +197,43 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-file .mcp-text { font:500 13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
 .mcp-code { margin-top:0; }
 .mcp-path { align-items:stretch; justify-content:flex-start; }
+
+/* ---- Ornament layer (November 2026): a gold frame with corner ornaments around the page, and star medallions for the
+   numbers of an answer. Colours stay the app's own (--accent, --gold); nothing here changes the palette or the layout. ---- */
+:root { --medal:polygon(50% 0%,64.6% 14.6%,85.4% 14.6%,85.4% 35.4%,100% 50%,85.4% 64.6%,85.4% 85.4%,64.6% 85.4%,50% 100%,35.4% 85.4%,14.6% 85.4%,14.6% 64.6%,0% 50%,14.6% 35.4%,14.6% 14.6%,35.4% 14.6%); --corner-light:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 44 44%22 fill=%22none%22 stroke=%22%23B7791F%22 stroke-width=%221.3%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M11 3.5l2.4 3.6 4.2-.3-.3 4.2 3.6 2.4-3.6 2.4.3 4.2-4.2-.3L11 24.4l-2.4-3.6-4.2.3.3-4.2L1.1 14.5l3.6-2.4-.3-4.2 4.2.3L11 3.5z%22 transform=%22translate%282 2%29 scale%28.9%29%22/%3E%3Ccircle cx=%2213%22 cy=%2213%22 r=%223.2%22/%3E%3Cpath d=%22M24 13c5 0 8-2 10-5M13 24c0 5 2 8 5 10%22/%3E%3Ccircle cx=%2235%22 cy=%227%22 r=%221.2%22 fill=%22%23B7791F%22/%3E%3Ccircle cx=%227%22 cy=%2235%22 r=%221.2%22 fill=%22%23B7791F%22/%3E%3C/svg%3E"); --corner-dark:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 44 44%22 fill=%22none%22 stroke=%22%23E3B45A%22 stroke-width=%221.3%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M11 3.5l2.4 3.6 4.2-.3-.3 4.2 3.6 2.4-3.6 2.4.3 4.2-4.2-.3L11 24.4l-2.4-3.6-4.2.3.3-4.2L1.1 14.5l3.6-2.4-.3-4.2 4.2.3L11 3.5z%22 transform=%22translate%282 2%29 scale%28.9%29%22/%3E%3Ccircle cx=%2213%22 cy=%2213%22 r=%223.2%22/%3E%3Cpath d=%22M24 13c5 0 8-2 10-5M13 24c0 5 2 8 5 10%22/%3E%3Ccircle cx=%2235%22 cy=%227%22 r=%221.2%22 fill=%22%23E3B45A%22/%3E%3Ccircle cx=%227%22 cy=%2235%22 r=%221.2%22 fill=%22%23E3B45A%22/%3E%3C/svg%3E"); --corner:var(--corner-light); }
+:root[data-theme="dark"] { --corner:var(--corner-dark); }
+.workspace { position:relative; isolation:isolate; }
+.workspace::before {
+  content:""; position:absolute; inset:5px; z-index:-1; pointer-events:none; border-radius:14px;
+  border:1px solid color-mix(in srgb,var(--gold) 70%,transparent);
+  outline:1px solid color-mix(in srgb,var(--gold) 32%,transparent); outline-offset:3px;
+  background:var(--corner) left top/40px 40px no-repeat,var(--corner) right top/40px 40px no-repeat,
+             var(--corner) left bottom/40px 40px no-repeat,var(--corner) right bottom/40px 40px no-repeat;
+}
+.workspace::before { background-blend-mode:normal; }
+@media(max-width:620px) { .workspace::before { inset:3px; border-radius:12px; outline-offset:2px; background-size:28px 28px; } }
+/* the numbers of an answer's points: a gold eight-point star with the number on an accent disc, in every answer style */
+.msg .answer-list { counter-reset:medal; list-style:none; }
+.msg .answer-list li { counter-increment:medal; position:relative; padding-inline-start:42px; }
+.msg.msg .answer-list li::before {
+  content:counter(medal); position:absolute; inset-inline-start:0; inset-block-start:.35em; display:grid; place-items:center;
+  width:30px; height:30px; border-radius:0; clip-path:var(--medal);
+  background:radial-gradient(circle,var(--accent) 0 56%,var(--gold) 58% 100%); color:var(--accent-ink);
+  font:700 13px/1 var(--font-ui,system-ui,sans-serif); text-align:center;
+}
+/* the source numbers of a plain answer use the same star */
+.plain-answer .cite a,.plain-answer .card summary .num {
+  min-width:24px; width:24px; height:24px; padding:0; border-radius:0; clip-path:var(--medal);
+  background:radial-gradient(circle,var(--accent) 0 56%,var(--gold) 58% 100%); color:var(--accent-ink); font-size:11px;
+}
+@media(forced-colors:active) { .workspace::before { display:none; } .msg.msg .answer-list li::before { clip-path:none; background:Canvas; color:CanvasText; border:1px solid CanvasText; } }
+/* the top corners sit above the top bar (which has its own background) */
+.workspace::after {
+  content:""; position:absolute; inset:5px 5px auto 5px; height:40px; z-index:3; pointer-events:none;
+  background:var(--corner) left top/40px 40px no-repeat,var(--corner) right top/40px 40px no-repeat;
+}
+@media(max-width:620px) { .workspace::after { inset:3px 3px auto 3px; height:28px; background-size:28px 28px; } }
+@media(forced-colors:active) { .workspace::after { display:none; } }
+.msg.msg .answer-list li::before { inset-block-start:.2em; }
+.msg .answer-list li { margin-block:0 14px; min-height:30px; }
+@media(max-width:620px) { .workspace::after { inset:2px 2px auto 2px; height:22px; background-size:22px 22px; } }
