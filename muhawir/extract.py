@@ -247,6 +247,7 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
 
 
 VISION_TIMEOUT = 55.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
+STRONG_OCR_LETTERS = 60  # Tesseract with at least this many Arabic letters has read a printed page: no need to wait
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
 
 
@@ -255,44 +256,70 @@ def vision_enabled() -> bool:
             and bool(os.environ.get("GEMINI_MODEL")))
 
 
-def vision_text(image, deadline: float) -> str:
-    """The text of a picture (handwriting included) as transcribed by the Gemini vision model; "" when it has none."""
+def vision_text(image) -> tuple[str, str]:
+    """(text, error): the text of a picture (handwriting included) as transcribed by the Gemini vision model, and the
+    name of what went wrong ("" when nothing did). Runs on its own clock (VISION_TIMEOUT), not the shared OCR budget."""
     import base64
     import httpx
     shown = image.copy()
     shown.thumbnail((1600, 1600))
     buffer = io.BytesIO()
-    shown.convert("RGB").save(buffer, "JPEG", quality=90)
+    shown.convert("RGB").save(buffer, "JPEG", quality=88)
     prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
               "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
-    try:
-        r = httpx.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{os.environ['GEMINI_MODEL']}:generateContent",
-            headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
-            json={"contents": [{"role": "user", "parts": [
-                {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}]},
-            timeout=httpx.Timeout(VISION_TIMEOUT, connect=10.0))
-        r.raise_for_status()
-        parts = r.json()["candidates"][0]["content"]["parts"]
-    except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-        logging.getLogger("muhawir.extract").warning("vision transcription failed: %s: %s", type(error).__name__, error)
-        return ""
-    return "".join(p.get("text", "") for p in parts).strip()
+    model = os.environ["GEMINI_MODEL"]
+    body = {"contents": [{"role": "user", "parts": [
+        {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
+        "generationConfig": {"temperature": 0}}
+    attempts = [body]
+    if "flash" in model.lower():  # a flash model answers a transcription faster with its thinking off; not every one allows it
+        attempts.insert(0, {**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}})
+    problem = ""
+    for attempt in attempts:
+        try:
+            r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                           headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
+                           json=attempt, timeout=httpx.Timeout(VISION_TIMEOUT, connect=10.0))
+            r.raise_for_status()
+            parts = r.json()["candidates"][0]["content"]["parts"]
+            return "".join(p.get("text", "") for p in parts).strip(), ""
+        except httpx.HTTPStatusError as error:
+            problem = f"HTTP {error.response.status_code}"
+            logging.getLogger("muhawir.extract").warning("vision transcription failed: %s %s", problem, error.response.text[:200])
+            if error.response.status_code != 400:
+                break  # only a refusal of the settings is worth another try with the plain request
+        except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
+            problem = type(error).__name__
+            logging.getLogger("muhawir.extract").warning("vision transcription failed: %s: %s", problem, error)
+            break
+    return "", problem
 
 
 def from_image(data: bytes, deadline: float) -> str:
+    """Tesseract and, when Gemini is set, the vision model at the same time (a handwritten page costs one wait, not two).
+    A page Tesseract reads well (a printed page) is returned at once; otherwise the vision text is used if it has more."""
+    from concurrent.futures import ThreadPoolExecutor
     image = _prepare(data)
+    if not vision_enabled():
+        return ocr_image(image, deadline)
+    pool = ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(vision_text, image)
     try:
-        text = ocr_image(image, deadline)
-    except ExtractError:
-        if not vision_enabled():
-            raise
-        text = ""
-    if len(ARABIC_LETTER.findall(text)) < MIN_OCR_LETTERS and vision_enabled():
-        seen = vision_text(image, deadline)
-        if len(ARABIC_LETTER.findall(seen)) > len(ARABIC_LETTER.findall(text)):
+        try:
+            text = ocr_image(image, deadline)
+        except ExtractError:
+            text = ""
+        count = lambda t: len(ARABIC_LETTER.findall(t))  # noqa: E731
+        if count(text) >= STRONG_OCR_LETTERS and _arabic_share(text) >= 0.6:
+            return text
+        seen, problem = future.result()
+        if count(seen) > count(text):
             return seen
-    return text
+        if problem and count(text) < MIN_OCR_LETTERS:
+            raise ExtractError("vision_failed")
+        return text
+    finally:
+        pool.shutdown(wait=False)
 
 
 # ---- PDF ---------------------------------------------------------------------------------------------------------

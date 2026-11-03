@@ -544,7 +544,7 @@ def ready() -> Response:
 # Reading a file or photo is work for the processor, so only a few run at once; the rest are told to try again shortly.
 OCR_SLOTS = threading.BoundedSemaphore(int(os.environ.get("MUHAWIR_OCR_SLOTS", "2")))
 _EXTRACT_ERRORS = {"too_large": 413, "unsupported": 415, "unreadable": 422, "no_text": 422, "encrypted": 422,
-                   "ocr_unavailable": 501, "too_slow": 504}
+                   "ocr_unavailable": 501, "too_slow": 504, "vision_failed": 502}
 
 
 @app.post("/api/extract")

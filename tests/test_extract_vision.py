@@ -43,3 +43,27 @@ def test_a_failing_vision_call_falls_back_to_no_text(monkeypatch):
     monkeypatch.setattr(httpx, "post", boom)
     with pytest.raises(extract.ExtractError):
         extract.extract(_photo())
+
+
+def test_a_failing_vision_call_reports_vision_failed_not_unreadable(monkeypatch):
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "m")
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: (_ for _ in ()).throw(httpx.ReadTimeout("The read operation timed out")))
+    with pytest.raises(extract.ExtractError) as err:
+        extract.extract(_photo())
+    assert err.value.code == "vision_failed"
+
+
+def test_a_flash_model_is_asked_without_thinking_and_retried_plain_on_a_refusal(monkeypatch):
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "gemini-2.5-flash")
+    seen = []
+    def post(url, headers=None, json=None, timeout=None):
+        seen.append("thinkingConfig" in json["generationConfig"])
+        request = httpx.Request("POST", url)
+        if len(seen) == 1:
+            return httpx.Response(400, json={"error": "no thinking here"}, request=request)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "اللهم يا فارج الهم ويا كاشف الغم"}]}}]}, request=request)
+    monkeypatch.setattr(httpx, "post", post)
+    assert extract.extract(_photo())["text"].startswith("اللهم")
+    assert seen == [True, False]
