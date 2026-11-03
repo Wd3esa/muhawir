@@ -108,3 +108,20 @@ def test_a_slow_answer_is_asked_once_more(monkeypatch):
     monkeypatch.setattr(httpx, "post", post)
     assert extract.extract(_photo())["text"].startswith("اللهم") and len(calls) == 2
     assert "thinkingConfig" in calls[0]  # a model of any name is asked not to think first
+
+
+def test_an_overloaded_model_is_replaced_by_the_next(monkeypatch):
+    import time
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "big")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    urls = []
+    def post(url, headers=None, json=None, timeout=None):
+        urls.append(url)
+        request = httpx.Request("POST", url)
+        if "/big:" in url:
+            return httpx.Response(503, json={}, request=request)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "اللهم يا فارج الهم ويا كاشف الغم"}]}}]}, request=request)
+    monkeypatch.setattr(httpx, "post", post)
+    assert extract.extract(_photo())["text"].startswith("اللهم")
+    assert "/big:" in urls[0] and "gemini-2.5-flash" in urls[-1]

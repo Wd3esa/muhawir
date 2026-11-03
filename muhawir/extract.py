@@ -248,8 +248,9 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
 
 
 VISION_RETRIES = 3     # more tries of the same request when the model service says it is busy (503, 429)
-VISION_READ = 25.0     # seconds one request may wait for the answer; a slower one is asked again (see below)
-VISION_TIMEOUT = 55.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
+VISION_READ = 25.0     # seconds one request may wait for the answer; a slower one is replaced by the next model
+VISION_FALLBACK = "gemini-2.5-flash,gemini-flash-latest"  # tried after the configured model fails
+VISION_TIMEOUT = 80.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
 STRONG_OCR_LETTERS = 60  # Tesseract with at least this many Arabic letters has read a printed page: no need to wait
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
 
@@ -270,49 +271,52 @@ def vision_text(image) -> tuple[str, str]:
     shown.convert("RGB").save(buffer, "JPEG", quality=82)
     prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
               "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
-    model = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
+    chosen = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
+    # a model that is overloaded or slow is replaced by the next one (set GEMINI_VISION_FALLBACK to a comma list)
+    models = list(dict.fromkeys([chosen, *[m.strip() for m in os.environ.get("GEMINI_VISION_FALLBACK", VISION_FALLBACK).split(",") if m.strip()]]))
     body = {"contents": [{"role": "user", "parts": [
         {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
         "generationConfig": {"temperature": 0}}
-    attempts = [body]
-    # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model allows
-    # it off (a 400 then falls back to the plain request below)
-    attempts.insert(0, {**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}})
     log = logging.getLogger("muhawir.extract")
-    started, problem, overloaded = time.monotonic(), "", 0
-    while attempts:
-        attempt = attempts.pop(0)
-        try:
-            r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                           headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
-                           json=attempt, timeout=httpx.Timeout(VISION_READ, connect=10.0))
-            r.raise_for_status()
-            parts = r.json()["candidates"][0]["content"]["parts"]
-            return "".join(p.get("text", "") for p in parts).strip(), ""
-        except httpx.HTTPStatusError as error:
-            code = error.response.status_code
-            problem = f"HTTP {code}"
-            log.warning("vision transcription failed: %s %s", problem, error.response.text[:200])
-            if code == 400 and attempts:
-                continue  # a refusal of the settings: the plain request is next
-            if code in (429, 500, 502, 503, 504) and overloaded < VISION_RETRIES and time.monotonic() - started < VISION_TIMEOUT:
-                overloaded += 1  # the model service is busy (503 «overloaded», 429): the same request a moment later
-                time.sleep(2 * overloaded)
-                attempts.insert(0, attempt)
-                continue
+    started, problem = time.monotonic(), ""
+    for position, model in enumerate(models):
+        if time.monotonic() - started >= VISION_TIMEOUT - 5:
             break
-        except httpx.TimeoutException as error:
-            problem = type(error).__name__
-            log.warning("vision transcription failed: %s", problem)
-            if overloaded < 1 and time.monotonic() - started < VISION_TIMEOUT - VISION_READ:
-                overloaded += 1  # one slow answer: try once more (a busy model is often quick the second time)
-                attempts.insert(0, attempt)
-                continue
-            break
-        except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-            problem = type(error).__name__
-            log.warning("vision transcription failed: %s: %s", problem, error)
-            break
+        last = position == len(models) - 1
+        # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model
+        # allows it off (a 400 then falls back to the plain request)
+        attempts = [{**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}}, body]
+        overloaded = 0
+        while attempts:
+            attempt = attempts.pop(0)
+            try:
+                r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                               headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
+                               json=attempt, timeout=httpx.Timeout(VISION_READ, connect=10.0))
+                r.raise_for_status()
+                parts = r.json()["candidates"][0]["content"]["parts"]
+                return "".join(p.get("text", "") for p in parts).strip(), ""
+            except httpx.HTTPStatusError as error:
+                code = error.response.status_code
+                problem = f"HTTP {code}"
+                log.warning("vision transcription failed (%s): %s %s", model, problem, error.response.text[:200])
+                if code == 400 and attempts:
+                    continue  # a refusal of the settings: the plain request is next
+                if code in (429, 500, 502, 503, 504) and overloaded < (VISION_RETRIES if last else 1) \
+                        and time.monotonic() - started < VISION_TIMEOUT - 5:
+                    overloaded += 1  # busy (503 «overloaded», 429): the same request a moment later, then the next model
+                    time.sleep(2 * overloaded)
+                    attempts.insert(0, attempt)
+                    continue
+                break
+            except httpx.TimeoutException as error:
+                problem = type(error).__name__
+                log.warning("vision transcription failed (%s): %s", model, problem)
+                break  # a slow model: the next one
+            except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
+                problem = type(error).__name__
+                log.warning("vision transcription failed (%s): %s: %s", model, problem, error)
+                break
     return "", problem
 
 
