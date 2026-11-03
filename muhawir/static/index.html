@@ -1925,6 +1925,7 @@ textarea { min-height:42px; padding:5px 4px; line-height:1.7; text-align:start; 
         </div>
       </section>
       <form id="ask">
+        <div class="attach-preview" id="attachPreview" hidden></div>
         <div class="composer-field"><textarea id="q" maxlength="500" required aria-label="" placeholder="" rows="1"></textarea></div>
         <div class="composer-row">
           <button type="button" class="mic attach" id="attach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-t="upload"></span></button>
@@ -2786,24 +2787,52 @@ const uploadText = async (file) => {
   throw new Error(t["e_" + code] || t.e_failed);
 };
 (function () {
-  const btn = $("attach"), file = $("attachFile"), q = $("q");
-  if (!btn || !file || !q) return;
+  const btn = $("attach"), file = $("attachFile"), q = $("q"), box = $("attachPreview");
+  if (!btn || !file || !q || !box) return;
+  let extracted = "", objectUrl = "";
+  // the attachment stays in the box as a small picture (or a file name) with a remove button, like in a chat app
+  const clearAttachment = (dropText) => {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = ""; box.hidden = true; box.replaceChildren();
+    if (dropText && extracted && q.value.trim() === extracted.slice(0, q.maxLength > 0 ? q.maxLength : 500).trim()) {
+      q.value = ""; q.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    extracted = "";
+  };
+  const showAttachment = (f) => {
+    clearAttachment(false);
+    const chip = el("div", "attach-chip is-reading"), remove = el("button", "attach-remove");
+    remove.type = "button"; remove.setAttribute("aria-label", UI[lang].mcpClose); remove.title = UI[lang].mcpClose;
+    remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg>';
+    remove.addEventListener("click", () => { clearAttachment(true); q.focus(); });
+    if (f.type.startsWith("image/")) {
+      objectUrl = URL.createObjectURL(f);
+      const img = new Image(); img.alt = f.name; img.src = objectUrl; chip.append(img);
+    } else {
+      chip.classList.add("is-file"); chip.append(el("span", "attach-name", f.name));
+    }
+    chip.append(el("span", "attach-spinner"), remove);
+    box.replaceChildren(chip); box.hidden = false;
+    return chip;
+  };
   btn.addEventListener("click", () => { btn.title = UI[lang].uploadLimit; file.click(); });
   file.addEventListener("change", async () => {
     const f = file.files && file.files[0]; file.value = "";
     if (!f) return;
-    const t = UI[lang], note = $("requestNotice");
+    const t = UI[lang], note = $("requestNotice"), chip = showAttachment(f);
     note.textContent = t.uploading; note.hidden = false; btn.disabled = true;
     try {
       const body = await uploadText(f);
       const text = body.text.replace(/\s+/g, " ").trim(), room = q.maxLength > 0 ? q.maxLength : 500;
+      extracted = text;
       q.value = text.slice(0, room);
       q.dispatchEvent(new Event("input", { bubbles: true }));
       note.textContent = text.length > room ? t.uploadCut : ""; note.hidden = text.length <= room;
       q.focus();
-    } catch (e) { note.textContent = e.message; }
-    finally { btn.disabled = false; }
+    } catch (e) { note.textContent = e.message; chip.classList.add("is-error"); }
+    finally { chip.classList.remove("is-reading"); btn.disabled = false; }
   });
+  $("ask").addEventListener("submit", () => clearAttachment(false));
 })();
 
 // 5. Language and theme: apply the chosen language to the whole page, switch the light and dark theme.

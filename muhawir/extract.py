@@ -2,8 +2,8 @@
 
 Everything happens in memory or in a temporary folder that is removed at once: the upload is never kept, and the text
 read from it is returned to the visitor's page only. No language model is called, so a file costs nothing but a little
-processor time on the server, with one opt-in exception: a photo that Tesseract cannot read (handwriting) is sent to
-the Gemini vision model to be transcribed, only when the owner sets MUHAWIR_VISION_OCR=1 and the Gemini key. Text is read from:
+processor time on the server, with one exception: a photo that Tesseract cannot read (handwriting) is sent to the
+Gemini vision model to be transcribed, when the Gemini key is set (the owner turns it off with MUHAWIR_VISION_OCR=0). Text is read from:
 
   photos and scans   Tesseract (Arabic and English) on the server, after a little cleaning of the picture
   PDF                the text layer (pypdf); a page with no usable text layer, or whose layer holds visually ordered
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import html
 import io
+import logging
 import os
 import re
 import shutil
@@ -249,7 +250,7 @@ MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the pict
 
 
 def vision_enabled() -> bool:
-    return (os.environ.get("MUHAWIR_VISION_OCR") == "1" and bool(os.environ.get("GEMINI_API_KEY"))
+    return (os.environ.get("MUHAWIR_VISION_OCR") != "0" and bool(os.environ.get("GEMINI_API_KEY"))
             and bool(os.environ.get("GEMINI_MODEL")))
 
 
@@ -275,7 +276,8 @@ def vision_text(image, deadline: float) -> str:
             timeout=min(30.0, remaining))
         r.raise_for_status()
         parts = r.json()["candidates"][0]["content"]["parts"]
-    except (httpx.HTTPError, KeyError, IndexError, ValueError):
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
+        logging.getLogger("muhawir.extract").warning("vision transcription failed: %s", error)
         return ""
     return "".join(p.get("text", "") for p in parts).strip()
 
