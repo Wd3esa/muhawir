@@ -94,3 +94,17 @@ def test_a_service_that_stays_busy_gives_up_with_its_status(monkeypatch):
     with pytest.raises(extract.ExtractError) as err:
         extract.extract(_photo())
     assert err.value.code == "vision_failed" and err.value.note == "HTTP 503"
+
+
+def test_a_slow_answer_is_asked_once_more(monkeypatch):
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "m")
+    calls = []
+    def post(url, headers=None, json=None, timeout=None):
+        calls.append(json["generationConfig"])
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("slow")
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "اللهم يا فارج الهم ويا كاشف الغم"}]}}]}, request=httpx.Request("POST", url))
+    monkeypatch.setattr(httpx, "post", post)
+    assert extract.extract(_photo())["text"].startswith("اللهم") and len(calls) == 2
+    assert "thinkingConfig" in calls[0]  # a model of any name is asked not to think first

@@ -248,6 +248,7 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
 
 
 VISION_RETRIES = 3     # more tries of the same request when the model service says it is busy (503, 429)
+VISION_READ = 25.0     # seconds one request may wait for the answer; a slower one is asked again (see below)
 VISION_TIMEOUT = 55.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
 STRONG_OCR_LETTERS = 60  # Tesseract with at least this many Arabic letters has read a printed page: no need to wait
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
@@ -264,9 +265,9 @@ def vision_text(image) -> tuple[str, str]:
     import base64
     import httpx
     shown = image.copy()
-    shown.thumbnail((1600, 1600))
+    shown.thumbnail((1280, 1280))
     buffer = io.BytesIO()
-    shown.convert("RGB").save(buffer, "JPEG", quality=88)
+    shown.convert("RGB").save(buffer, "JPEG", quality=82)
     prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
               "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
     model = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
@@ -274,8 +275,9 @@ def vision_text(image) -> tuple[str, str]:
         {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
         "generationConfig": {"temperature": 0}}
     attempts = [body]
-    if "flash" in model.lower():  # a flash model answers a transcription faster with its thinking off; not every one allows it
-        attempts.insert(0, {**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}})
+    # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model allows
+    # it off (a 400 then falls back to the plain request below)
+    attempts.insert(0, {**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}})
     log = logging.getLogger("muhawir.extract")
     started, problem, overloaded = time.monotonic(), "", 0
     while attempts:
@@ -283,7 +285,7 @@ def vision_text(image) -> tuple[str, str]:
         try:
             r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                            headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
-                           json=attempt, timeout=httpx.Timeout(VISION_TIMEOUT, connect=10.0))
+                           json=attempt, timeout=httpx.Timeout(VISION_READ, connect=10.0))
             r.raise_for_status()
             parts = r.json()["candidates"][0]["content"]["parts"]
             return "".join(p.get("text", "") for p in parts).strip(), ""
@@ -296,6 +298,14 @@ def vision_text(image) -> tuple[str, str]:
             if code in (429, 500, 502, 503, 504) and overloaded < VISION_RETRIES and time.monotonic() - started < VISION_TIMEOUT:
                 overloaded += 1  # the model service is busy (503 «overloaded», 429): the same request a moment later
                 time.sleep(2 * overloaded)
+                attempts.insert(0, attempt)
+                continue
+            break
+        except httpx.TimeoutException as error:
+            problem = type(error).__name__
+            log.warning("vision transcription failed: %s", problem)
+            if overloaded < 1 and time.monotonic() - started < VISION_TIMEOUT - VISION_READ:
+                overloaded += 1  # one slow answer: try once more (a busy model is often quick the second time)
                 attempts.insert(0, attempt)
                 continue
             break
