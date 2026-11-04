@@ -247,12 +247,18 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
     return done.stdout if done.returncode == 0 else ""
 
 
-VISION_RETRIES = 3     # more tries of the same request when the model service says it is busy (503, 429)
-VISION_READ = 25.0     # seconds one request may wait for the answer; a slower one is replaced by the next model
-VISION_FALLBACK = "gemini-2.5-flash,gemini-flash-latest"  # tried after the configured model fails
-VISION_TIMEOUT = 80.0  # seconds: its own clock, because the Tesseract attempt before it may have used most of OCR_BUDGET
+# Photo reading by a vision model (handwriting). The text is received as it is written (streaming), so the wait
+# limit applies only while the model is silent, not to the whole page: a full handwritten page took longer than one
+# 25-second wait and failed with ReadTimeout (live, November 2026). A model that has not answered within a few seconds
+# does not hold up the next one: the next is started beside it, and the first full transcription is used.
+VISION_STALL = 20.0    # seconds a model may stay silent (before its first words or between two pieces of text)
+VISION_HEDGE = 8.0     # seconds without an answer before the next model is started beside it
+VISION_TIMEOUT = 80.0  # seconds for the whole reading, on its own clock (the Tesseract attempt may have used OCR_BUDGET)
+VISION_FALLBACK = "gemini-2.5-flash,gemini-flash-latest"  # tried after the configured model (GEMINI_VISION_FALLBACK)
 STRONG_OCR_LETTERS = 60  # Tesseract with at least this many Arabic letters has read a printed page: no need to wait
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
+VISION_PROMPT = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
+                 "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
 
 
 def vision_enabled() -> bool:
@@ -260,97 +266,150 @@ def vision_enabled() -> bool:
             and bool(os.environ.get("GEMINI_MODEL")))
 
 
-def vision_text(image) -> tuple[str, str]:
-    """(text, error): the text of a picture (handwriting included) as transcribed by the Gemini vision model, and the
-    name of what went wrong ("" when nothing did). Runs on its own clock (VISION_TIMEOUT), not the shared OCR budget."""
-    import base64
+def _client():
+    """One HTTP client per reading attempt (replaced in tests)."""
     import httpx
+    return httpx.Client(timeout=httpx.Timeout(connect=10.0, read=VISION_STALL, write=20.0, pool=10.0))
+
+
+class _Stopped(Exception):
+    """Another model has already read the picture, or the time for the reading is over."""
+
+
+def _sse(response, stop, deadline):
+    """The JSON objects of a server-sent event stream, one by one, until it ends, `stop` is set or time is up."""
+    import json
+    for line in response.iter_lines():
+        if stop.is_set() or time.monotonic() > deadline:
+            raise _Stopped()
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            return
+        try:
+            yield json.loads(data)
+        except ValueError:
+            continue
+
+
+def _read_gemini(model: str, data_b64: str, stop, deadline) -> str:
+    """The transcription from one Gemini model, streamed. Asked first with no thinking (a transcription needs none);
+    a model that refuses that setting (HTTP 400) is asked plainly."""
+    import httpx
+    body = {"contents": [{"role": "user", "parts": [{"text": VISION_PROMPT},
+                                                    {"inlineData": {"mimeType": "image/jpeg", "data": data_b64}}]}]}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
+    headers = {"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"}
+    settings = [{"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}, {"temperature": 0}]
+    for i, config in enumerate(settings):
+        with _client() as client, client.stream("POST", url, headers=headers,
+                                                json={**body, "generationConfig": config}) as response:
+            if response.status_code == 400 and i + 1 < len(settings):
+                continue
+            response.raise_for_status()
+            text = []
+            for event in _sse(response, stop, deadline):
+                for candidate in event.get("candidates") or []:
+                    text += [p.get("text", "") for p in (candidate.get("content") or {}).get("parts") or []]
+            return "".join(text).strip()
+    return ""
+
+
+def _read_compat(data_b64: str, stop, deadline) -> str:
+    """The transcription through the OpenAI-compatible endpoint (OPENAI_COMPAT_BASE_URL), streamed;
+    OPENAI_COMPAT_VISION_MODEL names the model (on OpenRouter, google/gemini-2.5-flash by default)."""
+    from urllib.parse import urlsplit
+    base, key = os.environ.get("OPENAI_COMPAT_BASE_URL", "").rstrip("/"), os.environ.get("OPENAI_COMPAT_API_KEY", "")
+    model = os.environ.get("OPENAI_COMPAT_VISION_MODEL") or ("google/gemini-2.5-flash" if urlsplit(base).hostname == "openrouter.ai" else "")
+    with _client() as client, client.stream("POST", f"{base}/chat/completions",
+            headers={"authorization": f"Bearer {key}", "content-type": "application/json"},
+            json={"model": model, "temperature": 0, "stream": True, "messages": [{"role": "user", "content": [
+                {"type": "text", "text": VISION_PROMPT},
+                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + data_b64}}]}]}) as response:
+        response.raise_for_status()
+        text = []
+        for event in _sse(response, stop, deadline):
+            for choice in event.get("choices") or []:
+                text.append((choice.get("delta") or choice.get("message") or {}).get("content") or "")
+        return "".join(text).strip()
+
+
+def _vision_readers() -> list[tuple[str, object]]:
+    """(name, read) for each model that can read a picture, in order: the configured Gemini model, its fallbacks,
+    then the OpenAI-compatible endpoint when one is configured."""
+    chosen = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
+    models = list(dict.fromkeys([chosen, *[m.strip() for m in os.environ.get("GEMINI_VISION_FALLBACK", VISION_FALLBACK).split(",") if m.strip()]]))
+    readers = [(m, (lambda m: lambda b64, stop, deadline: _read_gemini(m, b64, stop, deadline))(m)) for m in models]
+    base = os.environ.get("OPENAI_COMPAT_BASE_URL", "")
+    if base and os.environ.get("OPENAI_COMPAT_API_KEY") and (os.environ.get("OPENAI_COMPAT_VISION_MODEL") or "openrouter.ai" in base):
+        readers.append(("compat", _read_compat))
+    return readers
+
+
+def _problem(name: str, error: Exception) -> str:
+    """What went wrong with one model, for the owner (a status code or an error type, never a key or a text)."""
+    import httpx
+    if isinstance(error, httpx.HTTPStatusError):
+        return f"{name} HTTP {error.response.status_code}"
+    return f"{name} {type(error).__name__}"
+
+
+def vision_text(image) -> tuple[str, str]:
+    """(text, error): the picture's text (handwriting included) read by the vision models, and what went wrong with
+    each ("" when one succeeded). Models run one after another, but a model silent for VISION_HEDGE seconds no longer
+    holds up the next: it is started beside it and the first full transcription wins."""
+    import base64
+    import threading
+    from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
     shown = image.copy()
     shown.thumbnail((1280, 1280))
     buffer = io.BytesIO()
     shown.convert("RGB").save(buffer, "JPEG", quality=82)
-    prompt = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
-              "including handwriting. Reply with the text only, no comments. If there is no text, reply with nothing.")
-    chosen = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
-    # a model that is overloaded or slow is replaced by the next one (set GEMINI_VISION_FALLBACK to a comma list)
-    models = list(dict.fromkeys([chosen, *[m.strip() for m in os.environ.get("GEMINI_VISION_FALLBACK", VISION_FALLBACK).split(",") if m.strip()]]))
-    body = {"contents": [{"role": "user", "parts": [
-        {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
-        "generationConfig": {"temperature": 0}}
+    data_b64 = base64.b64encode(buffer.getvalue()).decode()
     log = logging.getLogger("muhawir.extract")
-    started, failed = time.monotonic(), []
-    for position, model in enumerate(models):
-        if time.monotonic() - started >= VISION_TIMEOUT - 30:  # leave time for the compat endpoint below
-            break
-        last = position == len(models) - 1
-        # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model
-        # allows it off (a 400 then falls back to the plain request)
-        attempts = [{**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}}, body]
-        overloaded, problem = 0, ""
-        while attempts:
-            attempt = attempts.pop(0)
-            try:
-                r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                               headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"},
-                               json=attempt, timeout=httpx.Timeout(VISION_READ, connect=10.0))
-                r.raise_for_status()
-                parts = r.json()["candidates"][0]["content"]["parts"]
-                return "".join(p.get("text", "") for p in parts).strip(), ""
-            except httpx.HTTPStatusError as error:
-                code = error.response.status_code
-                problem = f"HTTP {code}"
-                log.warning("vision transcription failed (%s): %s %s", model, problem, error.response.text[:200])
-                if code == 400 and attempts:
-                    continue  # a refusal of the settings: the plain request is next
-                if code in (429, 500, 502, 503, 504) and overloaded < (VISION_RETRIES if last else 1) \
-                        and time.monotonic() - started < VISION_TIMEOUT - 30:
-                    overloaded += 1  # busy (503 «overloaded», 429): the same request a moment later, then the next model
-                    time.sleep(2 * overloaded)
-                    attempts.insert(0, attempt)
-                    continue
-                break
-            except httpx.TimeoutException as error:
-                problem = type(error).__name__
-                log.warning("vision transcription failed (%s): %s", model, problem)
-                break  # a slow model: the next one
-            except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-                problem = type(error).__name__
-                log.warning("vision transcription failed (%s): %s: %s", model, problem, error)
-                break
-        failed.append(f"{model} {problem}")  # what the owner needs to see in the app: which model said what
-    # Google's own service is busy for every model: the same picture through the main model endpoint (OpenRouter
-    # routes to other capacity), when one is configured
-    text, problem = _compat_vision(base64.b64encode(buffer.getvalue()).decode(), prompt, log, started)
-    if text is not None:
-        return text, ""
-    if problem:
-        failed.append(problem)
-    return "", ", ".join(failed)
+    readers = _vision_readers()
+    stop, deadline = threading.Event(), time.monotonic() + VISION_TIMEOUT
+    pool = ThreadPoolExecutor(max_workers=len(readers))
+    running: dict = {}
+    failed: list[str] = []
+    waiting = list(readers)
 
+    def start() -> None:
+        name, read = waiting.pop(0)
+        running[pool.submit(read, data_b64, stop, deadline)] = name
 
-def _compat_vision(data_b64: str, prompt: str, log, started: float) -> tuple[str | None, str]:
-    """(text, error) from an OpenAI-compatible endpoint (OPENAI_COMPAT_BASE_URL / _API_KEY); text is None when it
-    is not configured or failed. OPENAI_COMPAT_VISION_MODEL names the model (default on OpenRouter: google/gemini-2.5-flash)."""
-    import httpx
-    from urllib.parse import urlsplit
-    base, key = os.environ.get("OPENAI_COMPAT_BASE_URL", "").rstrip("/"), os.environ.get("OPENAI_COMPAT_API_KEY", "")
-    model = os.environ.get("OPENAI_COMPAT_VISION_MODEL") or ("google/gemini-2.5-flash" if urlsplit(base).hostname == "openrouter.ai" else "")
-    if not (base and key and model) or time.monotonic() - started >= VISION_TIMEOUT - 5:
-        return None, ""
     try:
-        r = httpx.post(f"{base}/chat/completions", headers={"authorization": f"Bearer {key}", "content-type": "application/json"},
-                       json={"model": model, "temperature": 0, "messages": [{"role": "user", "content": [
-                           {"type": "text", "text": prompt},
-                           {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + data_b64}}]}]},
-                       timeout=httpx.Timeout(VISION_READ, connect=10.0))
-        r.raise_for_status()
-        return (r.json()["choices"][0]["message"]["content"] or "").strip(), ""
-    except httpx.HTTPStatusError as error:
-        problem = f"{model} HTTP {error.response.status_code}"
-    except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as error:
-        problem = f"{model} {type(error).__name__}"
-    log.warning("vision transcription failed (compat): %s", problem)
-    return None, problem
+        start()
+        while running:
+            done, _ = wait(running, timeout=max(0.0, min(VISION_HEDGE, deadline - time.monotonic())),
+                           return_when=FIRST_COMPLETED)
+            lost = False
+            for future in done:
+                name = running.pop(future)
+                try:
+                    text = future.result()
+                except _Stopped:
+                    continue
+                except Exception as error:  # noqa: BLE001 - every failure is reported by name, then the next model
+                    failed.append(_problem(name, error))
+                    log.warning("vision transcription failed: %s", failed[-1])
+                    lost = True
+                    continue
+                if text:
+                    return text, ""
+                failed.append(f"{name} empty")
+                lost = True
+            if time.monotonic() >= deadline:
+                failed += [f"{name} timeout" for name in running.values()]
+                break
+            if waiting and (not done or lost):  # silent too long, or one failed: the next model starts now
+                start()
+        return "", ", ".join(failed)
+    finally:
+        stop.set()
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def from_image(data: bytes, deadline: float) -> str:
