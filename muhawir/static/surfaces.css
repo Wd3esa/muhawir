@@ -214,3 +214,13 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .attach-chip.is-error { border-color:#b3261e; box-shadow:0 0 0 2px color-mix(in srgb,#b3261e 35%,transparent); }
 @keyframes attach-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .attach-chip.is-reading .attach-spinner::after { animation:none; } }
+
+
+/* sidebar: the Muhawir wordmark beside the source-book mark */
+.brand-name { line-height:1; }
+.brand-name .brand-wordmark { display:block; height:46px; width:auto; color:var(--ink); }
+
+/* the explanation-style picker reads as a button: a pill with a chevron, in the body font */
+.explanation-picker > summary { border:1px solid var(--line); background:color-mix(in srgb,var(--accent-soft) 55%,transparent); padding:4px 12px; gap:6px; }
+.explanation-picker .explanation-current { font-family:inherit; font-size:14px; font-weight:600; letter-spacing:normal; color:var(--ink); }
+.explanation-picker summary svg { color:var(--muted); }

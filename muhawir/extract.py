@@ -280,7 +280,7 @@ def vision_text(image) -> tuple[str, str]:
     log = logging.getLogger("muhawir.extract")
     started, failed = time.monotonic(), []
     for position, model in enumerate(models):
-        if time.monotonic() - started >= VISION_TIMEOUT - 5:
+        if time.monotonic() - started >= VISION_TIMEOUT - 30:  # leave time for the compat endpoint below
             break
         last = position == len(models) - 1
         # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model
@@ -303,7 +303,7 @@ def vision_text(image) -> tuple[str, str]:
                 if code == 400 and attempts:
                     continue  # a refusal of the settings: the plain request is next
                 if code in (429, 500, 502, 503, 504) and overloaded < (VISION_RETRIES if last else 1) \
-                        and time.monotonic() - started < VISION_TIMEOUT - 5:
+                        and time.monotonic() - started < VISION_TIMEOUT - 30:
                     overloaded += 1  # busy (503 «overloaded», 429): the same request a moment later, then the next model
                     time.sleep(2 * overloaded)
                     attempts.insert(0, attempt)
@@ -318,7 +318,39 @@ def vision_text(image) -> tuple[str, str]:
                 log.warning("vision transcription failed (%s): %s: %s", model, problem, error)
                 break
         failed.append(f"{model} {problem}")  # what the owner needs to see in the app: which model said what
+    # Google's own service is busy for every model: the same picture through the main model endpoint (OpenRouter
+    # routes to other capacity), when one is configured
+    text, problem = _compat_vision(base64.b64encode(buffer.getvalue()).decode(), prompt, log, started)
+    if text is not None:
+        return text, ""
+    if problem:
+        failed.append(problem)
     return "", ", ".join(failed)
+
+
+def _compat_vision(data_b64: str, prompt: str, log, started: float) -> tuple[str | None, str]:
+    """(text, error) from an OpenAI-compatible endpoint (OPENAI_COMPAT_BASE_URL / _API_KEY); text is None when it
+    is not configured or failed. OPENAI_COMPAT_VISION_MODEL names the model (default on OpenRouter: google/gemini-2.5-flash)."""
+    import httpx
+    from urllib.parse import urlsplit
+    base, key = os.environ.get("OPENAI_COMPAT_BASE_URL", "").rstrip("/"), os.environ.get("OPENAI_COMPAT_API_KEY", "")
+    model = os.environ.get("OPENAI_COMPAT_VISION_MODEL") or ("google/gemini-2.5-flash" if urlsplit(base).hostname == "openrouter.ai" else "")
+    if not (base and key and model) or time.monotonic() - started >= VISION_TIMEOUT - 5:
+        return None, ""
+    try:
+        r = httpx.post(f"{base}/chat/completions", headers={"authorization": f"Bearer {key}", "content-type": "application/json"},
+                       json={"model": model, "temperature": 0, "messages": [{"role": "user", "content": [
+                           {"type": "text", "text": prompt},
+                           {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + data_b64}}]}]},
+                       timeout=httpx.Timeout(VISION_READ, connect=10.0))
+        r.raise_for_status()
+        return (r.json()["choices"][0]["message"]["content"] or "").strip(), ""
+    except httpx.HTTPStatusError as error:
+        problem = f"{model} HTTP {error.response.status_code}"
+    except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as error:
+        problem = f"{model} {type(error).__name__}"
+    log.warning("vision transcription failed (compat): %s", problem)
+    return None, problem
 
 
 def from_image(data: bytes, deadline: float) -> str:

@@ -125,3 +125,19 @@ def test_an_overloaded_model_is_replaced_by_the_next(monkeypatch):
     monkeypatch.setattr(httpx, "post", post)
     assert extract.extract(_photo())["text"].startswith("اللهم")
     assert "/big:" in urls[0] and "gemini-2.5-flash" in urls[-1]
+
+
+def test_when_every_gemini_model_is_busy_the_compat_endpoint_reads_the_picture(monkeypatch):
+    import time
+    monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "k"); monkeypatch.setenv("GEMINI_MODEL", "big")
+    monkeypatch.setenv("OPENAI_COMPAT_BASE_URL", "https://openrouter.ai/api/v1"); monkeypatch.setenv("OPENAI_COMPAT_API_KEY", "x")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    def post(url, headers=None, json=None, timeout=None):
+        request = httpx.Request("POST", url)
+        if "googleapis" in url:
+            return httpx.Response(503, json={}, request=request)
+        assert url.endswith("/chat/completions") and json["messages"][0]["content"][1]["type"] == "image_url"
+        return httpx.Response(200, json={"choices": [{"message": {"content": "اللهم يا فارج الهم ويا كاشف الغم"}}]}, request=request)
+    monkeypatch.setattr(httpx, "post", post)
+    assert extract.extract(_photo())["text"].startswith("اللهم")
