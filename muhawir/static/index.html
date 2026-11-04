@@ -2518,7 +2518,9 @@ function mcpConnect() {
     $("mcpClose").setAttribute("aria-label", t.mcpClose);
     $("mcpClients").replaceChildren(...Object.entries(MCP_CLIENTS).map(([key, c]) => {
       const b = el("button", "mcp-client");
-      b.append(mcpClientIcon(key, c.kind), el("span", "", c.name));
+      b.append(mcpClientIcon(key, c.kind));
+      b.setAttribute("aria-label", c.name);
+      b.title = c.name;
       b.type = "button"; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(key === client));
       b.addEventListener("click", () => { client = key; try { localStorage.setItem("muhawir-mcp-client", key); } catch {} render(); });
       return b;

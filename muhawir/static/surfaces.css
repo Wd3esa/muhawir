@@ -220,6 +220,16 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
   .mcp-clients .mcp-client { padding:7px 6px; gap:5px; font-size:13px; }
 }
 
+/* Logo-only MCP options: intrinsic-size buttons, no stretched cards. */
+.mcp-clients { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+.mcp-clients .mcp-client {
+  display:inline-flex; flex:0 0 auto; width:52px; height:52px; min-height:0;
+  align-items:center; justify-content:center; padding:8px; gap:0; border-radius:12px;
+}
+.mcp-clients .mcp-client-icon,
+.mcp-clients .mcp-client-icon svg,
+.mcp-clients .mcp-client-icon img { width:30px; height:30px; flex:none; }
+
 /* MCP steps: keep numbered markers anchored on the RTL side while isolating LTR labels. */
 .mcp-path { direction:rtl; }
 .mcp-path .mcp-step { direction:rtl; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; column-gap:10px; }
