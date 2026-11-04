@@ -1603,11 +1603,6 @@ class Muhawir:
         res = Response(ANSWERED, "", claims=[{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
                                          "passage_ids": [verse.id]}],
                        sources=self._cards([verse.id], lang=lang), synthetic=self.corpus.synthetic, by_code=True)
-        parts = verse.id.split(":")
-        surah = verse.location.split("،")[0].strip()
-        if len(parts) == 3 and surah:
-            res.follow_up = {"en": f"What does verse {parts[2]} of {surah} mean?",
-                             "ur": f"{surah} کی آیت {parts[2]} کی تفسیر کیا ہے؟"}.get(lang, f"ما تفسير الآية {parts[2]} من {surah}؟")
         return res
 
     def _near_verses(self, quoted: str, search: bool = True) -> list[Passage]:
@@ -2103,5 +2098,5 @@ class Muhawir:
         # or one that asks for the types or sections of something (the model does not always call it "how")
         res.as_list = listing and len(claims) > 1
         # a suggested next question only after a complete answer: never one that leads away from a part left unanswered
-        res.follow_up = "" if getattr(written, "partial", False) else (getattr(self.generator, "last_follow_up", "") or "")
+        res.follow_up = ""  # no suggested questions after an answer (November 2026): the page shows none
         return res
