@@ -13,6 +13,15 @@ from pathlib import Path
 
 KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "seerah", "fatwa", "qa", "gharib", "takhrij", "other"})
 
+# Books of hadith that were added with the kind "other" (their passages also hold the compiler's chapter notes and
+# verses): a hadith they quote is a hadith, for finding one by its meaning and for showing its text
+HADITH_BOOKS = frozenset({"extra-riyad-salihin", "extra-adhkar-nawawi"})
+
+
+def holds_hadith(passage: "Passage") -> bool:
+    """A passage from a collection of hadith (not a takhrij book, which also lists sayings that are not hadith)."""
+    return passage.kind == "hadith" or passage.source_id in HADITH_BOOKS
+
 
 class CorpusError(ValueError):
     """Raised when corpus data is malformed."""

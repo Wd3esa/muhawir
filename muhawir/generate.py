@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from typing import Callable, Protocol
 
 from . import attribution
-from .corpus import Passage
+from .corpus import Passage, holds_hadith
 from .normalize import normalize, tokenize
 from .verify import Claim
 
@@ -643,7 +643,9 @@ def _passage_block(p: Passage) -> str:
     grade = f" — حكم المحدث: {p.grade}" if p.grade else ""
     who = attribution.label(p.source_id)
     who = f" — {who}" if who else ""
-    return f"[{p.id}] ({KIND_AR.get(p.kind, 'نص')}{who} — {p.location}{grade})\n{p.text}"
+    # a book of hadith added as "other" (رياض الصالحين): its hadiths are hadiths, its chapter notes the compiler's
+    label = "نص من كتاب حديث" if p.kind == "other" and holds_hadith(p) else KIND_AR.get(p.kind, 'نص')
+    return f"[{p.id}] ({label}{who} — {p.location}{grade})\n{p.text}"
 
 
 def build_user_prompt(question: str, passages: list[Passage], style: str, lang: str,

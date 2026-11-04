@@ -8,17 +8,55 @@ import re
 from .normalize import normalize
 
 
+# the words that attribute what follows to the Prophet ﷺ in a book that quotes hadith among other text
+_PROPHET = re.compile(r"(?:صلي الله عليه وسلم|ﷺ|رسول الله|النبي|عليه الصلاه والسلام)")
+_ELLIPSIS = re.compile(r"\s*(?:…|\.{3,})\s*")
+PROPHET_SPAN = 200  # characters before the quote in which the source names the Prophet ﷺ
+# kinds whose text is never a source for showing a hadith: a takhrij book also lists sayings that are not hadith
+_NOT_HADITH_TEXT = frozenset({"quran", "gharib", "takhrij"})
+
+
+def _found_at(quote: str, text: str) -> int:
+    """Where the quotation starts in the passage (normalised), or -1. A quotation shortened with «…» is found when
+    each of its parts of two words or more is in the passage, in order."""
+    parts = [p for p in (normalize(x) for x in _ELLIPSIS.split(quote)) if p]
+    if not parts or (len(parts) > 1 and any(len(p.split()) < 2 for p in parts)):
+        return -1
+    start = at = text.find(parts[0])
+    for part in parts[1:]:
+        if at < 0:
+            return -1
+        at = text.find(part, at + 1)
+    return start if at >= 0 else -1
+
+
 def required_quote(claim, passages, form):
-    kind = {'hadith_text': 'hadith', 'verse_text': 'quran'}.get(form)
-    if not kind:
+    """True when the sentence shows the text asked for (a verse or a hadith) word for word from a cited passage:
+    a verse from the mushaf; a hadith from a book of hadith, or from another book that quotes it as the Prophet's
+    words ﷺ (a fatwa, a commentary, رياض الصالحين)."""
+    if form not in ('hadith_text', 'verse_text'):
         return False
     for quote in re.findall(r'«([^»]+)»|﴿([^﴾]+)﴾', claim.text):
         text = next((q for q in quote if q), '')
         if not normalize(text):
             continue
-        if any(p.kind == kind and normalize(text) in normalize(p.text)
-               for pid in claim.passage_ids if (p := passages.get(pid)) is not None):
-            return True
+        for pid in claim.passage_ids:
+            p = passages.get(pid)
+            if p is None:
+                continue
+            body = normalize(p.text)
+            at = _found_at(text, body)
+            if at < 0:
+                continue
+            if form == 'verse_text':
+                if p.kind == 'quran':
+                    return True
+                continue
+            if p.kind == 'hadith':
+                return True
+            if p.kind not in _NOT_HADITH_TEXT and len(normalize(text).split()) >= 3 \
+                    and _PROPHET.search(body[max(0, at - PROPHET_SPAN):at]):
+                return True
     return False
 
 
