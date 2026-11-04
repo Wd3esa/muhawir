@@ -112,3 +112,37 @@ def test_a_hadith_quoted_by_a_fatwa_counts_only_right_after_the_prophet_is_named
     by_id = {p.id: p for p in corpus.passages}
     assert required_quote(_claim("«إنما الأعمال بالنيات»", "fx:1"), by_id, "hadith_text")
     assert not required_quote(_claim("«النية هي قصد القلب ومريده»", "fx:1"), by_id, "hadith_text")
+
+
+# ---- «هل ذُكر ذلك في القرآن؟» ----------------------------------------------------------------------------------
+
+def test_a_question_whether_something_is_in_the_quran_asks_for_the_verse():
+    from muhawir.normalize import normalize
+    from muhawir.pipeline import _ASKS_QURAN_EVIDENCE
+    for q in ("هل ذكر ذلك في القرآن", "هل ذُكر الوضوء في القرآن الكريم؟", "ما الدليل من القرآن على الوضوء", "وين مذكور في القرآن"):
+        assert _ASKS_QURAN_EVIDENCE.search(normalize(q)), q
+    for q in ("ما حكم قراءة القرآن للحائض", "هل يجوز مس القرآن بغير وضوء", "كيف أتوضأ"):
+        assert not _ASKS_QURAN_EVIDENCE.search(normalize(q)), q
+
+
+def test_a_tafsir_passage_on_a_verse_brings_the_verse_itself_when_the_quran_is_asked_about():
+    corpus = parse_corpus({"synthetic": True, "sources": [{"id": "mushaf", "name": "المصحف", "about": "القرآن"},
+                                                          {"id": "tabari", "name": "تفسير الطبري", "about": "تفسير"}],
+                           "passages": [
+        {"id": "q:5:1", "source_id": "mushaf", "location": "سورة المائدة، الآية 1", "kind": "quran", "text": "يا أيها الذين آمنوا أوفوا بالعقود"},
+        {"id": "q:5:6", "source_id": "mushaf", "location": "سورة المائدة، الآية 6", "kind": "quran",
+         "text": "يا أيها الذين آمنوا إذا قمتم إلى الصلاة فاغسلوا وجوهكم وأيديكم إلى المرافق وامسحوا برءوسكم وأرجلكم إلى الكعبين"},
+        {"id": "tb:5:6", "source_id": "tabari", "location": "سورة المائدة، الآية 6", "kind": "tafsir",
+         "text": "يعني بقوله إذا قمتم إلى الصلاة إذا قمتم إليها وأنتم على غير طهر فاغسلوا وجوهكم بالماء في الوضوء"}]})
+    engine = Muhawir(corpus, ModelGenerator([("m", lambda *a, **k: "{}")]))
+    passages, _ = engine._gather("هل ذكر الوضوء في القرآن", "", ["الوضوء"], form="verse_evidence")
+    assert passages[0].id == "q:5:6"
+    by_id = {p.id: p for p in corpus.passages}
+    assert required_quote(_claim("﴿إذا قمتم إلى الصلاة فاغسلوا وجوهكم﴾", "q:5:6"), by_id, "verse_evidence")
+
+
+def test_the_writer_is_told_to_quote_the_verse_first_and_not_repeat_the_previous_answer():
+    from muhawir.generate import VERSE_EVIDENCE_RULE, build_user_prompt
+    prompt = build_user_prompt("هل ذكر ذلك في القرآن؟", [], "youth", "ar", False,
+                               answer_request={"form": "verse_evidence", "requirements": []})
+    assert VERSE_EVIDENCE_RULE in prompt and "هذه الآية" in VERSE_EVIDENCE_RULE

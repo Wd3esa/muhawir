@@ -202,6 +202,10 @@ _VERSE_NOTE_MARKED = re.compile(
 _VERSE_PLACE_IN_TEXT = re.compile(
     r"(?:الايه|ايه)\s+(?:رقم\s+)?(?P<n>\d{1,3}|(?:" + "|".join(_ORDINALS) + r"))\s+(?:من|في)\s+(?:سوره\s+)?"
     r"(?P<s>[\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)")
+# «هل ذُكر ذلك في القرآن؟»، «ما الدليل من القرآن؟»، «وين ذكر في القرآن»: the verse is the answer (normalised text)
+_ASKS_QURAN_EVIDENCE = re.compile(
+    r"(?:(?:هل|اين|وين|فين)\s+(?:\S+\s+){0,3}?(?:ذكر|ذكرت|ورد|وردت|جاء|جاءت|مذكور|مذكوره|موجود|موجوده)\s+(?:\S+\s+){0,2}?"
+    r"(?:في|من)\s+القران)|(?:(?:الدليل|دليل|دليله|دليلها|ايه|الايه)\s+(?:\S+\s+){0,2}?(?:في|من)\s+القران)")
 _HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
 MAX_NOTED_VERSES = 10
 
@@ -1088,7 +1092,8 @@ class Muhawir:
             prepare(queries)
         df = getattr(self.retriever, "df", None)
         user_words = original or question  # only what the user typed: the model's rewrite of it may have drifted
-        wanted = {"hadith_text": holds_hadith, "verse_text": lambda p: p.kind == "quran"}.get(form)
+        verse = lambda p: p.kind == "quran"  # noqa: E731
+        wanted = {"hadith_text": holds_hadith, "verse_text": verse, "verse_evidence": verse}.get(form)
 
         def found(query: str) -> list:
             # a dictionary entry must be about the rare word the USER asked about, not about the word an expanded
@@ -1126,6 +1131,12 @@ class Muhawir:
         offered = self._with_issue_openers([h.passage for h in best.values()])
         # and a hadith a fatwa quotes comes from its own book, before the fatwa
         offered = self._with_quoted_hadiths(offered)
+        if form in ("verse_text", "verse_evidence"):
+            # a tafsir passage on a verse («سورة المائدة، آية 6») brings the verse itself, so it can be quoted
+            have = {p.id for p in offered}
+            verses = [v for p in offered if p.kind == "tafsir" for v in self._referenced_verses(p.location)
+                      if v.id not in have]
+            offered = list(dict.fromkeys(verses)) + offered
         # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
         passages = [p for p in offered if bayyinat.is_answer_part(p)
                     and not _confused(p, f"{original} {question}")]
@@ -1774,6 +1785,10 @@ class Muhawir:
                     queries = u["queries"]
                     kind = u.get("kind", "")
                     answer_request = u.get("answer_request") or {}
+                    if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
+                            normalize(original or question)):  # the model missed it: «هل ذكر ذلك في القرآن؟»
+                        answer_request = {"form": "verse_evidence",
+                                          "requirements": list(answer_request.get("requirements") or [])}
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply

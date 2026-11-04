@@ -34,8 +34,9 @@ def required_quote(claim, passages, form):
     """True when the sentence shows the text asked for (a verse or a hadith) word for word from a cited passage:
     a verse from the mushaf; a hadith from a book of hadith, or from another book that quotes it as the Prophet's
     words ﷺ (a fatwa, a commentary, رياض الصالحين)."""
-    if form not in ('hadith_text', 'verse_text'):
+    if form not in ('hadith_text', 'verse_text', 'verse_evidence'):
         return False
+    form = 'verse_text' if form == 'verse_evidence' else form
     for quote in re.findall(r'«([^»]+)»|﴿([^﴾]+)﴾', claim.text):
         text = next((q for q in quote if q), '')
         if not normalize(text):

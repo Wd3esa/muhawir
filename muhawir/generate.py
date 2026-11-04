@@ -341,7 +341,8 @@ UNDERSTAND_PROMPT = """أمامك رسالة من مستخدم يحاور مسا
    (مثل: «لخّص أقوال العلماء في حكم القراض»).
 3. """ + QUERY_RULES + """
 4. answer_request: ثبّت المطلوب من الرسالة والمحادثة بمعناه، لا بمجرد وجود كلمة:
-   form = hadith_text إن طلب نص حديث أو استحضره بعبارة منه، وverse_text إن طلب نص آية، وإلا explanation.
+   form = hadith_text إن طلب نص حديث أو استحضره بعبارة منه، وverse_text إن طلب نص آية،
+   وverse_evidence إن سأل هل ورد الأمر في القرآن أو عن دليله أو موضعه منه («هل ذُكر ذلك في القرآن؟»، «ما الدليل من القرآن؟»)، وإلا explanation.
    طلب شرح معنى حديث مع استحضار لفظه يبقي نص الحديث أولًا ثم الشرح. وفي المتابعة احفظ الحديث أو الآية المقصودة من الحوار.
    requirements قائمة قصيرة بكل المطالب المستقلة التي طلبها فعلًا (مثل النص، المعنى، الدرجة). لا تضف مطالب أو أجوبة من عندك.
 لا تجب عن السؤال، ولا تحكم على المستخدم ولا على نيته، ولا تضف معلومة ليست في الرسالة أو المحادثة.
@@ -521,7 +522,7 @@ UNDERSTAND_SCHEMA = {
                    "recall": {"type": "string"},
                    "queries": {"type": "array", "items": {"type": "string"}},
                    "answer_request": {"type": "object", "properties": {
-                       "form": {"type": "string", "enum": ["hadith_text", "verse_text", "explanation"]},
+                       "form": {"type": "string", "enum": ["hadith_text", "verse_text", "verse_evidence", "explanation"]},
                        "requirements": {"type": "array", "maxItems": 6, "items": {"type": "string"}}},
                        "required": ["form", "requirements"], "additionalProperties": False}},
     "required": ["question", "translate", "answer_lang", "feeling", "personal", "kind", "unsure", "reexplain", "recall",
@@ -680,7 +681,17 @@ def build_user_prompt(question: str, passages: list[Passage], style: str, lang: 
         lines.append("المطلوب المثبت من الفهم (بيانات): <<<" + json.dumps(answer_request, ensure_ascii=False) + ">>>\n"
                      "أجب عن كل مطلب مستقل. إذا طلب النص فابدأ بالنص المطلوب من مقطعه الأصلي ثم الشرح. "
                      "اذكر نسبة الحديث إلى كتابه مرة واحدة، ولا تضف جملة تعيد اسم المصدر وحده.")
+        if answer_request.get("form") == "verse_evidence":
+            lines.append(VERSE_EVIDENCE_RULE)
     return "\n\n".join(lines)
+
+
+# «هل ذُكر ذلك في القرآن؟»: the verse itself first, then what it shows; not the previous answer again
+VERSE_EVIDENCE_RULE = (
+    "السؤال: هل ورد هذا في القرآن أو ما دليله منه. ابدأ بجواب مباشر: إن كان في المقاطع آية (نوعها آية) تدل عليه فقل إنه ورد، "
+    "وانقل نص الآية بلفظه من مقطعها بين ﴿﴾ مع اسم السورة ورقم الآية، ثم بيّن في جملة أو جملتين ما تدل عليه كما في مقاطع التفسير أو كلام العلماء. "
+    "لا تقل «هذه الآية» قبل أن تذكر نصها. وما لم يرد في لفظ الآية (كالمضمضة أو عدد المرات) فلا تنسبه إلى القرآن، بل إلى من قاله. "
+    "ولا تعد ما سبق في الجواب السابق. وإن لم يكن في المقاطع آية تدل عليه فقل إنك لم تجد في المصادر المتاحة آية تذكره.")
 
 
 _THINK = re.compile(r"<think>.*?</think>", re.S)
@@ -986,7 +997,7 @@ class ModelGenerator:
             form = request.get("form")
             tasks = request.get("requirements")
             request = ({"form": form, "requirements": [s.strip()[:160] for s in tasks[:6]
-                        if isinstance(s, str) and s.strip()]} if form in ("hadith_text", "verse_text", "explanation")
+                        if isinstance(s, str) and s.strip()]} if form in ("hadith_text", "verse_text", "verse_evidence", "explanation")
                        and isinstance(tasks, list) else {})
             return {"question": question, "queries": queries, "lang": answer_lang, "translate": translate,
                     "answer_request": request,
