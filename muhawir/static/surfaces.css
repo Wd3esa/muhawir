@@ -198,6 +198,13 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-code { margin-top:0; }
 .mcp-path { align-items:stretch; justify-content:flex-start; }
 
+/* MCP steps: keep numbered markers anchored on the RTL side while isolating LTR labels. */
+.mcp-path { direction:rtl; }
+.mcp-path .mcp-step { direction:rtl; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; column-gap:10px; }
+.mcp-path .mcp-step::before { grid-column:1; direction:ltr; unicode-bidi:isolate; }
+.mcp-path .mcp-step .mcp-text { grid-column:2; direction:ltr; unicode-bidi:isolate; text-align:left; }
+.mcp-path .mcp-file .mcp-text { direction:ltr; unicode-bidi:isolate; text-align:left; }
+
 /* An attached photo or file: a small preview in the question box with a remove button */
 .attach-preview { display:flex; gap:8px; padding:2px 2px 6px; }
 .attach-preview[hidden] { display:none; }
