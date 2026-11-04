@@ -13,6 +13,41 @@ from pathlib import Path
 
 KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "seerah", "fatwa", "qa", "gharib", "takhrij", "other"})
 
+# Books of hadith that were added with the kind "other" (their passages also hold the compiler's chapter notes and
+# verses): a hadith they quote is a hadith, for finding one by its meaning and for showing its text
+HADITH_BOOKS = frozenset({"extra-riyad-salihin", "extra-adhkar-nawawi"})
+
+
+# The field a question belongs to, and the kinds of passage searched first for it (the others follow). A fatwa or a
+# question-and-answer book serves both fiqh and aqeedah.
+DOMAINS = {
+    "quran": frozenset({"quran", "tafsir", "asbab", "gharib"}),
+    "hadith": frozenset({"hadith", "takhrij"}),
+    "fiqh": frozenset({"fiqh", "fatwa", "qa"}),
+    "aqeedah": frozenset({"aqeedah", "fatwa", "qa"}),
+    "seerah": frozenset({"seerah"}),
+}
+# books added with the kind "other": the fields they belong to
+SOURCE_DOMAINS = {
+    "extra-riyad-salihin": frozenset({"hadith"}),
+    "extra-adhkar-nawawi": frozenset({"hadith"}),
+    "extra-zad-maad": frozenset({"seerah", "fiqh"}),
+    "extra-irab-nahhas": frozenset({"quran"}),
+    "extra-tibyan-irab": frozenset({"quran"}),
+}
+
+
+def in_domain(passage: "Passage", domain: str) -> bool:
+    """True when the passage belongs to the field of the question (any passage when no field is known)."""
+    if domain not in DOMAINS:
+        return True
+    return passage.kind in DOMAINS[domain] or domain in SOURCE_DOMAINS.get(passage.source_id, ())
+
+
+def holds_hadith(passage: "Passage") -> bool:
+    """A passage from a collection of hadith (not a takhrij book, which also lists sayings that are not hadith)."""
+    return passage.kind == "hadith" or passage.source_id in HADITH_BOOKS
+
 
 class CorpusError(ValueError):
     """Raised when corpus data is malformed."""

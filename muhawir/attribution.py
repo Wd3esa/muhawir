@@ -35,6 +35,32 @@ CREDIT = {
 }
 
 
+# the short name a source chip shows after a sentence («تفسير ابن كثير», not the book's full title)
+SHORT = {
+    "quranpedia-hafs": ("القرآن الكريم", "The Quran"),
+    "tafsir-ibn-kathir": ("تفسير ابن كثير", "Tafsir Ibn Kathir"),
+    "extra-qurtubi": ("تفسير القرطبي", "Tafsir al-Qurtubi"),
+    "extra-baghawi": ("تفسير البغوي", "Tafsir al-Baghawi"),
+    "bidayat-al-mujtahid": ("بداية المجتهد", "Bidayat al-Mujtahid"),
+    "mufradat-raghib": ("مفردات الراغب", "Mufradat al-Raghib"),
+    "maqasid-hasana": ("المقاصد الحسنة", "al-Maqasid al-Hasana"),
+    "sira-ibn-hisham": ("سيرة ابن هشام", "Sirat Ibn Hisham"),
+    "extra-riyad-salihin": ("رياض الصالحين", "Riyad al-Salihin"),
+    "extra-adhkar-nawawi": ("الأذكار للنووي", "al-Adhkar"),
+    "extra-zad-maad": ("زاد المعاد", "Zad al-Ma'ad"),
+    "extra-kashf-khafa": ("كشف الخفاء", "Kashf al-Khafa"),
+    "bayyinat": ("بيّنات", "Bayyinat"),
+}
+
+
+def short(source_id: str, lang: str = "ar") -> str:
+    """A few words naming the source on a chip: the scholar for a book of fatwas, else the book's short name."""
+    names = SHORT.get(source_id)
+    if names:
+        return names[1] if lang == "en" else names[0]
+    return person(source_id, lang).removeprefix("الشيخ ").removeprefix("Sheikh ")
+
+
 def person(source_id: str, lang: str = "ar") -> str:
     """The person a source is credited to, as a view label, in the given language; empty if the source has none."""
     names = PERSON.get(source_id)

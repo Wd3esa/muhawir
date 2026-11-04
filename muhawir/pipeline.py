@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 from . import attribution, bayyinat, bidaya, classify, keyboard, lexical, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
-from .corpus import Corpus, Passage
+from .corpus import DOMAINS, Corpus, Passage, holds_hadith, in_domain
 from .generate import AnswerReview, Generator, ModelGenerator, is_example
 from .presentation import compact_provenance, lead_with_requested_text, required_quote, retain_inline_qualification
 from .messages import LANGS, STYLES, TEXT, TRANSLATED_LANGS
@@ -33,6 +33,10 @@ from .verify import Rejected, invented_definition, verify
 
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
+WANTED_DEPTH = 4      # a search for a requested hadith or verse looks this many times deeper (one search, no model)
+DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
+DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
+WANTED_PER_QUERY = 4  # hadiths (or verses) per search phrase moved to the front when their text is asked for
 HEADING_ALIGNMENT = 0.6  # an entry found by its root must also hold a word this close to the asked word
 
 MAX_QUESTION_CHARS = 500
@@ -168,6 +172,44 @@ def _same_word(a: str, b: str) -> bool:
 _ASK_BEFORE_VERSE = re.compile(
     r"^\s*(?:(?:\u0645\u0646 \u0641\u0636\u0644\u0643|\u0644\u0648 \u0633\u0645\u062D\u062A|\u0631\u062C\u0627\u0621[\u064B\u0627]?)\s+)?(?:\u0627\u0630\u0643\u0631|\u0623\u0630\u0643\u0631|\u0627\u0643\u062A\u0628|\u0623\u0643\u062A\u0628|\u0623\u0643\u0645\u0644|\u0627\u0643\u0645\u0644|\u0635\u062D\u062D|\u0635\u062D\u0651\u062D|\u0641\u0633\u0631|\u0641\u0633\u0651\u0631|\u0627\u0634\u0631\u062D|\u0645\u0627 \u0645\u0639\u0646\u0649|\u0645\u0627 \u062A\u0641\u0633\u064A\u0631)"
     r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
+
+
+# a verse named by its place: «الآية الخامسة من سورة البقرة»، «آية 255 من البقرة»، «البقرة 2:5» (text normalised: ة→ه, أ→ا)
+_ORDINALS = {w: i for i, ws in enumerate(
+    ("الاولي الاول", "الثانيه الثاني", "الثالثه الثالث", "الرابعه الرابع", "الخامسه الخامس", "السادسه السادس",
+     "السابعه السابع", "الثامنه الثامن", "التاسعه التاسع", "العاشره العاشر"), 1) for w in ws.split()}
+_VERSE_PLACE = re.compile(
+    r"^(?:(?:اذكر|اكتب|هات|اعرض|ما\s+هي|ما\s+هو|ما)\s+)?(?:لي\s+)?(?:نص\s+)?(?:(?:الايه|ايه)\s+)+"
+    r"(?:رقم\s+)?(?P<n>\d{1,3}|(?:" + "|".join(_ORDINALS) + r"))\s+(?:من|في)\s+(?:سوره\s+)?(?P<s>[^\d:]+)$")
+_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+# a surah and a verse number as people note them inside a text: «الأنعام (96)»، «فصلت: 12»، «سورة يس 38»، «البقره 1-5»
+# (normalised text, digits made Western); the name is checked against the mushaf's surah names
+_VERSE_NOTE = re.compile(r"(?:سوره\s+)?(?P<s>(?:ال\s+)?[\u0621-\u064a]{2,})\s+(?:(?:الايه|ايه|رقم)\s+)?(?P<a>\d{1,3})")
+# inside a longer text a reference needs a mark, or ordinary words would be taken for surahs («صلاة الفجر 2 ركعة»،
+# «يوسف 25 سنة»): «سورة» before the name, or the number in brackets or after a colon. Raw text, harakat removed.
+_N = r"[0-9٠-٩۰-۹]{1,3}"
+_NOTE_NAME = r"(?:[آا]ل\s+)?[\u0621-\u064a]{2,}"
+_NOTE_WORD = r"(?:(?:الآية|الاية|آية|اية|الآيات|الايات|آيات|ايات|رقم)\s*)?"
+
+
+def _note_number(tag: str) -> str:
+    return rf"{_NOTE_WORD}(?P<a{tag}>{_N})(?:\s*[-–]\s*(?P<b{tag}>{_N}))?"
+
+
+_VERSE_NOTE_MARKED = re.compile(
+    rf"سور[ةه]\s+(?P<s1>{_NOTE_NAME})\s*[(\[:：،,]?\s*{_note_number('1')}"
+    rf"|(?P<s2>{_NOTE_NAME})\s*[(\[]\s*{_note_number('2')}\s*[)\]]"
+    # after a colon only at the start of a line or after a mark: «ركعات الفجر: 2» is not al-Fajr
+    rf"|(?:^|(?<=[\n.،,؛;:()\[\]\-–0-9٠-٩]))\s*(?P<s3>{_NOTE_NAME})\s*[:：]\s*{_note_number('3')}", re.M)
+_VERSE_PLACE_IN_TEXT = re.compile(
+    r"(?:الايه|ايه)\s+(?:رقم\s+)?(?P<n>\d{1,3}|(?:" + "|".join(_ORDINALS) + r"))\s+(?:من|في)\s+(?:سوره\s+)?"
+    r"(?P<s>[\u0621-\u064a]+(?:\s+[\u0621-\u064a]+)?)")
+# «هل ذُكر ذلك في القرآن؟»، «ما الدليل من القرآن؟»، «وين ذكر في القرآن»: the verse is the answer (normalised text)
+_ASKS_QURAN_EVIDENCE = re.compile(
+    r"(?:(?:هل|اين|وين|فين)\s+(?:\S+\s+){0,3}?(?:ذكر|ذكرت|ورد|وردت|جاء|جاءت|مذكور|مذكوره|موجود|موجوده)\s+(?:\S+\s+){0,2}?"
+    r"(?:في|من)\s+القران)|(?:(?:الدليل|دليل|دليله|دليلها|ايه|الايه)\s+(?:\S+\s+){0,2}?(?:في|من)\s+القران)")
+_HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
+MAX_NOTED_VERSES = 10
 
 
 # «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
@@ -1020,14 +1062,21 @@ class Muhawir:
             return {**first, "queries": phrases[:MAX_UNDERSTOOD_QUERIES]}
         return first or second
 
-    def _gather(self, question: str, original: str, queries: list[str] | None) -> tuple[list[Passage], list[str]]:
-        """The passages offered to the model, and the search phrases used to find them."""
+    def _gather(self, question: str, original: str, queries: list[str] | None,
+                form: str = "", domain: str = "") -> tuple[list[Passage], list[str]]:
+        """The passages offered to the model, and the search phrases used to find them. When the text of a hadith or a
+        verse is asked for (form), the best hadiths (or verses) for each phrase come first: «حديث عن الصبر» or «حديث
+        بمعنى هذا» must be answered from a hadith, not only from the fiqh and tafsir passages that rank above it."""
         best: dict[str, object] = {}
         # the opening passage of the matching chapter and section of «بداية المجتهد» first:
         # it usually holds the overview, the definition or the list of kinds. Only the question and short
         # topic phrases are matched to chapter names: a quoted verse that happens to contain the word
         # «الصلاة» is not a question about the chapter on prayer
         topics = [q for q in (queries or []) if len(q.split()) <= MAX_TOPIC_WORDS]
+        # verses the user named by surah and number («الأنعام (٩٦)» in a photographed note) are read from the mushaf
+        # first: their words are not in the message, so no search would find them
+        for p in self._referenced_verses(original or question):
+            best[p.id] = Hit(p, 0.0, 1.0)
         for pid in self.sections.match([original or question] + topics):
             p = self.corpus.passage(pid)
             if p is not None and bayyinat.is_answer_part(p):
@@ -1045,14 +1094,36 @@ class Muhawir:
             prepare(queries)
         df = getattr(self.retriever, "df", None)
         user_words = original or question  # only what the user typed: the model's rewrite of it may have drifted
+        verse = lambda p: p.kind == "quran"  # noqa: E731
+        wanted = {"hadith_text": holds_hadith, "verse_text": verse, "verse_evidence": verse}.get(form)
+
         def found(query: str) -> list:
             # a dictionary entry must be about the rare word the USER asked about, not about the word an expanded
             # phrase or a vector search drifted to («ما معنى ألفوا» must not be answered from the entry «أوى»)
-            hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES) if bayyinat.is_answer_part(h.passage)
-                    and h.coverage >= MODEL_MIN_COVERAGE
+            # one deeper search when a hadith or a verse is wanted: its best few are moved to the front of the list
+            depth = WANTED_DEPTH if wanted else (DOMAIN_DEPTH if domain in DOMAINS else 1)
+            hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES * depth)
+                    if bayyinat.is_answer_part(h.passage)
                     and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)
                     and lexical.keeps(h.passage, user_words, df, heading_alignment=HEADING_ALIGNMENT)]
-            return hits
+            usual = [h for h in hits if h.coverage >= MODEL_MIN_COVERAGE]
+            if domain in DOMAINS:
+                # the books of the question's field first: three of them for each passage from another field, so a
+                # verse or a hadith a fiqh question needs still comes in («كيف أتوضأ» is answered from fiqh books)
+                inside = [h for h in usual if in_domain(h.passage, domain)]
+                outside = [h for h in usual if not in_domain(h.passage, domain)]
+                usual = []
+                while inside or outside:
+                    usual += inside[:DOMAIN_RUN] + outside[:1]
+                    inside, outside = inside[DOMAIN_RUN:], outside[1:]
+            usual = usual[:MODEL_CANDIDATES]
+            if not wanted:
+                return usual
+            # a hadith of the same meaning in other words («بمعنى هذا الحديث») shares few of the question's words: the
+            # meaning search (vectors) found it, so the word-overlap floor is not asked of these few; the support
+            # reading and the relevance judge still decide whether it answers
+            first = [h for h in hits if wanted(h.passage)][:WANTED_PER_QUERY]
+            return first + [h for h in usual if h not in first]
         # Local embeddings are prepared together above; BM25/ANN searches still run
         # in parallel, and pool.map preserves phrase order for the round-robin merge.
         if len(queries) > 1 and SEARCH_THREADS > 1:
@@ -1073,6 +1144,12 @@ class Muhawir:
         offered = self._with_issue_openers([h.passage for h in best.values()])
         # and a hadith a fatwa quotes comes from its own book, before the fatwa
         offered = self._with_quoted_hadiths(offered)
+        if form in ("verse_text", "verse_evidence"):
+            # a tafsir passage on a verse («سورة المائدة، آية 6») brings the verse itself, so it can be quoted
+            have = {p.id for p in offered}
+            verses = [v for p in offered if p.kind == "tafsir" for v in self._referenced_verses(p.location)
+                      if v.id not in have]
+            offered = list(dict.fromkeys(verses)) + offered
         # the user's words, and the standalone question the understanding step made of a follow-up («وما شروطها؟»)
         passages = [p for p in offered if bayyinat.is_answer_part(p)
                     and not _confused(p, f"{original} {question}")]
@@ -1255,7 +1332,8 @@ class Muhawir:
         more = getattr(self.generator, "retry_queries", lambda *_: [])(question, tried)
         if not more:
             return first
-        passages, _ = self._gather(question, original, more)
+        request = extra.get("answer_request") or {}
+        passages, _ = self._gather(question, original, more, form=request.get("form", ""), domain=request.get("domain", ""))
         if all(p.id in (first.allowed if first else ()) for p in passages):
             return first
         second = self._write(question, passages, style, lang, False, extra)
@@ -1277,6 +1355,8 @@ class Muhawir:
             card = {"passage_id": p.id, "quote": p.text, "location": p.location,
                     "kind": p.kind, "grade": p.grade, "topics": p.keywords, "source_name": s.name,
                     "source_about": s.about, "source_url": s.url}
+            if attribution.short(s.id, lang):  # the chip after a sentence names this, not the full title
+                card["source_short"] = attribution.short(s.id, lang)
             translation = self._translation(p, corpus, lang) if p.kind == "quran" and lang in TRANSLATED_LANGS else ""
             if translation:
                 card["translation"] = translation
@@ -1334,6 +1414,79 @@ class Muhawir:
                     return verse
         fix = self._misquoted(question)
         return fix[0] if fix else None
+
+    def _surah_numbers(self) -> dict[str, int]:
+        """Each surah's name as the mushaf heads it, normalised and without «سورة» («البقره» → 2), read once."""
+        names = getattr(self, "_surah_ids", None)
+        if names is None:
+            names = {}
+            for s in range(1, 115):
+                p = self.corpus.passage(f"q:{s}:1")
+                if p:
+                    names[normalize(p.location.split("،")[0]).removeprefix("سوره ").strip()] = s
+            self._surah_ids = names
+        return names
+
+    def _surah_number(self, name: str) -> int | None:
+        names = self._surah_numbers()
+        name = normalize(name).removeprefix("سوره ").strip()
+        for n in (name, name[1:] if name[:1] in "وف" and len(name) > 3 else ""):  # «والبقرة (1-3)»
+            found = n and (names.get(n) or names.get("ال" + n) or (names.get(n[2:]) if n.startswith("ال") else None))
+            if found:
+                return found
+        return None
+
+    def _verse_by_reference(self, question: str) -> Passage | None:
+        """«الآية الخامسة من سورة البقرة»، «اذكر آية 255 من البقرة»: the verse named by its place, found in the mushaf
+        with no model. Only when the message is nothing but the request: a question about the meaning
+        («ما تفسير الآية 5 من البقرة») goes the ordinary way."""
+        q = normalize(question).strip(" :؟?.!،").translate(_DIGITS)
+        if len(q) > 60:
+            return None
+        m = _VERSE_PLACE.match(q)
+        if not m:  # the message is one reference and nothing more: «الأنعام 96»، «سورة يس (٣٨)»
+            note = _VERSE_NOTE.fullmatch(q)
+            if note:
+                surah = self._surah_number(note.group("s"))
+                return self.corpus.passage(f"q:{surah}:{int(note.group('a'))}") if surah else None
+            return None
+        number = m.group("n")
+        ayah = int(number) if number.isdigit() else _ORDINALS.get(number)
+        surah = self._surah_number(m.group("s"))
+        if not ayah or not surah:
+            return None
+        return self.corpus.passage(f"q:{surah}:{ayah}")
+
+    def _referenced_verses(self, text: str) -> list[Passage]:
+        """The verses a text names by surah and number, marked the way people note them: «الأنعام (٩٦)»، «فصلت: 12»،
+        «سورة يس ٣٨»، «البقرة (1-5)». Found in the mushaf with no model; a name that is not a surah, or a number past
+        its last verse, gives nothing."""
+        found: list[tuple[str, int, int]] = []
+        for m in _VERSE_NOTE_MARKED.finditer(_HARAKAT_TATWEEL.sub("", text)):
+            g = m.groupdict()
+            first = g["a1"] or g["a2"] or g["a3"]
+            last = g["b1"] or g["b2"] or g["b3"] or first
+            found.append((g["s1"] or g["s2"] or g["s3"], int(first.translate(_DIGITS)), int(last.translate(_DIGITS))))
+        # «ما تفسير الآية 255 من البقرة»، «الآية الخامسة من سورة البقرة» inside a question
+        for m in _VERSE_PLACE_IN_TEXT.finditer(normalize(text).translate(_DIGITS)):
+            number = m.group("n")
+            ayah = int(number) if number.isdigit() else _ORDINALS.get(number, 0)
+            words = m.group("s").split()
+            name = next((" ".join(words[:k]) for k in (2, 1) if len(words) >= k and self._surah_number(" ".join(words[:k]))), "")
+            if ayah and name:
+                found.append((name, ayah, ayah))
+        out: list[Passage] = []
+        for name, first, last in found:
+            surah = self._surah_number(name)
+            if not surah:
+                continue
+            for ayah in range(first, min(max(first, last), first + MAX_NOTED_VERSES - 1) + 1):
+                p = self.corpus.passage(f"q:{surah}:{ayah}")
+                if p is not None and p not in out:
+                    out.append(p)
+            if len(out) >= MAX_NOTED_VERSES:
+                break
+        return out[:MAX_NOTED_VERSES]
 
     def _verse_loosely(self, text: str) -> Passage | None:
         """As _verse, with «و» or «ف» the quote left off its first word («كلوا واشربوا» for «وكلوا واشربوا»)."""
@@ -1560,7 +1713,7 @@ class Muhawir:
         if counting:
             return self._count_reply(*counting, lang_ok)
         if question and len(question) <= MAX_QUESTION_CHARS:
-            verse = self._asked_verse(question)
+            verse = self._asked_verse(question) or self._verse_by_reference(question)
             if verse is not None:
                 _stat("verse_shown")
                 return self._verse_reply(verse, lang_ok)
@@ -1648,6 +1801,10 @@ class Muhawir:
                     queries = u["queries"]
                     kind = u.get("kind", "")
                     answer_request = u.get("answer_request") or {}
+                    if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
+                            normalize(question)):  # the user's words, when the model missed it: «هل ذكر ذلك في القرآن؟»
+                        answer_request = {"form": "verse_evidence",
+                                          "requirements": list(answer_request.get("requirements") or [])}
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -1751,7 +1908,11 @@ class Muhawir:
         else:
             progress("searching")
             with _timed("search"):
-                passages, queries = self._gather(question, original, queries)
+                request = answer_request or {}
+                # what is looked for, in plain words (the understood question), and in which field's books
+                progress("looking", {"domain": request.get("domain", ""), "query": question[:120]})
+                passages, queries = self._gather(question, original, queries, form=request.get("form", ""),
+                                                 domain=request.get("domain", ""))
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
