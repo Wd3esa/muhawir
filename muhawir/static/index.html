@@ -2468,18 +2468,7 @@ const MCP_CLIENTS = {
     note: { ar: "افتح المسار ثم الصق الرابط (بلا مصادقة):", en: "Open the path, then paste the link (no sign-in):" }, code: (url) => url },
   chatgpt: { name: "ChatGPT", kind: "chat", path: ["Settings", "Apps & Connectors", "Advanced", "Developer Mode"],
     note: { ar: "فعّل Developer Mode، ثم Create والصق الرابط:", en: "Turn on Developer Mode, then Create and paste the link:" }, code: (url) => url },
-  claudecode: { name: "Claude Code", kind: "terminal",
-    note: { ar: "نفّذ في الطرفية:", en: "Run in your terminal:" },
-    code: (url) => `claude mcp add --transport http muhawir ${url}` },
-  cursor: { name: "Cursor", kind: "code", file: "~/.cursor/mcp.json",
-    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
-    code: (url) => JSON.stringify({ mcpServers: { muhawir: { url } } }, null, 2) },
-  vscode: { name: "VS Code", kind: "code", file: ".vscode/mcp.json",
-    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
-    code: (url) => JSON.stringify({ servers: { muhawir: { type: "http", url } } }, null, 2) },
-  gemini: { name: "Gemini CLI", kind: "terminal", file: "~/.gemini/settings.json",
-    note: { ar: "أضف إلى الملف:", en: "Add to the file:" },
-    code: (url) => JSON.stringify({ mcpServers: { muhawir: { httpUrl: url } } }, null, 2) },
+
 };
 const MCP_KIND_ICONS = {
   chat: '<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-7l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/>',
@@ -2497,10 +2486,6 @@ function mcpClientIcon(key, kind) {
   const brandLogos = {
     claude: "https://cdn.simpleicons.org/claude",
     chatgpt: "https://cdn.simpleicons.org/openai",
-    claudecode: "https://cdn.simpleicons.org/claude",
-    cursor: "https://cdn.simpleicons.org/cursor",
-    vscode: "https://cdn.simpleicons.org/visualstudiocode",
-    gemini: "https://cdn.simpleicons.org/googlegemini",
   };
   img.referrerPolicy = "no-referrer";
   img.src = brandLogos[key] || "/static/clients/" + key + ".svg";
