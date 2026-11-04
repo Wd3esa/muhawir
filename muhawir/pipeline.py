@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 from . import attribution, bayyinat, bidaya, classify, keyboard, lexical, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
-from .corpus import Corpus, Passage, holds_hadith
+from .corpus import DOMAINS, Corpus, Passage, holds_hadith, in_domain
 from .generate import AnswerReview, Generator, ModelGenerator, is_example
 from .presentation import compact_provenance, lead_with_requested_text, required_quote, retain_inline_qualification
 from .messages import LANGS, STYLES, TEXT, TRANSLATED_LANGS
@@ -34,6 +34,8 @@ from .verify import Rejected, invented_definition, verify
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
 WANTED_DEPTH = 4      # a search for a requested hadith or verse looks this many times deeper (one search, no model)
+DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
+DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
 WANTED_PER_QUERY = 4  # hadiths (or verses) per search phrase moved to the front when their text is asked for
 HEADING_ALIGNMENT = 0.6  # an entry found by its root must also hold a word this close to the asked word
 
@@ -1061,7 +1063,7 @@ class Muhawir:
         return first or second
 
     def _gather(self, question: str, original: str, queries: list[str] | None,
-                form: str = "") -> tuple[list[Passage], list[str]]:
+                form: str = "", domain: str = "") -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them. When the text of a hadith or a
         verse is asked for (form), the best hadiths (or verses) for each phrase come first: «حديث عن الصبر» or «حديث
         بمعنى هذا» must be answered from a hadith, not only from the fiqh and tafsir passages that rank above it."""
@@ -1099,11 +1101,22 @@ class Muhawir:
             # a dictionary entry must be about the rare word the USER asked about, not about the word an expanded
             # phrase or a vector search drifted to («ما معنى ألفوا» must not be answered from the entry «أوى»)
             # one deeper search when a hadith or a verse is wanted: its best few are moved to the front of the list
-            hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES * (WANTED_DEPTH if wanted else 1))
+            depth = WANTED_DEPTH if wanted else (DOMAIN_DEPTH if domain in DOMAINS else 1)
+            hits = [h for h in self.retriever.search(query, k=MODEL_CANDIDATES * depth)
                     if bayyinat.is_answer_part(h.passage)
                     and (h.passage.kind == "quran" or len(h.passage.text.split()) >= MIN_PASSAGE_WORDS)
                     and lexical.keeps(h.passage, user_words, df, heading_alignment=HEADING_ALIGNMENT)]
-            usual = [h for h in hits if h.coverage >= MODEL_MIN_COVERAGE][:MODEL_CANDIDATES]
+            usual = [h for h in hits if h.coverage >= MODEL_MIN_COVERAGE]
+            if domain in DOMAINS:
+                # the books of the question's field first: three of them for each passage from another field, so a
+                # verse or a hadith a fiqh question needs still comes in («كيف أتوضأ» is answered from fiqh books)
+                inside = [h for h in usual if in_domain(h.passage, domain)]
+                outside = [h for h in usual if not in_domain(h.passage, domain)]
+                usual = []
+                while inside or outside:
+                    usual += inside[:DOMAIN_RUN] + outside[:1]
+                    inside, outside = inside[DOMAIN_RUN:], outside[1:]
+            usual = usual[:MODEL_CANDIDATES]
             if not wanted:
                 return usual
             # a hadith of the same meaning in other words («بمعنى هذا الحديث») shares few of the question's words: the
@@ -1319,7 +1332,8 @@ class Muhawir:
         more = getattr(self.generator, "retry_queries", lambda *_: [])(question, tried)
         if not more:
             return first
-        passages, _ = self._gather(question, original, more, form=(extra.get("answer_request") or {}).get("form", ""))
+        request = extra.get("answer_request") or {}
+        passages, _ = self._gather(question, original, more, form=request.get("form", ""), domain=request.get("domain", ""))
         if all(p.id in (first.allowed if first else ()) for p in passages):
             return first
         second = self._write(question, passages, style, lang, False, extra)
@@ -1341,6 +1355,8 @@ class Muhawir:
             card = {"passage_id": p.id, "quote": p.text, "location": p.location,
                     "kind": p.kind, "grade": p.grade, "topics": p.keywords, "source_name": s.name,
                     "source_about": s.about, "source_url": s.url}
+            if attribution.short(s.id, lang):  # the chip after a sentence names this, not the full title
+                card["source_short"] = attribution.short(s.id, lang)
             translation = self._translation(p, corpus, lang) if p.kind == "quran" and lang in TRANSLATED_LANGS else ""
             if translation:
                 card["translation"] = translation
@@ -1892,8 +1908,11 @@ class Muhawir:
         else:
             progress("searching")
             with _timed("search"):
-                passages, queries = self._gather(question, original, queries,
-                                                 form=(answer_request or {}).get("form", ""))
+                request = answer_request or {}
+                # what is looked for, in plain words (the understood question), and in which field's books
+                progress("looking", {"domain": request.get("domain", ""), "query": question[:120]})
+                passages, queries = self._gather(question, original, queries, form=request.get("form", ""),
+                                                 domain=request.get("domain", ""))
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
