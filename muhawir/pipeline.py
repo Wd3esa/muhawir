@@ -170,6 +170,16 @@ _ASK_BEFORE_VERSE = re.compile(
     r"\s*(?:\u0644\u064A\s+)?(?:\u0646\u0635\s+)?(?:\u0627\u0644\u0622\u064A[\u0629\u0647]|\u0627\u0644\u0627\u064A[\u0629\u0647]|\u0622\u064A[\u0629\u0647]|\u0627\u064A[\u0629\u0647]|\u0642\u0648\u0644\u0647 \u062A\u0639\u0627\u0644\u0649|\u0642\u0648\u0644 \u0627\u0644\u0644\u0647(?: \u062A\u0639\u0627\u0644\u0649)?)?\s*[:\uFF1A]?\s*")
 
 
+# a verse named by its place: «الآية الخامسة من سورة البقرة»، «آية 255 من البقرة»، «البقرة 2:5» (text normalised: ة→ه, أ→ا)
+_ORDINALS = {w: i for i, ws in enumerate(
+    ("الاولي الاول", "الثانيه الثاني", "الثالثه الثالث", "الرابعه الرابع", "الخامسه الخامس", "السادسه السادس",
+     "السابعه السابع", "الثامنه الثامن", "التاسعه التاسع", "العاشره العاشر"), 1) for w in ws.split()}
+_VERSE_PLACE = re.compile(
+    r"^(?:(?:اذكر|اكتب|هات|اعرض|ما\s+هي|ما\s+هو|ما)\s+)?(?:لي\s+)?(?:نص\s+)?(?:الايه|ايه)\s+"
+    r"(?:رقم\s+)?(?P<n>\d{1,3}|(?:" + "|".join(_ORDINALS) + r"))\s+(?:من|في)\s+(?:سوره\s+)?(?P<s>[^\d:]+)$")
+_VERSE_PLACE_NUMBERS = re.compile(r"^(?:سوره\s+)?(?P<s>[^\d:]+?)\s*[:\s]\s*(?P<n>\d{1,3})$")
+
+
 # «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
 _ASKS_VERSE_TEXT = re.compile(
     r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
@@ -1335,6 +1345,32 @@ class Muhawir:
         fix = self._misquoted(question)
         return fix[0] if fix else None
 
+    def _verse_by_reference(self, question: str) -> Passage | None:
+        """«الآية الخامسة من سورة البقرة»، «اذكر آية 255 من البقرة»، «البقرة ٢:٥»: the verse named by its place, found
+        in the mushaf with no model. Only when the message is nothing but the request: a question about the meaning
+        («ما تفسير الآية 5 من البقرة») goes the ordinary way."""
+        q = normalize(question).strip(" :؟?.!،")
+        if len(q) > 60:
+            return None
+        q = q.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789"))
+        m = _VERSE_PLACE.match(q) or _VERSE_PLACE_NUMBERS.match(q)
+        if not m:
+            return None
+        number, name = m.group("n"), m.group("s").strip()
+        ayah = int(number) if number.isdigit() else _ORDINALS.get(number)
+        names = getattr(self, "_surah_ids", None)
+        if names is None:
+            names = {}
+            for s in range(1, 115):
+                p = self.corpus.passage(f"q:{s}:1")
+                if p:
+                    names[normalize(p.location.split("،")[0]).removeprefix("سوره ").strip()] = s
+            self._surah_ids = names
+        surah = names.get(name.removeprefix("سوره ").strip()) or names.get(normalize(name).removeprefix("ال"))
+        if not ayah or not surah:
+            return None
+        return self.corpus.passage(f"q:{surah}:{ayah}")
+
     def _verse_loosely(self, text: str) -> Passage | None:
         """As _verse, with «و» or «ف» the quote left off its first word («كلوا واشربوا» for «وكلوا واشربوا»)."""
         words = normalize(text).split()
@@ -1560,7 +1596,7 @@ class Muhawir:
         if counting:
             return self._count_reply(*counting, lang_ok)
         if question and len(question) <= MAX_QUESTION_CHARS:
-            verse = self._asked_verse(question)
+            verse = self._asked_verse(question) or self._verse_by_reference(question)
             if verse is not None:
                 _stat("verse_shown")
                 return self._verse_reply(verse, lang_ok)
