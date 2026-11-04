@@ -146,3 +146,18 @@ def test_the_writer_is_told_to_quote_the_verse_first_and_not_repeat_the_previous
     prompt = build_user_prompt("هل ذكر ذلك في القرآن؟", [], "youth", "ar", False,
                                answer_request={"form": "verse_evidence", "requirements": []})
     assert VERSE_EVIDENCE_RULE in prompt and "هذه الآية" in VERSE_EVIDENCE_RULE
+
+
+def test_the_verse_is_searched_first_even_when_the_understanding_step_calls_it_an_explanation(monkeypatch):
+    import json
+    def call(system, user, schema=None):
+        if '"question"' in json.dumps(schema or {}):
+            return json.dumps({"question": "هل ذكر الوضوء في القرآن؟", "translate": "", "answer_lang": "", "feeling": "",
+                               "personal": False, "kind": "", "reexplain": False, "recall": "", "queries": ["الوضوء"],
+                               "answer_request": {"form": "explanation", "requirements": []}}, ensure_ascii=False)
+        return "{}"
+    engine = Muhawir(CORPUS, ModelGenerator([("m", call)]))
+    seen = []
+    monkeypatch.setattr(engine, "_gather", lambda *a, **k: (seen.append(k.get("form")), ([], []))[1])
+    engine.ask("هل ذكر ذلك في القرآن")
+    assert seen and seen[0] == "verse_evidence"

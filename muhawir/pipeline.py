@@ -1786,7 +1786,7 @@ class Muhawir:
                     kind = u.get("kind", "")
                     answer_request = u.get("answer_request") or {}
                     if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
-                            normalize(original or question)):  # the model missed it: «هل ذكر ذلك في القرآن؟»
+                            normalize(question)):  # the user's words, when the model missed it: «هل ذكر ذلك في القرآن؟»
                         answer_request = {"form": "verse_evidence",
                                           "requirements": list(answer_request.get("requirements") or [])}
                     feeling = u.get("feeling", "")
