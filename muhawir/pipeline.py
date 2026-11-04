@@ -34,6 +34,8 @@ from .verify import Rejected, invented_definition, verify
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
 WANTED_DEPTH = 4      # a search for a requested hadith or verse looks this many times deeper (one search, no model)
+QUOTE_PIN_COVERAGE = 0.6  # a hadith offered first for words the user quoted holds most of those words
+QUOTE_PINS = 4
 VERSE_SEARCH_K = 60   # without the database index (tests), how many hits are searched for a verse's words
 DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
 DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
@@ -234,22 +236,7 @@ MAX_NOTED_VERSES = 10
 
 # «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
 _ASKS_VERSE_TEXT = re.compile(
-    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|كمل|كمّل|أتمم|اتمم|هات|ما\s+نص|نص|تكمل[ةه]|بقي[ةه])\s*(?:لي\s+)?(?:نص\s+)?"
-    r"(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])"
-    # «أكمل: إنما يوفى…»، «في أي سورة: …»، «ما اسم السورة التي فيها …»: the verse's words decide, never these alone
-    r"|(?:^|\s)(?:أكمل|اكمل|كمل|كمّل|أتمم|اتمم)\s*[:：]|(?:^|\s)(?:أكمل|اكمل|كمل|كمّل)(?:ها)?\s*[.؟?!]*\s*$"
-    r"|(?:^|\s)(?:أكملها|اكملها|كملها|كمّلها)(?:\s|$)"
-    r"|(?:في|من)\s+(?:أي|اي|أيّ)\s+سور[ةه]|اسم\s+السور[ةه]|(?:أين|اين|وين)\s+(?:توجد|تقع|وردت|جاءت)")
-# the asking words around a verse quoted without marks («إنما يوفى الصابرون أجرهم أكمل الآية واذكر السورة»): taken out,
-# so the words left are the verse's own, wherever the request was written
-_VERSE_ASK_WORDS = re.compile(
-    r"(?:من\s+فضلك|لو\s+سمحت|رجاء[ًا]?|ممكن|ابي|أبي|ابغى|أبغى|ابغي|عايز|بدي)"
-    r"|(?:و|ثم\s+)?(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|كمل|كمّل|أتمم|اتمم|هات|بيّن|بين|حدد|حدّد)\b(?:\s+لي)?"
-    r"|(?:ما|وما)\s+(?:نص|اسم|رقم|تكمل[ةه]|بقي[ةه])|تكمل[ةه]|بقي[ةه]|(?:في|من)\s+(?:أي|اي|أيّ)\s+سور[ةه]"
-    r"|(?:أين|اين|وين)\s+(?:توجد|تقع|وردت|جاءت)"
-    r"|(?:و)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه]|السور[ةه]|سور[ةه]|اسمها|رقمها|ورقمها|اسم|رقم|نص)\b"
-    r"|(?:أكملها|اكملها|كملها|كمّلها)|اللي\s+فيها|اللي\s+فيه|(?:إللي|الي)\s+فيها"
-    r"|قوله\s+تعالى|قول\s+الله(?:\s+تعالى)?|قال\s+تعالى|قال\s+الله(?:\s+تعالى)?|التي\s+فيها|الذي\s+فيه|فيها|[:：؟?!«»\"﴿﴾().،,]")
+    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
 
 
 # a hadith quoted in a fatwa: «…» or ((…)), or the words after «صلى الله عليه وسلم:» up to the end of the sentence
@@ -1098,7 +1085,7 @@ class Muhawir:
         return first or second
 
     def _gather(self, question: str, original: str, queries: list[str] | None,
-                form: str = "", domain: str = "") -> tuple[list[Passage], list[str]]:
+                form: str = "", domain: str = "", pinned: list[Passage] | None = None) -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them. When the text of a hadith or a
         verse is asked for (form), the best hadiths (or verses) for each phrase come first: «حديث عن الصبر» or «حديث
         بمعنى هذا» must be answered from a hadith, not only from the fiqh and tafsir passages that rank above it."""
@@ -1110,8 +1097,8 @@ class Muhawir:
         topics = [q for q in (queries or []) if len(q.split()) <= MAX_TOPIC_WORDS]
         # verses the user named by surah and number («الأنعام (٩٦)» in a photographed note) are read from the mushaf
         # first: their words are not in the message, so no search would find them
-        for p in self._referenced_verses(original or question):
-            best[p.id] = Hit(p, 0.0, 1.0)
+        for p in [*(pinned or []), *self._referenced_verses(original or question)]:  # what the user named or quoted
+            best.setdefault(p.id, Hit(p, 0.0, 1.0))
         for pid in self.sections.match([original or question] + topics):
             p = self.corpus.passage(pid)
             if p is not None and bayyinat.is_answer_part(p):
@@ -1465,10 +1452,8 @@ class Muhawir:
         quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
         after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
         before = question[:m.start()].strip(" :：«»\"﴿﴾؟?.")
-        # the verse's words wherever they were written: before the request, after it, or around it
-        rest = " ".join(_VERSE_ASK_WORDS.sub(" ", question).split())
         tried = 0
-        for text in dict.fromkeys(t for t in [*quoted, after, before, rest] if t):
+        for text in dict.fromkeys(t for t in [*quoted, after, before] if t):  # before or after the request
             for part in _quote_parts(text):
                 if len(normalize(part).split()) < 3 or tried >= 16:
                     continue
@@ -1520,6 +1505,46 @@ class Muhawir:
         if not ayah or not surah:
             return None
         return self.corpus.passage(f"q:{surah}:{ayah}")
+
+    @staticmethod
+    def _said_by_user(quoted: str, user_text: str) -> bool:
+        """The understanding step's quoted_text is a pointer into the user's own words: it is used only when those
+        words, in that order, are in what the user typed (any spelling), so the model can never supply a text."""
+        words = verse_skeleton(quoted)
+        return len(words.split()) >= 2 and f" {words} " in f" {verse_skeleton(user_text)} "
+
+    def _requested_verse(self, request: dict, user_text: str) -> Passage | None:
+        """The verse the understanding step located in the user's message, read from the mushaf by code: by the
+        surah and number the user named, or by the words the user quoted (wherever and however they were written)."""
+        surah, ayah = request.get("surah"), request.get("ayah")
+        if surah and isinstance(ayah, int) and ayah > 0:
+            number = self._surah_number(surah)
+            verse = self.corpus.passage(f"q:{number}:{ayah}") if number else None
+            if verse is not None:
+                return verse
+        quoted = request.get("quoted_text") or ""
+        if not quoted or not self._said_by_user(quoted, user_text):
+            return None
+        for part in _quote_parts(quoted)[:16]:  # the whole quote, then shorter runs of it from either end
+            if len(normalize(part).split()) >= 3:
+                verse = self._verse(part)
+                if verse is not None:
+                    return verse
+        fix = self._misquoted(f"«{quoted}»")  # one word in another form («إن الله مع الصابرون»)
+        return fix[0] if fix else None
+
+    def _pinned(self, request: dict, user_text: str) -> list[Passage]:
+        """Passages the answer must be written from because the user named or quoted them: the verse, or the hadith
+        (and what the takhrij books say of a saying) for words the user quoted. Offered to the writer first."""
+        verse = self._requested_verse(request, user_text)
+        if verse is not None:
+            return [verse]
+        quoted = request.get("quoted_text") or ""
+        if not quoted or not self._said_by_user(quoted, user_text):
+            return []
+        hits = self.retriever.search(quoted, k=MODEL_CANDIDATES)
+        return [h.passage for h in hits if (holds_hadith(h.passage) or h.passage.kind == "takhrij")
+                and h.coverage >= QUOTE_PIN_COVERAGE][:QUOTE_PINS]
 
     def _referenced_verses(self, text: str) -> list[Passage]:
         """The verses a text names by surah and number, marked the way people note them: «الأنعام (٩٦)»، «فصلت: 12»،
@@ -1867,8 +1892,14 @@ class Muhawir:
                     answer_request = u.get("answer_request") or {}
                     if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
                             normalize(question)):  # the user's words, when the model missed it: «هل ذكر ذلك في القرآن؟»
-                        answer_request = {"form": "verse_evidence",
-                                          "requirements": list(answer_request.get("requirements") or [])}
+                        answer_request = {**answer_request, "form": "verse_evidence"}
+                    if answer_request.get("form") == "verse_text":
+                        # the verse the user asked for, however they put it: located by the understanding step,
+                        # read from the mushaf by code, shown at once with no writing or checking
+                        verse = self._requested_verse(answer_request, question)
+                        if verse is not None:
+                            _stat("verse_shown")
+                            return self._verse_reply(verse, lang_ok)
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -1976,7 +2007,8 @@ class Muhawir:
                 # what is looked for, in plain words (the understood question), and in which field's books
                 progress("looking", {"domain": request.get("domain", ""), "query": question[:120]})
                 passages, queries = self._gather(question, original, queries, form=request.get("form", ""),
-                                                 domain=request.get("domain", ""))
+                                                 domain=request.get("domain", ""),
+                                                 pinned=self._pinned(request, original or question))
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}

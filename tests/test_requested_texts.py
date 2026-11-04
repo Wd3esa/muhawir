@@ -161,3 +161,14 @@ def test_the_verse_is_searched_first_even_when_the_understanding_step_calls_it_a
     monkeypatch.setattr(engine, "_gather", lambda *a, **k: (seen.append(k.get("form")), ([], []))[1])
     engine.ask("هل ذكر ذلك في القرآن")
     assert seen and seen[0] == "verse_evidence"
+
+
+def test_words_the_user_quoted_from_a_hadith_or_a_claimed_saying_are_offered_first():
+    engine = _engine()
+    note = "اللهم يا فارج الهم... قال (ص) من أخبر الناس بهذا الدعاء فرج الله همه"
+    pinned = engine._pinned({"quoted_text": "من أخبر الناس بهذا الدعاء فرج الله همه"}, note)
+    assert [p.id for p in pinned] == ["t:1"]  # the takhrij book says what it is
+    asked = "هل يوجد حديث بمعنى وما أعطي أحد عطاء خيرا وأوسع من الصبر"
+    assert [p.id for p in engine._pinned({"quoted_text": "وما أعطي أحد عطاء خيرا وأوسع من الصبر"}, asked)] == ["r:1"]
+    # words the user did not write are never used to pick passages
+    assert engine._pinned({"quoted_text": "وما أعطي أحد عطاء خيرا وأوسع من الصبر"}, "حديث عن الصبر") == []
