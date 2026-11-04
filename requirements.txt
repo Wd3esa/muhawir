@@ -5,5 +5,5 @@ numpy>=2.2,<3
 pymupdf==1.28.2
 nltk==3.10.3
 pypdf>=3.17,<7
-Pillow>=11,<13
+Pillow>=13,<14  # 13.0.0 fixes decoder flaws reachable from uploads (audit HIGH-002); needs Python 3.11+
 mcp>=2.3,<3

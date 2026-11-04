@@ -201,7 +201,8 @@ def test_parse_draft_reads_views():
 def test_failed_call_is_logged_without_the_question(caplog):
     caplog.set_level("WARNING", logger="muhawir")
     engine(RuntimeError("model not found")).ask(QUESTION)
-    assert "model not found" in caplog.text and QUESTION not in caplog.text
+    # the error's class is logged, never its message: a provider's message can echo the question or a key (M-007)
+    assert "RuntimeError" in caplog.text and "model not found" not in caplog.text and QUESTION not in caplog.text
 
 
 # --- retry on busy errors, open-model connector, tolerant JSON ---------------

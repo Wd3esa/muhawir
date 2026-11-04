@@ -373,7 +373,8 @@ def test_a_kept_reply_outlives_a_restart_until_the_version_changes(tmp_path):
     n = len(seen["answer_prompts"])
     restarted, seen2 = model()  # a new process: empty memory, same file
     restarted.store = AnswerStore(path, "v1")
-    again = restarted.ask("ماذا تحتاج النخلةُ في الصيفِ")  # diacritics and punctuation do not matter
+    # spacing and punctuation at the ends do not matter; vowel marks do (البِرّ is not البُرّ: audit HIGH-003)
+    again = restarted.ask("  ماذا تحتاج النخلة في الصيف ")
     assert again.status == first.status == ANSWERED and again.claims == first.claims
     assert not seen2["answer_prompts"] and len(seen["answer_prompts"]) == n
     updated, seen3 = model()

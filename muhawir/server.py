@@ -27,6 +27,7 @@ from .generate import USAGE, get_generator
 from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir, _progress
 from .store import SqliteCorpus, SqliteRetriever
 from . import extract, mcp_server, quote_check, tts, telemetry
+from .corpus import MAX_PASSAGE_ID
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
@@ -99,6 +100,53 @@ def build() -> Muhawir:
 
 
 app = FastAPI(title="Muhawir", docs_url=None, redoc_url=None)
+
+# Body-limit (audit HIGH-006): the size of a request is checked on the bytes that actually arrive, before anything is
+# parsed: field limits (question length, 20 turns) are only checked after the whole JSON has been read. A question with
+# a full conversation is far below MAX_JSON_BODY; an upload has its own limit (extract.MAX_UPLOAD) in its endpoint.
+MAX_JSON_BODY = int(os.environ.get("MUHAWIR_MAX_BODY", str(512 * 1024)))
+_STREAMED_BODY = ("/api/extract",)
+
+
+class _BodyLimit:
+    def __init__(self, inner) -> None:
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("path", "").startswith(_STREAMED_BODY):
+            return await self.inner(scope, receive, send)
+        declared = dict(scope.get("headers") or []).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > MAX_JSON_BODY:
+            return await _too_large(send)
+        body, more = [], True
+        size = 0
+        while more:  # read it all first, counting the bytes as they come (also when no length was declared)
+            message = await receive()
+            if message["type"] != "http.request":
+                break
+            size += len(message.get("body", b""))
+            if size > MAX_JSON_BODY:
+                return await _too_large(send)
+            body.append(message.get("body", b""))
+            more = message.get("more_body", False)
+        whole, sent = b"".join(body), False
+
+        async def replay():
+            nonlocal sent
+            if not sent:
+                sent = True
+                return {"type": "http.request", "body": whole, "more_body": False}
+            return await receive()
+        return await self.inner(scope, replay, send)
+
+
+async def _too_large(send) -> None:
+    await send({"type": "http.response.start", "status": 413,
+                "headers": [(b"content-type", b"application/json"), (b"connection", b"close")]})
+    await send({"type": "http.response.body", "body": b'{"detail":"too_large"}'})
+
+
+app.add_middleware(_BodyLimit)
 app.mount("/fonts", StaticFiles(directory=ROOT / "static" / "fonts"), name="fonts")
 app.mount("/static/clients", StaticFiles(directory=ROOT / "static" / "clients"), name="clients")
 
@@ -164,8 +212,8 @@ def _allow_question(address: str) -> bool:
         if any(sum(1 for t in calls if t > now - window) >= most for window, most in ASK_LIMITS):
             return False
         calls.append(now)
-        if len(_visitor_calls) > 5000:  # forget visitors with nothing recent
-            for key in [k for k, v in _visitor_calls.items() if not v]:
+        if len(_visitor_calls) > 5000:  # forget visitors with nothing in the longest window (audit M-002)
+            for key in [k for k, v in _visitor_calls.items() if not v or v[-1] <= now - longest]:
                 del _visitor_calls[key]
         return True
 
@@ -532,7 +580,10 @@ def ready() -> Response:
     retriever = engine.retriever
     parts["vectors"] = not getattr(retriever, "_disabled", False)
     paused = sorted(name for name, state in BREAKERS.items() if state["open_until"] > now)
-    parts["models"] = not paused
+    # ready while at least one configured model can answer: a paused first model with a working fallback is degraded,
+    # not down (audit M-004); the paused ones are still listed
+    configured = [name for name, _call in getattr(engine.generator, "calls", [])]
+    parts["models"] = not configured or any(name not in paused for name in configured)
     try:
         parts["disk"] = shutil.disk_usage(ROOT).free > 200 * 1024 * 1024
     except OSError:
@@ -549,7 +600,8 @@ _EXTRACT_ERRORS = {"too_large": 413, "unsupported": 415, "unreadable": 422, "no_
 
 @app.post("/api/extract")
 async def extract_file(request: Request) -> dict:
-    """The text of an uploaded file or photo (the bytes are the request body): nothing is stored and no model is called.
+    """The text of an uploaded file or photo (the bytes are the request body): nothing is stored. No model is called,
+    except for a photo the server's own OCR cannot read (handwriting), which goes to the vision model when one is set.
     The page puts the text in the «تحقق من نص» box or the question box. Errors carry a short code the page translates."""
     address = request.client.host if request.client else "unknown"
     if not _allow_question(address):
@@ -557,15 +609,17 @@ async def extract_file(request: Request) -> dict:
     declared = request.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > extract.MAX_UPLOAD:
         raise HTTPException(status_code=413, detail="too_large")
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > extract.MAX_UPLOAD:
-            raise HTTPException(status_code=413, detail="too_large")
-        chunks.append(chunk)
+    # the reading slot is taken before the body is read, so no more uploads are held in memory than are read at once
+    # (audit HIGH-006: many 8 MB bodies used to be buffered while waiting for a slot)
     if not OCR_SLOTS.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="busy", headers={"Retry-After": "5"})
     try:
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > extract.MAX_UPLOAD:
+                raise HTTPException(status_code=413, detail="too_large")
+            chunks.append(chunk)
         result = await run_in_threadpool(extract.extract, b"".join(chunks))
     except extract.ExtractError as exc:
         raise HTTPException(status_code=_EXTRACT_ERRORS.get(exc.code, 422), detail=exc.code + (":" + exc.note if exc.note else "")) from None
@@ -597,7 +651,7 @@ def verify_text(body: QuoteCheck, request: Request = None) -> dict:  # type: ign
 def context(passage_id: str) -> dict:
     """«اقرأ السياق» on a source card: the passage before and after the one cited, from the same book, as they are.
     Read from the database only: no model, no cost (22 October 2026)."""
-    if len(passage_id) > 40 or engine.corpus.passage(passage_id) is None:
+    if len(passage_id) > MAX_PASSAGE_ID or engine.corpus.passage(passage_id) is None:
         raise HTTPException(status_code=404)
     before, after = engine.corpus.neighbours(passage_id)
     side = lambda p: {"passage_id": p.id, "location": p.location, "text": p.text} if p else None  # noqa: E731

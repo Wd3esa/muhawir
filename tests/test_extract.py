@@ -12,7 +12,18 @@ from muhawir.normalize import normalize
 
 FIX = Path(__file__).parent / "fixtures"
 client = TestClient(server.app)
-needs_ocr = pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract is not installed")
+def _has_arabic_ocr() -> bool:
+    """The reader needs Tesseract with its Arabic data, not only the program (audit L-002)."""
+    if shutil.which("tesseract") is None:
+        return False
+    from muhawir import extract
+    try:
+        return "ara" in extract.ocr_languages()
+    except extract.ExtractError:
+        return False
+
+
+needs_ocr = pytest.mark.skipif(not _has_arabic_ocr(), reason="Tesseract with Arabic data (ara) is not installed")
 SECOND = "الصلاة عماد الدين وهي أول ما يحاسب عليه العبد يوم القيامة"
 VERSE = "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ"
 

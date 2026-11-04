@@ -21,7 +21,7 @@ def merge(live: Path, candidate: Path, out: Path) -> tuple[int, int, list[str]]:
     if out.exists():
         raise SystemExit(f"{out} already exists; remove it or choose another name")
     src = sqlite3.connect(f"file:{live}?mode=ro", uri=True)
-    dst = sqlite3.connect(out)
+    dst = sqlite3.connect(out, uri=True)  # the candidate is attached as a read-only URI (needs uri=True, audit M-006)
     try:
         src.backup(dst)
     finally:

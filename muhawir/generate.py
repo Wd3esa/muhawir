@@ -579,15 +579,47 @@ def _severe(reason: str) -> bool:
 
 def describe(exc: Exception) -> str:
     """Short reason for a failed model call, for the server log (never the question text)."""
+    # never the provider's own text or the exception's message: either can echo the question or a key (audit M-007).
+    # The status, the error class, and the provider's short error code when it gives one, are enough to act on
     response = getattr(exc, "response", None)
     if response is not None:
-        return f"HTTP {response.status_code}: {response.text[:300]}"
-    return f"{type(exc).__name__}: {exc}"[:300]
+        code = ""
+        try:
+            error = response.json().get("error")
+            code = error.get("status") or error.get("type") or error.get("code") if isinstance(error, dict) else ""
+        except Exception:  # noqa: BLE001 - no JSON body: the status alone
+            code = ""
+        code = str(code) if re.fullmatch(r"[A-Za-z0-9_.-]{1,40}", str(code or "")) else ""
+        return f"HTTP {response.status_code}" + (f" {code}" if code else "")
+    return type(exc).__name__
 
 
 KIND_AR = {"quran": "آية", "tafsir": "تفسير", "asbab": "سبب نزول", "hadith": "حديث", "fiqh": "فقه",
            "aqeedah": "عقيدة", "seerah": "سيرة", "fatwa": "فتوى", "qa": "سؤال وجواب",
            "gharib": "معنى لفظ قرآني", "takhrij": "تخريج قول مشتهر", "other": "نص"}
+
+
+def _true(value) -> bool:
+    return value is True or (isinstance(value, str) and value.strip().lower() == "true")
+
+
+def _unusable_check_reply(data, count: int) -> str:
+    """Why a support-check reply cannot be used ("" when it can): each required field present, a list with one item per
+    sentence, of the type the schema gives. Checked here because not every provider enforces the schema."""
+    if not isinstance(data, dict):
+        return "not an object"
+    kinds = {"problem": str, "evidence": str, "missing": list, "on_topic": (bool, str)}
+    for field, kind in kinds.items():
+        value = data.get(field)
+        if not isinstance(value, list) or len(value) != count:
+            return f"{field} missing or of another length"
+        if not all(isinstance(v, kind) for v in value):
+            return f"{field} of the wrong type"
+    if not all(isinstance(t, str) for terms in data["missing"] for t in terms):
+        return "missing of the wrong type"
+    if not all(isinstance(t, bool) or t.strip().lower() in ("true", "false") for t in data["on_topic"]):
+        return "on_topic of the wrong type"
+    return ""
 
 
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
@@ -1259,34 +1291,25 @@ class ModelGenerator:
             except Exception as exc:
                 log.warning("model %s failed (support check): %s", name, describe(exc))
                 continue
-            data = data if isinstance(data, dict) else {}
-            problems, flags = data.get("problem"), data.get("supported")
-            named = isinstance(problems, list) and len(problems) == len(claims)
-            if named:  # the reader must name the defect; "none" means the sentence says what its passage says
-                verdicts = [isinstance(p, str) and p.strip().lower() == "none" for p in problems]
-                reasons = ["" if ok else f"the second reading found: {p}" for ok, p in zip(verdicts, problems)]
-            elif isinstance(flags, list) and len(flags) == len(claims):
-                verdicts = [f is True or (isinstance(f, str) and f.strip().lower() == "true") for f in flags]
-                reasons = ["" if ok else "the second reading judged it unsupported" for ok in verdicts]
-            else:
-                log.warning("model %s gave an unusable support check", name)
+            # Strict-check (audit HIGH-001, November 2026): every field the schema requires must be there, one per
+            # sentence and of the right type, or the reply is not used at all. A reply that only says «none» without
+            # the source words it rests on approves nothing.
+            unusable = _unusable_check_reply(data, len(claims))
+            if unusable:
+                log.warning("model %s gave an unusable support check (%s)", name, unusable)
                 continue
-            on_topic = data.get("on_topic")
-            if question and isinstance(on_topic, list) and len(on_topic) == len(claims):  # a passage on another matter
-                for i, t in enumerate(on_topic):
-                    if verdicts[i] and (t is False or (isinstance(t, str) and t.strip().lower() == "false")):
-                        verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
-            missing = data.get("missing")
-            if isinstance(missing, list) and len(missing) == len(claims):  # a key term the passages never mention
-                for i, m in enumerate(missing):
-                    terms = [x.strip() for x in m if isinstance(x, str) and x.strip()] if isinstance(m, list) else []
-                    if terms and verdicts[i]:
-                        verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
-            evidence = data.get("evidence")
-            if isinstance(evidence, list) and len(evidence) == len(claims):
-                for i, (c, ev) in enumerate(zip(claims, evidence)):
-                    if verdicts[i] and not _has_evidence(c, ev, passages):
-                        verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
+            verdicts = [p.strip().lower() == "none" for p in data["problem"]]
+            reasons = ["" if ok else f"the second reading found: {p}" for ok, p in zip(verdicts, data["problem"])]
+            for i, t in enumerate(data["on_topic"]):  # a passage on another matter than the question
+                if question and verdicts[i] and not _true(t):
+                    verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
+            for i, terms in enumerate(data["missing"]):  # a key term the passages never mention
+                terms = [x.strip() for x in terms if x.strip()]
+                if terms and verdicts[i]:
+                    verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
+            for i, (c, ev) in enumerate(zip(claims, data["evidence"])):  # the witness must be in the cited passage
+                if verdicts[i] and not _has_evidence(c, ev, passages):
+                    verdicts[i], reasons[i] = False, "the words quoted as support are not in the passage"
             return verdicts, reasons
         return None
 

@@ -9,6 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+
+from .corpus import MAX_PASSAGE_ID
 from pathlib import Path
 
 from .corpus import CorpusError, KINDS
@@ -49,7 +51,8 @@ def append_reviewed(corpus: dict, folder: Path) -> int:
             raise CorpusError(f"{where}: expected an object")
         _required(book, ("id", "name", "about", "url", "edition", "rights_holder", "rights_basis", "rights_document"), where)
         sid = book["id"]
-        if not _ID.fullmatch(sid) or sid in seen_sources:
+        # the passage ids made from it («<id>:<n>») must stay within MAX_PASSAGE_ID, which every reader accepts
+        if not _ID.fullmatch(sid) or len(sid) > MAX_PASSAGE_ID - 10 or sid in seen_sources:
             raise CorpusError(f"{where}: invalid or duplicate id {sid!r}")
         if not book["url"].startswith("https://") or book["rights_basis"] not in _BASIS:
             raise CorpusError(f"{where}: expected HTTPS source URL and a specific rights basis")
