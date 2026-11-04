@@ -198,6 +198,15 @@ body,.workspace { background-color:var(--bg); background-image:var(--surface-sce
 .mcp-code { margin-top:0; }
 .mcp-path { align-items:stretch; justify-content:flex-start; }
 
+/* Compact two-assistant selector: less empty space around the brand marks. */
+.mcp-clients { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.mcp-client { min-height:58px; padding:8px 10px; gap:3px; }
+.mcp-client-icon { display:inline-flex; align-items:center; justify-content:center; }
+.mcp-client-icon,.mcp-client-icon svg,.mcp-client-icon img { width:28px; height:28px; }
+@media (max-width:360px) {
+  .mcp-client { min-height:54px; padding:7px 6px; }
+}
+
 /* MCP steps: keep numbered markers anchored on the RTL side while isolating LTR labels. */
 .mcp-path { direction:rtl; }
 .mcp-path .mcp-step { direction:rtl; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; column-gap:10px; }
