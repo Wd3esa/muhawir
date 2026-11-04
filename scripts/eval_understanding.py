@@ -19,6 +19,23 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
+
+def _service_settings() -> None:
+    """The settings the service runs with (~/muhawir.env, as systemd loads it), when this shell has not loaded them.
+    Values already set in the shell win; nothing is printed."""
+    path = Path(os.environ.get("MUHAWIR_ENV_FILE") or Path.home() / "muhawir.env")
+    if os.environ.get("LLM_PROVIDER") or not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.removeprefix("export ").split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
+_service_settings()
+
 from muhawir.generate import USAGE  # noqa: E402
 from muhawir.server import engine  # noqa: E402  (the real database and model, as the service runs them)
 from verse_phrasings import NOT_REQUESTS, PHRASINGS  # noqa: E402
