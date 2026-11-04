@@ -34,6 +34,7 @@ from .verify import Rejected, invented_definition, verify
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
 WANTED_DEPTH = 4      # a search for a requested hadith or verse looks this many times deeper (one search, no model)
+VERSE_SEARCH_K = 60   # without the database index (tests), how many hits are searched for a verse's words
 DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
 DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
 WANTED_PER_QUERY = 4  # hadiths (or verses) per search phrase moved to the front when their text is asked for
@@ -208,13 +209,47 @@ _VERSE_PLACE_IN_TEXT = re.compile(
 _ASKS_QURAN_EVIDENCE = re.compile(
     r"(?:(?:هل|اين|وين|فين)\s+(?:\S+\s+){0,3}?(?:ذكر|ذكرت|ورد|وردت|جاء|جاءت|مذكور|مذكوره|موجود|موجوده)\s+(?:\S+\s+){0,2}?"
     r"(?:في|من)\s+القران)|(?:(?:الدليل|دليل|دليله|دليلها|ايه|الايه)\s+(?:\S+\s+){0,2}?(?:في|من)\s+القران)")
+# Spelling skeleton for finding a verse from typed words. The mushaf may be in Uthmani spelling, where «الصابرون» is
+# «ٱلصَّٰبِرُونَ» (a small alif), «الصلاة» is «ٱلصَّلَوٰةَ», «القرآن» is «ٱلۡقُرۡءَانِ», «إبراهيم» is «إِبۡرَٰهِـۧمَ» and «يا أيها»
+# is one word «يَٰٓأَيُّهَا». Both sides lose what the two spellings write differently: the alifs inside a word, the hamza
+# on the line, a doubled و or ي; the small letters become the letters they stand for. Used to compare only: what is
+# shown is always the stored verse.
+_VOCATIVE = re.compile(r"(?<![\u0621-\u064a])ي[\u064e]?\u0670\u0653?")
+_SMALL_LETTERS = str.maketrans({"\u06e6": "ي", "\u06e7": "ي", "\u06e5": "و"})
+
+
+def verse_skeleton(text: str) -> str:
+    text = _VOCATIVE.sub("يا ", text).translate(_SMALL_LETTERS)
+    text = re.sub(r"و[\u064e\u0652]?\u0670", "ا", text)  # «صلوٰة» is read «صلاة»
+    out = []
+    for word in normalize(text).replace("ء", "").split():
+        word = word[:1] + word[1:].replace("ا", "")
+        out.append(re.sub(r"([وي])\1+", r"\1", word))
+    return " ".join(w for w in out if w)
+
+
 _HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
 MAX_NOTED_VERSES = 10
 
 
 # «اذكر الآية: …»، «اكتب لي آية …»، «ما نص الآية …»، «أكمل الآية …»: the verse itself is asked for, not its meaning
 _ASKS_VERSE_TEXT = re.compile(
-    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|هات|ما\s+نص|نص)\s*(?:لي\s+)?(?:نص\s+)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])")
+    r"(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|كمل|كمّل|أتمم|اتمم|هات|ما\s+نص|نص|تكمل[ةه]|بقي[ةه])\s*(?:لي\s+)?(?:نص\s+)?"
+    r"(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه])"
+    # «أكمل: إنما يوفى…»، «في أي سورة: …»، «ما اسم السورة التي فيها …»: the verse's words decide, never these alone
+    r"|(?:^|\s)(?:أكمل|اكمل|كمل|كمّل|أتمم|اتمم)\s*[:：]|(?:^|\s)(?:أكمل|اكمل|كمل|كمّل)(?:ها)?\s*[.؟?!]*\s*$"
+    r"|(?:^|\s)(?:أكملها|اكملها|كملها|كمّلها)(?:\s|$)"
+    r"|(?:في|من)\s+(?:أي|اي|أيّ)\s+سور[ةه]|اسم\s+السور[ةه]|(?:أين|اين|وين)\s+(?:توجد|تقع|وردت|جاءت)")
+# the asking words around a verse quoted without marks («إنما يوفى الصابرون أجرهم أكمل الآية واذكر السورة»): taken out,
+# so the words left are the verse's own, wherever the request was written
+_VERSE_ASK_WORDS = re.compile(
+    r"(?:من\s+فضلك|لو\s+سمحت|رجاء[ًا]?|ممكن|ابي|أبي|ابغى|أبغى|ابغي|عايز|بدي)"
+    r"|(?:و|ثم\s+)?(?:اذكر|أذكر|اكتب|أكتب|أكمل|اكمل|كمل|كمّل|أتمم|اتمم|هات|بيّن|بين|حدد|حدّد)\b(?:\s+لي)?"
+    r"|(?:ما|وما)\s+(?:نص|اسم|رقم|تكمل[ةه]|بقي[ةه])|تكمل[ةه]|بقي[ةه]|(?:في|من)\s+(?:أي|اي|أيّ)\s+سور[ةه]"
+    r"|(?:أين|اين|وين)\s+(?:توجد|تقع|وردت|جاءت)"
+    r"|(?:و)?(?:الآي[ةه]|الاي[ةه]|آي[ةه]|اي[ةه]|السور[ةه]|سور[ةه]|اسمها|رقمها|ورقمها|اسم|رقم|نص)\b"
+    r"|(?:أكملها|اكملها|كملها|كمّلها)|اللي\s+فيها|اللي\s+فيه|(?:إللي|الي)\s+فيها"
+    r"|قوله\s+تعالى|قول\s+الله(?:\s+تعالى)?|قال\s+تعالى|قال\s+الله(?:\s+تعالى)?|التي\s+فيها|الذي\s+فيه|فيها|[:：؟?!«»\"﴿﴾().،,]")
 
 
 # a hadith quoted in a fatwa: «…» or ((…)), or the words after «صلى الله عليه وسلم:» up to the end of the sentence
@@ -1367,14 +1402,40 @@ class Muhawir:
 
     def _verse(self, text: str) -> Passage | None:
         """The verse that holds `text` word for word (diacritics aside), or None."""
-        words = normalize(text).split()
-        if len(words) < 2:
+        target = verse_skeleton(text)
+        if len(target.split()) < 2:
             return None
-        target = f" {' '.join(words)} "
-        for hit in self.retriever.search(text, k=5):
-            if hit.passage.kind == "quran" and target in f" {' '.join(normalize(hit.passage.text).split())} ":
-                return hit.passage
+        # the words in a row, the first one perhaps with «و» or «ف» the quote left off («كلوا واشربوا»)
+        found = re.compile(r"(?:^|\s)[وف]?" + re.escape(target) + r"(?=\s|$)")
+        for passage, skeleton in self._mushaf():
+            if found.search(skeleton):
+                return passage
         return None
+
+    def _mushaf(self) -> list[tuple[Passage, str]]:
+        """Every verse with its spelling skeleton (verse_skeleton), read once: a verse is found from the words people
+        type whether the stored mushaf is in Uthmani or plain spelling, with no search index and no model."""
+        cached = getattr(self, "_mushaf_cache", None)
+        if cached is None:
+            con = getattr(self.corpus, "con", None)
+            if con is not None:
+                ids = [r[0] for r in con.execute("SELECT id FROM passages WHERE kind = 'quran' ORDER BY rid")]
+                verses = [p for p in (self.corpus.passage(i) for i in ids) if p is not None]
+            else:
+                verses = [p for p in getattr(self.corpus, "passages", []) if p.kind == "quran"]
+            cached = self._mushaf_cache = [(p, verse_skeleton(p.text)) for p in verses]
+        return cached
+
+    def _verses_with(self, text: str) -> list[Passage]:
+        """Verses holding all the words of `text`, from the mushaf alone: a commentary quoting the verse must not
+        crowd it out of a short list, and no vector search (slow on the server's processor) is needed."""
+        con, terms = getattr(self.corpus, "con", None), tokenize(text)
+        if con is not None and terms:
+            match = " AND ".join('"' + t.replace('"', '""') + '"' for t in terms)
+            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
+                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 50", (match,)).fetchall()
+            return [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
+        return [h.passage for h in self.retriever.search(text, k=VERSE_SEARCH_K) if h.passage.kind == "quran"]
 
     def _misquoted(self, question: str) -> tuple[Passage, str] | None:
         """A verse quoted in the question with a word wrong («إن الله مع الصابرون»): the verse it was meant to be,
@@ -1403,10 +1464,13 @@ class Muhawir:
             return None
         quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
         after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
+        before = question[:m.start()].strip(" :：«»\"﴿﴾؟?.")
+        # the verse's words wherever they were written: before the request, after it, or around it
+        rest = " ".join(_VERSE_ASK_WORDS.sub(" ", question).split())
         tried = 0
-        for text in [*quoted, after]:
+        for text in dict.fromkeys(t for t in [*quoted, after, before, rest] if t):
             for part in _quote_parts(text):
-                if len(normalize(part).split()) < 3 or tried >= 8:
+                if len(normalize(part).split()) < 3 or tried >= 16:
                     continue
                 tried += 1
                 verse = self._verse(part) or self._verse_loosely(part)
