@@ -34,6 +34,9 @@ from .verify import Rejected, invented_definition, verify
 MODEL_CANDIDATES = int(os.environ.get("MUHAWIR_PASSAGES") or 20)  # passages offered to the model; fewer = faster on slow machines
 MODEL_MIN_COVERAGE = 0.34  # loose filter: the model, not keyword overlap, decides
 WANTED_DEPTH = 4      # a search for a requested hadith or verse looks this many times deeper (one search, no model)
+QUOTE_PIN_COVERAGE = 0.6  # a hadith offered first for words the user quoted holds most of those words
+QUOTE_PINS = 4
+VERSE_SEARCH_K = 60   # without the database index (tests), how many hits are searched for a verse's words
 DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
 DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
 WANTED_PER_QUERY = 4  # hadiths (or verses) per search phrase moved to the front when their text is asked for
@@ -208,6 +211,25 @@ _VERSE_PLACE_IN_TEXT = re.compile(
 _ASKS_QURAN_EVIDENCE = re.compile(
     r"(?:(?:هل|اين|وين|فين)\s+(?:\S+\s+){0,3}?(?:ذكر|ذكرت|ورد|وردت|جاء|جاءت|مذكور|مذكوره|موجود|موجوده)\s+(?:\S+\s+){0,2}?"
     r"(?:في|من)\s+القران)|(?:(?:الدليل|دليل|دليله|دليلها|ايه|الايه)\s+(?:\S+\s+){0,2}?(?:في|من)\s+القران)")
+# Spelling skeleton for finding a verse from typed words. The mushaf may be in Uthmani spelling, where «الصابرون» is
+# «ٱلصَّٰبِرُونَ» (a small alif), «الصلاة» is «ٱلصَّلَوٰةَ», «القرآن» is «ٱلۡقُرۡءَانِ», «إبراهيم» is «إِبۡرَٰهِـۧمَ» and «يا أيها»
+# is one word «يَٰٓأَيُّهَا». Both sides lose what the two spellings write differently: the alifs inside a word, the hamza
+# on the line, a doubled و or ي; the small letters become the letters they stand for. Used to compare only: what is
+# shown is always the stored verse.
+_VOCATIVE = re.compile(r"(?<![\u0621-\u064a])ي[\u064e]?\u0670\u0653?")
+_SMALL_LETTERS = str.maketrans({"\u06e6": "ي", "\u06e7": "ي", "\u06e5": "و"})
+
+
+def verse_skeleton(text: str) -> str:
+    text = _VOCATIVE.sub("يا ", text).translate(_SMALL_LETTERS)
+    text = re.sub(r"و[\u064e\u0652]?\u0670", "ا", text)  # «صلوٰة» is read «صلاة»
+    out = []
+    for word in normalize(text).replace("ء", "").split():
+        word = word[:1] + word[1:].replace("ا", "")
+        out.append(re.sub(r"([وي])\1+", r"\1", word))
+    return " ".join(w for w in out if w)
+
+
 _HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
 MAX_NOTED_VERSES = 10
 
@@ -1063,7 +1085,7 @@ class Muhawir:
         return first or second
 
     def _gather(self, question: str, original: str, queries: list[str] | None,
-                form: str = "", domain: str = "") -> tuple[list[Passage], list[str]]:
+                form: str = "", domain: str = "", pinned: list[Passage] | None = None) -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them. When the text of a hadith or a
         verse is asked for (form), the best hadiths (or verses) for each phrase come first: «حديث عن الصبر» or «حديث
         بمعنى هذا» must be answered from a hadith, not only from the fiqh and tafsir passages that rank above it."""
@@ -1075,8 +1097,8 @@ class Muhawir:
         topics = [q for q in (queries or []) if len(q.split()) <= MAX_TOPIC_WORDS]
         # verses the user named by surah and number («الأنعام (٩٦)» in a photographed note) are read from the mushaf
         # first: their words are not in the message, so no search would find them
-        for p in self._referenced_verses(original or question):
-            best[p.id] = Hit(p, 0.0, 1.0)
+        for p in [*(pinned or []), *self._referenced_verses(original or question)]:  # what the user named or quoted
+            best.setdefault(p.id, Hit(p, 0.0, 1.0))
         for pid in self.sections.match([original or question] + topics):
             p = self.corpus.passage(pid)
             if p is not None and bayyinat.is_answer_part(p):
@@ -1367,14 +1389,40 @@ class Muhawir:
 
     def _verse(self, text: str) -> Passage | None:
         """The verse that holds `text` word for word (diacritics aside), or None."""
-        words = normalize(text).split()
-        if len(words) < 2:
+        target = verse_skeleton(text)
+        if len(target.split()) < 2:
             return None
-        target = f" {' '.join(words)} "
-        for hit in self.retriever.search(text, k=5):
-            if hit.passage.kind == "quran" and target in f" {' '.join(normalize(hit.passage.text).split())} ":
-                return hit.passage
+        # the words in a row, the first one perhaps with «و» or «ف» the quote left off («كلوا واشربوا»)
+        found = re.compile(r"(?:^|\s)[وف]?" + re.escape(target) + r"(?=\s|$)")
+        for passage, skeleton in self._mushaf():
+            if found.search(skeleton):
+                return passage
         return None
+
+    def _mushaf(self) -> list[tuple[Passage, str]]:
+        """Every verse with its spelling skeleton (verse_skeleton), read once: a verse is found from the words people
+        type whether the stored mushaf is in Uthmani or plain spelling, with no search index and no model."""
+        cached = getattr(self, "_mushaf_cache", None)
+        if cached is None:
+            con = getattr(self.corpus, "con", None)
+            if con is not None:
+                ids = [r[0] for r in con.execute("SELECT id FROM passages WHERE kind = 'quran' ORDER BY rid")]
+                verses = [p for p in (self.corpus.passage(i) for i in ids) if p is not None]
+            else:
+                verses = [p for p in getattr(self.corpus, "passages", []) if p.kind == "quran"]
+            cached = self._mushaf_cache = [(p, verse_skeleton(p.text)) for p in verses]
+        return cached
+
+    def _verses_with(self, text: str) -> list[Passage]:
+        """Verses holding all the words of `text`, from the mushaf alone: a commentary quoting the verse must not
+        crowd it out of a short list, and no vector search (slow on the server's processor) is needed."""
+        con, terms = getattr(self.corpus, "con", None), tokenize(text)
+        if con is not None and terms:
+            match = " AND ".join('"' + t.replace('"', '""') + '"' for t in terms)
+            rows = con.execute("SELECT p.id FROM passages_fts JOIN passages p ON p.rid = passages_fts.rowid "
+                               "WHERE passages_fts MATCH ? AND p.kind = 'quran' LIMIT 50", (match,)).fetchall()
+            return [p for p in (self.corpus.passage(r[0]) for r in rows) if p is not None]
+        return [h.passage for h in self.retriever.search(text, k=VERSE_SEARCH_K) if h.passage.kind == "quran"]
 
     def _misquoted(self, question: str) -> tuple[Passage, str] | None:
         """A verse quoted in the question with a word wrong («إن الله مع الصابرون»): the verse it was meant to be,
@@ -1403,10 +1451,11 @@ class Muhawir:
             return None
         quoted = [next(g for g in groups if g) for groups in _QUOTED.findall(question)]
         after = question[m.end():].strip(" :：«»\"﴿﴾؟?.")
+        before = question[:m.start()].strip(" :：«»\"﴿﴾؟?.")
         tried = 0
-        for text in [*quoted, after]:
+        for text in dict.fromkeys(t for t in [*quoted, after, before] if t):  # before or after the request
             for part in _quote_parts(text):
-                if len(normalize(part).split()) < 3 or tried >= 8:
+                if len(normalize(part).split()) < 3 or tried >= 16:
                     continue
                 tried += 1
                 verse = self._verse(part) or self._verse_loosely(part)
@@ -1456,6 +1505,46 @@ class Muhawir:
         if not ayah or not surah:
             return None
         return self.corpus.passage(f"q:{surah}:{ayah}")
+
+    @staticmethod
+    def _said_by_user(quoted: str, user_text: str) -> bool:
+        """The understanding step's quoted_text is a pointer into the user's own words: it is used only when those
+        words, in that order, are in what the user typed (any spelling), so the model can never supply a text."""
+        words = verse_skeleton(quoted)
+        return len(words.split()) >= 2 and f" {words} " in f" {verse_skeleton(user_text)} "
+
+    def _requested_verse(self, request: dict, user_text: str) -> Passage | None:
+        """The verse the understanding step located in the user's message, read from the mushaf by code: by the
+        surah and number the user named, or by the words the user quoted (wherever and however they were written)."""
+        surah, ayah = request.get("surah"), request.get("ayah")
+        if surah and isinstance(ayah, int) and ayah > 0:
+            number = self._surah_number(surah)
+            verse = self.corpus.passage(f"q:{number}:{ayah}") if number else None
+            if verse is not None:
+                return verse
+        quoted = request.get("quoted_text") or ""
+        if not quoted or not self._said_by_user(quoted, user_text):
+            return None
+        for part in _quote_parts(quoted)[:16]:  # the whole quote, then shorter runs of it from either end
+            if len(normalize(part).split()) >= 3:
+                verse = self._verse(part)
+                if verse is not None:
+                    return verse
+        fix = self._misquoted(f"«{quoted}»")  # one word in another form («إن الله مع الصابرون»)
+        return fix[0] if fix else None
+
+    def _pinned(self, request: dict, user_text: str) -> list[Passage]:
+        """Passages the answer must be written from because the user named or quoted them: the verse, or the hadith
+        (and what the takhrij books say of a saying) for words the user quoted. Offered to the writer first."""
+        verse = self._requested_verse(request, user_text)
+        if verse is not None:
+            return [verse]
+        quoted = request.get("quoted_text") or ""
+        if not quoted or not self._said_by_user(quoted, user_text):
+            return []
+        hits = self.retriever.search(quoted, k=MODEL_CANDIDATES)
+        return [h.passage for h in hits if (holds_hadith(h.passage) or h.passage.kind == "takhrij")
+                and h.coverage >= QUOTE_PIN_COVERAGE][:QUOTE_PINS]
 
     def _referenced_verses(self, text: str) -> list[Passage]:
         """The verses a text names by surah and number, marked the way people note them: «الأنعام (٩٦)»، «فصلت: 12»،
@@ -1803,8 +1892,14 @@ class Muhawir:
                     answer_request = u.get("answer_request") or {}
                     if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
                             normalize(question)):  # the user's words, when the model missed it: «هل ذكر ذلك في القرآن؟»
-                        answer_request = {"form": "verse_evidence",
-                                          "requirements": list(answer_request.get("requirements") or [])}
+                        answer_request = {**answer_request, "form": "verse_evidence"}
+                    if answer_request.get("form") == "verse_text":
+                        # the verse the user asked for, however they put it: located by the understanding step,
+                        # read from the mushaf by code, shown at once with no writing or checking
+                        verse = self._requested_verse(answer_request, question)
+                        if verse is not None:
+                            _stat("verse_shown")
+                            return self._verse_reply(verse, lang_ok)
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -1912,7 +2007,8 @@ class Muhawir:
                 # what is looked for, in plain words (the understood question), and in which field's books
                 progress("looking", {"domain": request.get("domain", ""), "query": question[:120]})
                 passages, queries = self._gather(question, original, queries, form=request.get("form", ""),
-                                                 domain=request.get("domain", ""))
+                                                 domain=request.get("domain", ""),
+                                                 pinned=self._pinned(request, original or question))
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
