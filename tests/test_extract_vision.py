@@ -93,7 +93,7 @@ def test_a_service_that_stays_busy_gives_up_with_its_status(monkeypatch):
     monkeypatch.setattr(httpx, "post", lambda url, **k: httpx.Response(503, json={}, request=httpx.Request("POST", url)))
     with pytest.raises(extract.ExtractError) as err:
         extract.extract(_photo())
-    assert err.value.code == "vision_failed" and err.value.note == "HTTP 503"
+    assert err.value.code == "vision_failed" and err.value.note.startswith("m HTTP 503") and "gemini-2.5-flash HTTP 503" in err.value.note
 
 
 def test_a_slow_answer_is_asked_once_more(monkeypatch):

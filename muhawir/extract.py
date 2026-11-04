@@ -278,7 +278,7 @@ def vision_text(image) -> tuple[str, str]:
         {"text": prompt}, {"inlineData": {"mimeType": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
         "generationConfig": {"temperature": 0}}
     log = logging.getLogger("muhawir.extract")
-    started, problem = time.monotonic(), ""
+    started, failed = time.monotonic(), []
     for position, model in enumerate(models):
         if time.monotonic() - started >= VISION_TIMEOUT - 5:
             break
@@ -286,7 +286,7 @@ def vision_text(image) -> tuple[str, str]:
         # a transcription needs no thinking: a model that thinks first can take longer than we wait. Not every model
         # allows it off (a 400 then falls back to the plain request)
         attempts = [{**body, "generationConfig": {"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}}, body]
-        overloaded = 0
+        overloaded, problem = 0, ""
         while attempts:
             attempt = attempts.pop(0)
             try:
@@ -317,7 +317,8 @@ def vision_text(image) -> tuple[str, str]:
                 problem = type(error).__name__
                 log.warning("vision transcription failed (%s): %s: %s", model, problem, error)
                 break
-    return "", problem
+        failed.append(f"{model} {problem}")  # what the owner needs to see in the app: which model said what
+    return "", ", ".join(failed)
 
 
 def from_image(data: bytes, deadline: float) -> str:
