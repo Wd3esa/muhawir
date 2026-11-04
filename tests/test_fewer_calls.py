@@ -109,9 +109,10 @@ def test_check_groups_are_off_by_default_and_read_same_passage_sentences_togethe
     assert len(result.kept) == 5
 
 
-def test_the_follow_up_is_dropped_after_a_partial_answer_and_rarely_asked_for():
-    assert "واترك follow_up فارغًا في أغلب الأجوبة" in generate.SYSTEM_PROMPT
-    assert '"follow_up": "هل تريد أن تعرف معنى سورة الإخلاص؟"' not in generate.SYSTEM_PROMPT
+def test_no_answer_carries_a_suggested_question():
+    # November 2026: no related questions under an answer; the writer is told so and the pipeline drops any it writes
+    assert "واترك follow_up فارغًا دائمًا" in generate.SYSTEM_PROMPT
+    assert '"follow_up": "هل' not in generate.SYSTEM_PROMPT
     engine, _ = _model(SIX, reject=("البارد", "الباكر", "الرطب"), verdicts=("partly",))
     res = engine.ask(QUESTION)
     assert res.follow_up == ""
@@ -166,3 +167,9 @@ def test_a_waiting_question_gives_up_with_429_when_no_slot_opens(monkeypatch):
     assert waiters.acquire(blocking=False)  # the place in line was given back
     waiters.release()
     slot.release()
+
+
+def test_a_written_suggestion_is_dropped_even_when_the_model_writes_one():
+    engine, _ = _model(SIX)
+    engine.generator.last_follow_up = "هل تريد أن تعرف المزيد؟"
+    assert engine.ask(QUESTION).follow_up == ""

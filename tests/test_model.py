@@ -643,9 +643,8 @@ def test_model_outage_on_the_second_search_is_reported_as_unavailable_not_as_no_
     assert res.status == UNAVAILABLE
 
 
-def test_the_suggested_question_covers_every_kind_the_answer_listed():
-    # live «الربا», 6 October 2026: the answer named two kinds and the suggestion asked about one of them only
-    assert "فلا تقترح السؤال عن واحد منها دون غيره" in generate.SYSTEM_PROMPT
+def test_an_offer_turned_into_a_question_keeps_every_kind_it_names():
+    # suggested questions are no longer shown (November 2026); turning an offer into a question is still used
     from muhawir.pipeline import as_question
     assert as_question("هل تريد أن تعرف الفرق بين ربا الفضل وربا النسيئة؟") == "ما الفرق بين ربا الفضل وربا النسيئة؟"
 
