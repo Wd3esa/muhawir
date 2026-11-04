@@ -28,6 +28,7 @@ from typing import Callable
 import anyio
 
 from . import bayyinat, quote_check
+from .corpus import MAX_PASSAGE_ID
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
@@ -129,7 +130,9 @@ def build(engine, run_ask: Callable[[str, str, str], dict]):
                              "in the same book (set around=false to skip them).")
     async def read_passage(passage_id: str, around: bool = True) -> dict:
         spend()
-        passage = engine.corpus.passage(passage_id.strip()[:40])
+        passage_id = passage_id.strip()
+        # never cut an id short: a shortened id could name another passage (audit M-005)
+        passage = engine.corpus.passage(passage_id) if len(passage_id) <= MAX_PASSAGE_ID else None
         if passage is None:
             raise ValueError("No passage with this id.")
         out = _card(engine.corpus, passage, text_limit=None)

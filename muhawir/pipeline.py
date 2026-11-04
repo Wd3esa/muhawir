@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import threading
 import time
 from collections import OrderedDict
@@ -228,6 +229,18 @@ def verse_skeleton(text: str) -> str:
         word = word[:1] + word[1:].replace("ا", "")
         out.append(re.sub(r"([وي])\1+", r"\1", word))
     return " ".join(w for w in out if w)
+
+
+# Answer-identity (audit HIGH-003): the key a checked answer is kept under. Search may treat «البِرّ» (righteousness)
+# and «البُرّ» (wheat) alike, but a kept answer must not: only what never changes the meaning is set aside (the form of
+# the Unicode text, the tatweel, spaces, and punctuation at the ends); vowel marks and letters are kept as written.
+_IDENTITY_EDGES = " \t\n.,!?؟،؛:«»\"'()"
+
+
+def answer_identity(text: str) -> str:
+    import unicodedata
+    text = unicodedata.normalize("NFC", text or "").replace("\u0640", "")
+    return " ".join(text.split()).strip(_IDENTITY_EDGES)
 
 
 _HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
@@ -1663,7 +1676,7 @@ class Muhawir:
         `answer_it` («اسأل عنه» under a quotation): a text the understanding step reads as a bare quotation is answered
         as a question instead of being located."""
         _stat("questions")
-        key = None if history else (normalize(as_question(question or "")), style, lang)
+        key = None if history else (answer_identity(as_question(question or "")), style, lang)
         if not (key and key[0] and CACHE_SIZE) or answer_it:
             return self._answer_new(question, style, lang, history, None, answer_it)
         kept = self._kept(key)
@@ -1686,7 +1699,7 @@ class Muhawir:
         """The nightly review (scripts/nightly.py): a first question kept as «not found» is answered once more from
         scratch, through every check as usual, and the new reply replaces the kept one. Returns (kept before, now).
         The model's search phrases and reading differ from one run to the next, so a miss is often not repeated."""
-        key = (normalize(as_question(question or "")), style, lang)
+        key = (answer_identity(as_question(question or "")), style, lang)
         before = self._kept(key)
         with self._cache_lock:
             self._cache.pop(key, None)
@@ -1703,7 +1716,11 @@ class Muhawir:
                 telemetry.cache_hit("waited_for_same" if waited else "memory")
                 _stat("waited_for_same" if waited else "from_memory")
                 return copy.deepcopy(hit[1])
-        kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
+        try:  # the kept answers are optional: a locked or damaged store means no kept answer, not a failed one (M-003)
+            kept = self.store.get(key) if self.store is not None and STORE_SECONDS else None
+        except sqlite3.Error as exc:
+            log.warning("answer store read failed (%s)", type(exc).__name__)
+            kept = None
         if kept:
             with self._cache_lock:
                 self._cache[key] = (time.time(), copy.deepcopy(kept))
@@ -1926,7 +1943,7 @@ class Muhawir:
         if (understood and CACHE_SIZE and not previous and not feeling and not personal
                 and not classify.mentions_suicide(question)):
             scope = json.dumps(answer_request, ensure_ascii=False, sort_keys=True) if answer_request else ""
-            alias = (normalize(as_question(understood)) + ("\nrequest:" + scope if scope else ""), style, lang)
+            alias = (answer_identity(as_question(understood)) + ("\nrequest:" + scope if scope else ""), style, lang)
             if alias[0]:
                 kept = self._kept(alias)
                 if kept is not None:

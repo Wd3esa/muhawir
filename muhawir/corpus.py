@@ -11,6 +11,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+MAX_PASSAGE_ID = 120  # one limit for passage ids: the importers refuse longer ones, every reader accepts up to it
+
 KINDS = frozenset({"quran", "tafsir", "asbab", "hadith", "fiqh", "aqeedah", "seerah", "fatwa", "qa", "gharib", "takhrij", "other"})
 
 # Books of hadith that were added with the kind "other" (their passages also hold the compiler's chapter notes and

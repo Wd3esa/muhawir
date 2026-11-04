@@ -17,6 +17,9 @@ jobs:
   live-test:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # the link is passed as data, never written into the shell script (audit L-001), and must be a plain https link
+    env:
+      TARGET_URL: ${{ inputs.url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,13 +27,14 @@ jobs:
           python-version: "3.11"
       - name: Wake the service
         run: |
+          [[ "$TARGET_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]] || { echo "give a plain https link"; exit 1; }
           for i in $(seq 1 20); do
-            curl -sf --max-time 60 "${{ inputs.url }}/api/health" && exit 0
+            curl -sf --max-time 60 "${TARGET_URL%/}/api/health" && exit 0
             sleep 15
           done
           echo "the service did not answer /api/health"; exit 1
       - name: Ask the questions
-        run: python scripts/try_questions.py --url "${{ inputs.url }}" --out muhawir_live_report.txt
+        run: python scripts/try_questions.py --url "${TARGET_URL%/}" --out muhawir_live_report.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

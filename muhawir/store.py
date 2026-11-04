@@ -24,6 +24,7 @@ CREATE TABLE passages (
     rid INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, source_id TEXT NOT NULL REFERENCES sources(id),
     location TEXT NOT NULL, kind TEXT NOT NULL, grade TEXT NOT NULL, text TEXT NOT NULL,
     keywords TEXT NOT NULL, tokens TEXT NOT NULL);
+CREATE INDEX passages_source_rid ON passages(source_id, rid);
 CREATE TABLE translations (passage_id TEXT PRIMARY KEY, text TEXT NOT NULL);
 CREATE TABLE other_translations (lang TEXT NOT NULL, passage_id TEXT NOT NULL, text TEXT NOT NULL,
                                  PRIMARY KEY (lang, passage_id));

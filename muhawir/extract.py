@@ -2,8 +2,9 @@
 
 Everything happens in memory or in a temporary folder that is removed at once: the upload is never kept, and the text
 read from it is returned to the visitor's page only. No language model is called, so a file costs nothing but a little
-processor time on the server, with one exception: a photo that Tesseract cannot read (handwriting) is sent to the
-Gemini vision model to be transcribed, when the Gemini key is set (the owner turns it off with MUHAWIR_VISION_OCR=0). Text is read from:
+processor time on the server, with one exception: a photo that Tesseract on the server cannot read (handwriting) is
+then sent to the vision model to be transcribed, when one is configured (the owner turns it off with
+MUHAWIR_VISION_OCR=0). The upload button says so. Text is read from:
 
   photos and scans   Tesseract (Arabic and English) on the server, after a little cleaning of the picture
   PDF                the text layer (pypdf); a page with no usable text layer, or whose layer holds visually ordered
@@ -60,6 +61,9 @@ def clean(text: str) -> str:
     text = re.sub(r"[ \t ]+", " ", text)
     text = re.sub(r" ?\n ?", "\n", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+IMAGE_FORMATS = ("PNG", "JPEG", "GIF", "TIFF", "BMP", "WEBP")  # the picture kinds sniff() accepts
 
 
 def sniff(data: bytes) -> str:
@@ -190,7 +194,8 @@ def _prepare(data: bytes):
     from PIL import Image, ImageOps
     Image.MAX_IMAGE_PIXELS = MAX_PIXELS
     try:
-        image = Image.open(io.BytesIO(data))
+        # only the kinds sniff() lets through as an image: no other decoder is reached by an upload (audit HIGH-002)
+        image = Image.open(io.BytesIO(data), formats=IMAGE_FORMATS)
         if image.width * image.height > MAX_PIXELS:
             raise ExtractError("too_large")
         image = ImageOps.exif_transpose(image)
@@ -413,30 +418,31 @@ def vision_text(image) -> tuple[str, str]:
 
 
 def from_image(data: bytes, deadline: float) -> str:
-    """Tesseract and, when Gemini is set, the vision model at the same time (a handwritten page costs one wait, not two).
-    A page Tesseract reads well (a printed page) is returned at once; otherwise the vision text is used if it has more."""
-    from concurrent.futures import ThreadPoolExecutor
+    """Tesseract on the server first. Only a picture it cannot read well (handwriting) is sent to the vision model,
+    and only when the owner has a vision model configured (MUHAWIR_VISION_OCR=0 turns it off): a printed page never
+    leaves the server (audit HIGH-004; it used to be sent at the same time, in case it was needed)."""
     image = _prepare(data)
-    if not vision_enabled():
-        return ocr_image(image, deadline)
-    pool = ThreadPoolExecutor(max_workers=1)
-    future = pool.submit(vision_text, image)
     try:
-        try:
-            text = ocr_image(image, deadline)
-        except ExtractError:
-            text = ""
-        count = lambda t: len(ARABIC_LETTER.findall(t))  # noqa: E731
-        if count(text) >= STRONG_OCR_LETTERS and _arabic_share(text) >= 0.6:
-            return text
-        seen, problem = future.result()
-        if count(seen) > count(text):
-            return seen
-        if problem and count(text) < MIN_OCR_LETTERS:
-            raise ExtractError("vision_failed", problem)
+        text = ocr_image(image, deadline)
+    except ExtractError:
+        if not vision_enabled():
+            raise
+        text = ""
+    if _read_well(text) or not vision_enabled():
         return text
-    finally:
-        pool.shutdown(wait=False)
+    seen, problem = vision_text(image)
+    count = lambda t: len(ARABIC_LETTER.findall(t)) + len(re.findall(r"[A-Za-z]", t))  # noqa: E731
+    if count(seen) > count(text):
+        return seen
+    if problem and count(text) < MIN_OCR_LETTERS:
+        raise ExtractError("vision_failed", problem)
+    return text
+
+
+def _read_well(text: str) -> bool:
+    """Tesseract has read a printed page: enough Arabic letters and mostly Arabic, or enough English letters."""
+    arabic = len(ARABIC_LETTER.findall(text))
+    return (arabic >= STRONG_OCR_LETTERS and _arabic_share(text) >= 0.6) or len(re.findall(r"[A-Za-z]", text)) >= 80
 
 
 # ---- PDF ---------------------------------------------------------------------------------------------------------
