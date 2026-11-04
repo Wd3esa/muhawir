@@ -249,3 +249,187 @@ def test_the_live_workflow_never_writes_the_link_into_a_script():
     text = (Path(__file__).resolve().parent.parent / ".github" / "workflows" / "live-test.yml").read_text()
     runs = text.split("steps:", 1)[1]
     assert "${{ inputs.url }}" not in runs and "TARGET_URL: ${{ inputs.url }}" in text
+
+
+# ---- HIGH-005: a file is read in its own limited process ----------------------------------------------------------
+
+def test_a_file_is_read_in_a_separate_process(monkeypatch):
+    from muhawir import extract
+    monkeypatch.setenv("MUHAWIR_EXTRACT_ISOLATED", "1")
+    got = extract.extract_isolated(("بسم الله الرحمن الرحيم " * 10).encode())
+    assert got["text"].startswith("بسم الله") and got["method"] == "text"
+    with pytest.raises(extract.ExtractError) as err:
+        extract.extract_isolated(b"\x00\x01\x02" * 100)  # an error inside the worker comes back as its code
+    assert err.value.code in ("unsupported", "no_text")
+
+
+def test_a_reader_that_runs_out_of_memory_ends_alone_and_the_server_goes_on(monkeypatch):
+    from muhawir import extract
+    monkeypatch.setenv("MUHAWIR_EXTRACT_ISOLATED", "1")
+    monkeypatch.setenv("MUHAWIR_EXTRACT_MEMORY_MB", "20")  # far too little even to start: the child fails, not us
+    with pytest.raises(extract.ExtractError) as err:
+        extract.extract_isolated(b"%PDF-1.4 " + b"0" * 1000)
+    assert err.value.code in ("unreadable", "too_large")
+
+
+def test_a_reader_that_takes_too_long_is_stopped(monkeypatch):
+    import subprocess
+    from muhawir import extract
+    monkeypatch.setenv("MUHAWIR_EXTRACT_ISOLATED", "1")
+    def slow(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="worker", timeout=k.get("timeout"))
+    monkeypatch.setattr(extract.subprocess, "run", slow)
+    with pytest.raises(extract.ExtractError) as err:
+        extract.extract_isolated(b"%PDF-1.4")
+    assert err.value.code == "too_slow"
+
+
+def test_pdf_text_extraction_stops_at_its_deadline(monkeypatch):
+    import time
+    from muhawir import extract
+    class Page:
+        def extract_text(self):
+            return "نص " * 50
+    class Reader:
+        is_encrypted = False
+        pages = [Page()] * 40
+        def __init__(self, *a, **k):
+            pass
+    import pypdf
+    monkeypatch.setattr(pypdf, "PdfReader", Reader)
+    with pytest.raises(extract.ExtractError) as err:
+        extract.from_pdf(b"%PDF-1.4", time.monotonic() - 1)  # an already spent budget, as in the auditor's probe
+    assert err.value.code == "too_slow"
+
+
+# ---- M-009: a long quote with no match makes a bounded number of searches ------------------------------------------
+
+def test_a_long_unmatched_quote_makes_a_bounded_number_of_phrase_searches(tmp_path):
+    from pathlib import Path
+    from muhawir.store import MAX_PHRASE_PROBES, SqliteCorpus, SqliteRetriever, build_db
+    root = Path(__file__).resolve().parent.parent
+    build_db(json.loads((root / "data" / "synthetic_corpus.json").read_text(encoding="utf-8")), tmp_path / "m.db")
+    retriever = SqliteRetriever(SqliteCorpus(tmp_path / "m.db"))
+    calls = []
+    original = retriever._match
+    retriever._match = lambda *a, **k: calls.append(1) or original(*a, **k)
+    tokens = [f"كلمه{i}" for i in range(100)]  # the auditor's 100-token no-hit case (1,326 searches before)
+    retriever._phrase_rows(tokens, 5)
+    assert len(calls) <= MAX_PHRASE_PROBES
+
+
+# ---- M-001: kept answers hold no question in plain words, expire for real, and personal cases are not written ------
+
+def test_the_answer_store_deletes_expired_rows(tmp_path, monkeypatch):
+    import sqlite3
+    import time
+    from muhawir import pipeline
+    from muhawir.pipeline import ANSWERED, AnswerStore, Response
+    store = AnswerStore(tmp_path / "answers.db", "v1")
+    store.put(("سؤال", "youth", "ar"), Response(ANSWERED, "جواب"))
+    later = time.time() + pipeline.STORE_SECONDS + 10
+    monkeypatch.setattr(pipeline.time, "time", lambda: later)
+    store.put(("سؤال آخر", "youth", "ar"), Response(ANSWERED, "ب"))  # the expired one is deleted, not only unused
+    assert sqlite3.connect(tmp_path / "answers.db").execute("SELECT COUNT(*) FROM replies").fetchone()[0] == 1
+    assert AnswerStore(tmp_path / "answers.db", "v1").get(("سؤال", "youth", "ar")) is None
+
+
+def test_a_referral_is_never_written_to_disk(tmp_path):
+    from pathlib import Path
+    from muhawir.corpus import load_corpus
+    from muhawir.pipeline import REFERRED, AnswerStore, Muhawir, Response
+    corpus = load_corpus(Path(__file__).resolve().parent.parent / "data" / "synthetic_corpus.json")
+    engine = Muhawir(corpus, ModelGenerator([("fake", lambda *a, **k: "{}")]))
+    engine.store = AnswerStore(tmp_path / "answers.db", "v1")
+    engine._keep(("حلفت على زوجتي", "youth", "ar"), Response(REFERRED, "اسأل جهة الفتوى"))
+    assert len(engine.store) == 0
+
+
+# ---- HIGH-007: one deadline per answer; a permanent error is not retried -------------------------------------------
+
+def test_a_refused_key_is_asked_once_not_twice():
+    import httpx
+    from muhawir.generate import json_reply
+    calls = []
+    def call(system, user, schema):
+        calls.append(1)
+        response = httpx.Response(401, request=httpx.Request("POST", "https://x"))
+        raise httpx.HTTPStatusError("unauthorized", request=response.request, response=response)
+    with pytest.raises(httpx.HTTPStatusError):
+        json_reply(call, "s", "u", {})
+    assert len(calls) == 1  # the auditor saw two
+
+
+def test_a_reply_that_is_not_json_is_still_asked_for_again():
+    from muhawir.generate import json_reply
+    replies = iter(["not json", '{"ok": true}'])
+    assert json_reply(lambda *a: next(replies), "s", "u", {}) == {"ok": True}
+
+
+def test_every_model_call_of_an_answer_shares_one_deadline(monkeypatch):
+    import time
+    from muhawir import budget
+    waits = []
+    with budget.answer_deadline(10):
+        waits.append(budget.call_timeout(300))  # a 300 s provider limit is cut to the time left
+        assert waits[0] <= 10
+        from muhawir.telemetry import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=1) as pool:  # a parallel step of the answer spends the same budget
+            assert pool.submit(budget.left).result() <= 10
+    with budget.answer_deadline(0.5):
+        time.sleep(0.6)
+        with pytest.raises(budget.OutOfTime):
+            budget.call_timeout(300)  # no call is started once the time is spent
+
+
+def test_an_answer_out_of_time_makes_no_more_calls_and_says_it_is_unavailable(monkeypatch):
+    from pathlib import Path
+    from muhawir import budget
+    from muhawir.corpus import load_corpus
+    from muhawir.pipeline import Muhawir
+    corpus = load_corpus(Path(__file__).resolve().parent.parent / "data" / "synthetic_corpus.json")
+    calls = []
+    def call(system, user, schema=None):
+        calls.append(1)
+        budget.call_timeout(300)  # what every real transport does before sending
+        return "{}"
+    monkeypatch.setattr(budget, "ANSWER_SECONDS", 0.0)
+    res = Muhawir(corpus, ModelGenerator([("a", call), ("b", call)])).ask("ما حكم سقي النخلة في الصيف؟")
+    assert res.status in ("unavailable", "abstained") and res.status != "answered"
+
+
+# ---- M-011: vectors made from other passage text are not used ------------------------------------------------------
+
+def test_vectors_are_used_only_with_the_passages_they_were_made_from(tmp_path):
+    import sqlite3
+    import numpy as np
+    from muhawir import vectors as V
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE passages (rid INTEGER PRIMARY KEY, id TEXT, text TEXT)")
+    con.executemany("INSERT INTO passages (id, text) VALUES (?, ?)", [("a:1", "نص أول"), ("a:2", "نص ثان")])
+    index = V.VectorIndex(["a:1", "a:2"], np.zeros((2, 4), dtype=np.float32), "m", None)
+    assert V.check_corpus(index, con, tmp_path) is index and V.VECTOR_STATE["corpus"] == "unverified"
+    (tmp_path / V.CORPUS_STAMP).write_text(V.corpus_fingerprint(con, index.ids))
+    assert V.check_corpus(index, con, tmp_path) is index and V.VECTOR_STATE["corpus"] == "matches"
+    con.execute("UPDATE passages SET text = 'نص مصحح' WHERE id = 'a:2'")  # same id, corrected text
+    assert V.check_corpus(index, con, tmp_path) is None and V.VECTOR_STATE["corpus"] == "mismatch"
+
+
+# ---- M-008: the speech cache ages out and stays within its size ---------------------------------------------------
+
+def test_the_speech_cache_ages_out_and_is_trimmed(tmp_path, monkeypatch):
+    import os
+    import time
+    from muhawir import tts
+    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(tts, "CACHE_MB", 0)  # every older file is over the limit
+    old = tmp_path / "old.mp3"
+    old.write_bytes(b"x" * 100)
+    os.utime(old, (time.time() - 40 * 86400,) * 2)
+    assert tts._read_fresh(old) is None and not old.exists()  # older than 30 days: removed, not served
+    tts._keep_audio("d1", tmp_path / "d1.mp3", b"a" * 10)
+    tts._keep_audio("d2", tmp_path / "d2.mp3", b"b" * 10)
+    assert len(list(tmp_path.glob("*.mp3"))) <= 1
+    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path / "missing" / "deep")
+    monkeypatch.setattr(tts.os, "open", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+    tts._keep_audio("d3", tmp_path / "d3.mp3", b"c")  # a full disk is logged, not raised

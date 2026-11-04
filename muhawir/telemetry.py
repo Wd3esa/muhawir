@@ -99,8 +99,12 @@ def bind(trace, stage="other"):
 
 
 class ThreadPoolExecutor(Executor):
-    """Propagate only telemetry, leaving existing pipeline thread-local state unchanged."""
+    """Propagate telemetry and the answer's time budget (budget.py), leaving pipeline thread-local state unchanged."""
     def submit(self, fn, /, *args, **kwargs):
+        from . import budget
+        deadline = budget.current()
+        if deadline is not None:  # a parallel step of an answer spends the same budget (audit HIGH-007)
+            fn, args, kwargs = budget.run_with, (deadline, fn, *args), kwargs
         trace, stage = _current.get(), _stage.get()
         if trace is None:
             return super().submit(fn, *args, **kwargs)

@@ -81,12 +81,13 @@ def build() -> Muhawir:
         corpus = SqliteCorpus(db)
         retriever = SqliteRetriever(corpus)
         if os.environ.get("MUHAWIR_VECTORS") == "1":
-            from .vectors import HybridRetriever, load_vectors
+            from .vectors import HybridRetriever, check_corpus, load_vectors
 
             # The wider pool remains opt-in: a 32-question source review found no
             # top-10 gold gain at the displayed depth and some direct answers fell.
             bm25_pool_factor = int(os.environ.get("MUHAWIR_BM25_POOL_FACTOR", "1"))
-            retriever = HybridRetriever(retriever, load_vectors(), bm25_pool_factor=bm25_pool_factor)
+            vectors = check_corpus(load_vectors(), corpus.con)  # made from these passages? (audit M-011)
+            retriever = HybridRetriever(retriever, vectors, bm25_pool_factor=bm25_pool_factor)
             threading.Thread(target=retriever.warm_up, daemon=True).start()
         engine = Muhawir(corpus, generator, retriever, answer_store(db, generator))
     else:
@@ -579,6 +580,9 @@ def ready() -> Response:
     parts = {"corpus": len(engine.corpus.passages) > 0}
     retriever = engine.retriever
     parts["vectors"] = not getattr(retriever, "_disabled", False)
+    from .vectors import VECTOR_STATE
+    if VECTOR_STATE["corpus"] == "mismatch":
+        parts["vectors"] = False
     paused = sorted(name for name, state in BREAKERS.items() if state["open_until"] > now)
     # ready while at least one configured model can answer: a paused first model with a working fallback is degraded,
     # not down (audit M-004); the paused ones are still listed
@@ -588,7 +592,8 @@ def ready() -> Response:
         parts["disk"] = shutil.disk_usage(ROOT).free > 200 * 1024 * 1024
     except OSError:
         parts["disk"] = False
-    body = {"ok": all(parts.values()), "parts": parts, "paused_models": paused}
+    from .vectors import VECTOR_STATE as _vectors
+    body = {"ok": all(parts.values()), "parts": parts, "paused_models": paused, "vectors_corpus": _vectors["corpus"]}
     return Response(json.dumps(body), media_type="application/json", status_code=200 if body["ok"] else 503)
 
 
@@ -620,7 +625,7 @@ async def extract_file(request: Request) -> dict:
             if size > extract.MAX_UPLOAD:
                 raise HTTPException(status_code=413, detail="too_large")
             chunks.append(chunk)
-        result = await run_in_threadpool(extract.extract, b"".join(chunks))
+        result = await run_in_threadpool(extract.extract_isolated, b"".join(chunks))  # own process, limited (HIGH-005)
     except extract.ExtractError as exc:
         raise HTTPException(status_code=_EXTRACT_ERRORS.get(exc.code, 422), detail=exc.code + (":" + exc.note if exc.note else "")) from None
     finally:

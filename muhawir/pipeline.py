@@ -21,7 +21,7 @@ from .telemetry import ThreadPoolExecutor
 from . import telemetry
 from dataclasses import asdict, dataclass, field, replace
 
-from . import attribution, bayyinat, bidaya, classify, keyboard, lexical, quote_check, quran_count, referrals, sahihayn, sections
+from . import attribution, bayyinat, budget, bidaya, classify, keyboard, lexical, quote_check, quran_count, referrals, sahihayn, sections
 from .asbab import AsbabIndex
 from .corpus import DOMAINS, Corpus, Passage, holds_hadith, in_domain
 from .generate import AnswerReview, Generator, ModelGenerator, is_example
@@ -747,10 +747,14 @@ class AnswerStore:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("CREATE TABLE IF NOT EXISTS replies (key TEXT PRIMARY KEY, version TEXT, at REAL, reply TEXT)")
         self._db.execute("DELETE FROM replies WHERE version != ?", (version,))
+        self._db.execute("DELETE FROM replies WHERE at < ?", (time.time() - STORE_SECONDS,))
         self._db.commit()
 
     @staticmethod
     def _key(key: tuple) -> str:
+        # the question stays readable: scripts/forget.py removes a wrong kept answer by its words and scripts/nightly.py
+        # lists the questions not answered; the kept reply holds the question anyway. What protects people is what is
+        # kept and for how long: no personal case, and expired rows deleted (audit M-001)
         return json.dumps(key, ensure_ascii=False)
 
     def get(self, key: tuple) -> Response | None:
@@ -766,8 +770,10 @@ class AnswerStore:
             return None
 
     def put(self, key: tuple, res: Response) -> None:
-        """Keep a reply and trim the oldest ones beyond STORE_SIZE."""
+        """Keep a reply, trim the oldest ones beyond STORE_SIZE and delete the expired ones (they are not only unused:
+        they are gone, audit M-001)."""
         with self._lock:
+            self._db.execute("DELETE FROM replies WHERE at < ?", (time.time() - STORE_SECONDS,))
             self._db.execute("INSERT OR REPLACE INTO replies VALUES (?, ?, ?, ?)",
                              (self._key(key), self.version, time.time(), json.dumps(res.to_dict(), ensure_ascii=False)))
             self._db.execute("DELETE FROM replies WHERE key IN (SELECT key FROM replies ORDER BY at DESC LIMIT -1 OFFSET ?)",
@@ -1664,6 +1670,12 @@ class Muhawir:
 
     def ask(self, question: str, style: str = "youth", lang: str = "ar",
             history: list[dict] | None = None, answer_it: bool = False) -> Response:
+        """Answer one message, within one time budget for all its model calls (budget.py, audit HIGH-007)."""
+        with budget.answer_deadline():
+            return self._ask_within_budget(question, style, lang, history, answer_it)
+
+    def _ask_within_budget(self, question: str, style: str = "youth", lang: str = "ar",
+                           history: list[dict] | None = None, answer_it: bool = False) -> Response:
         """Answer one message. `history` (earlier turns) is used only to understand a follow-up;
         the answer itself still comes from retrieved passages alone. A referred reply names who to ask.
 
@@ -1758,7 +1770,9 @@ class Muhawir:
                 self._cache.move_to_end(key)
                 while len(self._cache) > CACHE_SIZE:
                     self._cache.popitem(last=False)
-            if self.store is not None and STORE_SECONDS:
+            # a referral (a person's own case, distress) is answered from memory for a short while but never written to
+            # disk: the question is the person's own matter (audit M-001)
+            if self.store is not None and STORE_SECONDS and res.status != REFERRED:
                 try:
                     self.store.put(key, res)
                 except Exception:  # the disk is full or locked: the reply is still given

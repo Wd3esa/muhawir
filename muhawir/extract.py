@@ -471,7 +471,11 @@ def from_pdf(data: bytes, deadline: float) -> tuple[str, str]:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted and not reader.decrypt(""):
             raise ExtractError("encrypted")
-        pages = [(reader.pages[i].extract_text() or "") for i in range(min(len(reader.pages), MAX_PDF_PAGES))]
+        pages = []
+        for i in range(min(len(reader.pages), MAX_PDF_PAGES)):  # the time limit is checked between pages (HIGH-005)
+            if time.monotonic() > deadline:
+                raise ExtractError("too_slow")
+            pages.append(reader.pages[i].extract_text() or "")
     except ExtractError:
         raise
     except (PyPdfError, ValueError, KeyError, RecursionError, OSError):
@@ -516,6 +520,39 @@ def extract(data: bytes) -> dict:
     if not ARABIC_LETTER.search(text) and not re.search(r"[A-Za-z]{3}", text):
         raise ExtractError("no_text")
     return {"kind": kind, "method": method, "text": text[:MAX_TEXT], "truncated": len(text) > MAX_TEXT}
+
+
+ISOLATED_SECONDS = OCR_BUDGET + 85  # the whole reading in its own process: OCR, then the vision model if needed
+
+
+def extract_isolated(data: bytes) -> dict:
+    """extract(data) in a separate process with time, memory and processor limits (extract_worker.py): a file made to
+    exhaust its parser ends that process, not the server (audit HIGH-005). MUHAWIR_EXTRACT_ISOLATED=0 reads in this
+    process (tests, or a system where a child process cannot be started)."""
+    if len(data) > MAX_UPLOAD:
+        raise ExtractError("too_large")
+    if os.environ.get("MUHAWIR_EXTRACT_ISOLATED") == "0":
+        return extract(data)
+    import json
+    import sys
+    try:
+        done = subprocess.run([sys.executable, "-m", "muhawir.extract_worker"], input=data, capture_output=True,
+                              timeout=ISOLATED_SECONDS, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    except subprocess.TimeoutExpired:
+        raise ExtractError("too_slow") from None  # subprocess.run kills the child on timeout
+    except OSError:
+        raise ExtractError("unreadable", "worker") from None
+    try:
+        reply = json.loads(done.stdout.decode("utf-8") or "{}")
+    except ValueError:
+        reply = {}
+    if "result" in reply:
+        return reply["result"]
+    if reply.get("code"):
+        raise ExtractError(reply["code"], reply.get("note", ""))
+    # killed by its memory or processor limit, or crashed in a parser: the file is not read, the server goes on
+    logging.getLogger("muhawir.extract").warning("file reader ended without a reply (exit %s)", done.returncode)
+    raise ExtractError("unreadable", f"worker exit {done.returncode}")
 
 
 _SENTENCE_END = re.compile(r"(?<=[.!?\u061f\u061b\u06d4])\s+")

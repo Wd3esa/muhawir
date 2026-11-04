@@ -20,7 +20,7 @@ import re
 import threading
 import time
 from .telemetry import ThreadPoolExecutor
-from . import telemetry
+from . import budget, telemetry
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
@@ -918,6 +918,9 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
                     raise
                 other_retries -= 1
                 wait = RETRY_WAIT
+            left = budget.left()
+            if left is not None and left < wait + budget.MIN_CALL:  # no time for the wait and another try
+                raise
             log.warning("model busy (HTTP %s), retrying in %.0fs", status, wait)
             sleep(wait)
 
@@ -928,8 +931,13 @@ def json_reply(call: ModelCall, system: str, user: str, schema: dict, tries: int
     for attempt in range(tries):
         try:
             return load_json(with_retry(call, system, user, schema))
-        except Exception:
-            if attempt == tries - 1:
+        except budget.OutOfTime:
+            raise
+        except Exception as exc:
+            # asked again only for a reply that was cut off or not JSON, or a temporary error: a refused key, a wrong
+            # model name or a bad request (4xx) fails the same way every time (audit HIGH-007)
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if attempt == tries - 1 or (status is not None and 400 <= status < 500 and status not in (408, 429)):
                 raise
 
 
@@ -1365,7 +1373,7 @@ def anthropic_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall
             json={"model": model, "max_tokens": 4096, "system": system,
                   "messages": [{"role": "user", "content": user}],
                   "output_config": {"format": {"type": "json_schema", "schema": schema}}},
-            timeout=timeout)
+            timeout=budget.call_timeout(timeout))  # the answer's time left, at most (HIGH-007)
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
@@ -1387,7 +1395,7 @@ def gemini_call(api_key: str, model: str, timeout: float = 60.0) -> ModelCall:
             json={"systemInstruction": {"parts": [{"text": system}]},
                   "contents": [{"role": "user", "parts": [{"text": user}]}],
                   "generationConfig": {"responseMimeType": "application/json"}},
-            timeout=timeout)
+            timeout=budget.call_timeout(timeout))  # the answer's time left, at most (HIGH-007)
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()
@@ -1456,7 +1464,7 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
                   "messages": [{"role": "system", "content": system},
                                {"role": "user", "content": user}],
                   **(extra_check if system == CHECK_PROMPT else extra)},
-            timeout=timeout)
+            timeout=budget.call_timeout(timeout))  # the answer's time left, at most (HIGH-007)
         telemetry.response_metadata(r, {})
         r.raise_for_status()
         data = r.json()

@@ -272,6 +272,47 @@ class _LazyQueryEmbedder:
         return self._client().embed(questions)
 
 
+CORPUS_STAMP = "vectors_corpus.txt"  # the fingerprint of the passages the vectors were made from (audit M-011)
+VECTOR_STATE = {"corpus": "none"}   # "matches", "unverified" (no stamp yet) or "mismatch"; shown by /api/ready
+
+
+def corpus_fingerprint(con, ids: list[str] | None = None) -> str:
+    """SHA-256 over the id and text of each passage that has a vector (every passage when ids is None), in database
+    order, read row by row. Changing a passage's text under the same id changes it, so vectors made from other text
+    are recognised; a vector id missing from the database changes it too."""
+    import hashlib
+    digest = hashlib.sha256()
+    wanted = None if ids is None else set(ids)
+    seen = 0
+    for pid, text in con.execute("SELECT id, text FROM passages ORDER BY rid"):
+        if wanted is not None and pid not in wanted:
+            continue
+        seen += 1
+        digest.update(pid.encode()); digest.update(b"\t"); digest.update((text or "").encode()); digest.update(b"\n")
+    if wanted is not None and seen != len(wanted):
+        digest.update(f"missing:{len(wanted) - seen}".encode())
+    return digest.hexdigest()
+
+
+def check_corpus(vectors: "VectorIndex | None", con, data_dir: str | Path = DATA_DIR) -> "VectorIndex | None":
+    """The vectors, if they were made from the passages now in the database. A stamp that does not match turns the
+    meaning search off (keyword search goes on) instead of ranking passages by the meaning of older text; no stamp at
+    all keeps them and reports them as unverified until scripts/stamp_vectors.py records the current pair."""
+    if vectors is None or con is None:
+        return vectors
+    stamp = Path(data_dir) / CORPUS_STAMP
+    if not stamp.is_file():
+        VECTOR_STATE["corpus"] = "unverified"
+        log.warning("vectors have no corpus stamp: run scripts/stamp_vectors.py once the pair is known to match")
+        return vectors
+    if stamp.read_text(encoding="utf-8").strip() != corpus_fingerprint(con, vectors.ids):
+        VECTOR_STATE["corpus"] = "mismatch"
+        log.error("vectors were made from other passage text than the database's: meaning search turned off")
+        return None
+    VECTOR_STATE["corpus"] = "matches"
+    return vectors
+
+
 def load_vectors(data_dir: str | Path = DATA_DIR) -> VectorIndex | None:
     """Load a complete local index, returning ``None`` for an absent or invalid index."""
     folder = Path(data_dir)
