@@ -34,7 +34,9 @@ def test_turned_off_no_picture_leaves_the_server(monkeypatch):
     monkeypatch.setattr(httpx, "post", lambda *a, **k: pytest.fail("the picture was sent to a model"))
     with pytest.raises(extract.ExtractError) as err:
         extract.extract(_photo())
-    assert str(err.value) == "no_text" or err.value.args[0] == "no_text"
+    # «no_text» where Tesseract has Arabic data, «ocr_unavailable» where it has none (the CI machine): either way the
+    # picture never left the server
+    assert err.value.code in ("no_text", "ocr_unavailable")
 
 
 def test_a_failing_vision_call_falls_back_to_no_text(monkeypatch):
