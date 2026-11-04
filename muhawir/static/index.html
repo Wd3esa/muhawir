@@ -2493,7 +2493,17 @@ function mcpClientIcon(key, kind) {
   const img = new Image();
   img.alt = ""; img.decoding = "async";
   img.onload = () => box.replaceChildren(img);
-  img.src = "/static/clients/" + key + ".svg";
+  // Brand marks from Simple Icons; keep the existing category icon if unavailable.
+  const brandLogos = {
+    claude: "https://cdn.simpleicons.org/claude",
+    chatgpt: "https://cdn.simpleicons.org/openai",
+    claudecode: "https://cdn.simpleicons.org/claude",
+    cursor: "https://cdn.simpleicons.org/cursor",
+    vscode: "https://cdn.simpleicons.org/visualstudiocode",
+    gemini: "https://cdn.simpleicons.org/googlegemini",
+  };
+  img.referrerPolicy = "no-referrer";
+  img.src = brandLogos[key] || "/static/clients/" + key + ".svg";
   return box;
 }
 function mcpConnect() {
