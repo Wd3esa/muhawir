@@ -142,6 +142,7 @@ class SqliteCorpus:
 
 
 MAX_PHRASE_HITS = 8     # passages that contain the search words one after the other, listed before the rest
+MAX_PHRASE_PROBES = 60   # phrase searches per query at most (M-009)
 MAX_PHRASE_MATCHES = 60  # a phrase found in more passages than this (e.g. «قال رسول الله») identifies none of them
 HEADING_SCORE = 100.0    # score of an entry found through the root heading: above any BM25 score
 MIN_SUBPHRASE = 3        # shortest piece of a long phrase tried when the whole phrase is not found
@@ -210,9 +211,14 @@ class SqliteRetriever:
         if len(tokens) < 2:
             return []
         shortest = len(tokens) if len(tokens) < MIN_SUBPHRASE + 1 else max(MIN_SUBPHRASE, (len(tokens) + 1) // 2)
+        probes = 0  # at most MAX_PHRASE_PROBES searches, longest pieces first (audit M-009: a 100-word quote with no
+        # match made 1,326 searches); the cap is reached only by long quotes, whose longest pieces are tried first
         for size in range(len(tokens), shortest - 1, -1):
             found: dict[str, tuple] = {}
             for start in range(len(tokens) - size + 1):
+                if probes >= MAX_PHRASE_PROBES:
+                    break
+                probes += 1
                 phrase = '"' + " ".join(t.replace('"', '""') for t in tokens[start:start + size]) + '"'
                 rows = self._match(phrase, MAX_PHRASE_MATCHES + 1)
                 if len(rows) > MAX_PHRASE_MATCHES:
@@ -223,6 +229,8 @@ class SqliteRetriever:
                     found.update((r[0], r) for r in rows if r[0] not in found)
             if found:
                 return sorted(found.values(), key=lambda r: (_ORIGINAL_FIRST.get(r[3], 2), r[1] not in _PRIMARY_HADITH, r[8]))[:limit]
+            if probes >= MAX_PHRASE_PROBES:
+                break
         return []
 
     def search(self, question: str, k: int = 3) -> list[Hit]:

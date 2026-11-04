@@ -12,6 +12,8 @@ import pytest
 os.environ["MUHAWIR_DB"] = os.path.join(os.path.dirname(__file__), "no-database-for-tests.db")
 for _name in ("MUHAWIR_CORPUS", "LLM_PROVIDER", "MUHAWIR_DEBUG", "MUHAWIR_DORAR"):
     os.environ.pop(_name, None)
+# uploads are read in this process in tests (their fakes are set here); test_audit_2026_11 runs the real worker
+os.environ.setdefault("MUHAWIR_EXTRACT_ISOLATED", "0")
 
 from muhawir.generate import ModelGenerator  # noqa: E402
 

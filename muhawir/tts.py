@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
+import time
 import os
 import re
 import secrets
@@ -11,6 +13,7 @@ from xml.sax.saxutils import escape
 
 import httpx
 
+log = logging.getLogger(__name__)
 CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "tts-cache"
 # 48 kHz at 96 kbit/s (22 October 2026; was 24 kHz at 48): the voice no longer sounds muffled on phone speakers
 OUTPUT_FORMAT = "audio-48khz-96kbitrate-mono-mp3"
@@ -109,9 +112,33 @@ async def synthesize(text: str, voice: str, lang: str) -> bytes:
     digest = hashlib.sha256(f"{name}\0{OUTPUT_FORMAT}\0{RATE}\0{lang}\0{text}".encode("utf-8")).hexdigest()
     cache_file = CACHE_DIR / f"{digest}.mp3"
     async with _cache_locks[int(digest[:2], 16) % len(_cache_locks)]:
-        if cache_file.is_file():
-            return cache_file.read_bytes()
+        cached = await asyncio.to_thread(_read_fresh, cache_file)
+        if cached is not None:
+            return cached
         audio = await _request_azure(text, voice, lang)
+        # keeping it is a saving, not a need: a full or failing disk still returns the audio (audit M-008)
+        await asyncio.to_thread(_keep_audio, digest, cache_file, audio)
+        return audio
+
+
+CACHE_DAYS = int(os.environ.get("MUHAWIR_TTS_CACHE_DAYS", "30"))
+CACHE_MB = int(os.environ.get("MUHAWIR_TTS_CACHE_MB", "500"))
+
+
+def _read_fresh(cache_file: Path) -> bytes | None:
+    """The kept audio while it is younger than CACHE_DAYS; an older file is removed."""
+    try:
+        if time.time() - cache_file.stat().st_mtime > CACHE_DAYS * 86400:
+            cache_file.unlink(missing_ok=True)
+            return None
+        return cache_file.read_bytes()
+    except OSError:
+        return None
+
+
+def _keep_audio(digest: str, cache_file: Path, audio: bytes) -> None:
+    """Keep the audio, then trim the oldest files beyond CACHE_MB (audit M-008: the cache only grew)."""
+    try:
         CACHE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
         temporary = CACHE_DIR / f".{digest}.{secrets.token_hex(8)}.tmp"
         try:
@@ -121,4 +148,12 @@ async def synthesize(text: str, voice: str, lang: str) -> bytes:
             os.replace(temporary, cache_file)
         finally:
             temporary.unlink(missing_ok=True)
-        return audio
+        files = sorted(((f.stat().st_mtime, f.stat().st_size, f) for f in CACHE_DIR.glob("*.mp3")), key=lambda x: x[0])
+        total = sum(size for _, size, _ in files)
+        for _, size, f in files:
+            if total <= CACHE_MB * 1024 * 1024:
+                break
+            f.unlink(missing_ok=True)
+            total -= size
+    except OSError as exc:
+        log.warning("speech cache not written (%s)", type(exc).__name__)
