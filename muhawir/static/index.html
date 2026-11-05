@@ -3432,7 +3432,10 @@ function renderAnswer(res, style, context) {
   identity.append(mark, el("span", "", t.assistant));
   heading.append(identity);
   const outcome = sourceSearchOutcome(res);
-  if (outcome !== "settled") {
+  // Not-found once (owner, 5 November 2026): a reply that found nothing says so in its own single line, with no
+  // «لم أجد شيئًا» above it and no badge repeating it
+  const notFoundOnly = res.status === "abstained";
+  if (outcome !== "settled" && !notFoundOnly) {
     const searchOutcome = el("p", "search-outcome", t[outcome]);
     searchOutcome.dataset.t = outcome;
     msg.append(searchOutcome);
@@ -3445,7 +3448,7 @@ function renderAnswer(res, style, context) {
     badge.dataset.statusKey = badgeState.key;
     heading.append(badge);
   }
-  if (res.status !== "answered") msg.append(heading);
+  if (res.status !== "answered" && !notFoundOnly) msg.append(heading);
   // the question as Muhawir understood it, when it differs from what was typed (a typo such as «ضيام», or a
   // follow-up such as «ولماذا؟» made whole): the reader sees what was answered, with no new request
   // A first question that was reworded (a typo such as «ضيام») asks «هل تقصد…؟ نعم / لا» before the answer is

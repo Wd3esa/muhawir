@@ -195,7 +195,7 @@ def test_answer_starts_directly_without_intro_line(engine):
 
 def test_english_interface(engine):
     res = engine.ask("ما عاصمة اليابان الاقتصادية؟", lang="en")
-    assert res.status == ABSTAINED and res.message.startswith("I could not find")
+    assert res.status == ABSTAINED and res.message == "I found no answer in the sources."
 
 
 def test_unknown_provider_is_refused(monkeypatch):
