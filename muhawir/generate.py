@@ -943,6 +943,7 @@ def json_reply(call: ModelCall, system: str, user: str, schema: dict, tries: int
 
 BREAKER_FAILURES = max(1, int(os.environ.get("MUHAWIR_BREAKER_FAILURES", "3")))
 BREAKER_COOLDOWN = max(1.0, float(os.environ.get("MUHAWIR_BREAKER_COOLDOWN", "45")))
+KEY_PAUSE = max(60.0, float(os.environ.get("MUHAWIR_KEY_PAUSE", "1800")))  # seconds a model with a refused key rests
 BREAKERS: dict[str, dict] = {}  # model name -> {"failures", "open_until"}, shown by /api/ready
 _breaker_lock = threading.Lock()
 
@@ -962,12 +963,22 @@ def with_breaker(name: str, call: ModelCall, others: int, clock=time.monotonic) 
             raise CircuitOpen(f"model {name} is paused after repeated failures")
         try:
             out = call(system, user, schema)
-        except Exception:
+        except Exception as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
             with _breaker_lock:
-                state["failures"] += 1
-                if state["failures"] >= BREAKER_FAILURES:
-                    state["open_until"] = clock() + BREAKER_COOLDOWN
-                    state["failures"] = 0
+                if status in (401, 403) and others:
+                    # Refused-key: an expired or wrong key fails every call the same way; it is paused at once and for
+                    # long, so each answer stops spending its time and checks on it (live, 5 November 2026: an
+                    # expired OpenRouter key made every step fail over, and answers came out thin)
+                    if clock() >= state["open_until"]:
+                        log.error("model %s: its key was refused (HTTP %s); paused for %.0f min. Replace the key in "
+                                  "muhawir.env and restart.", name, status, KEY_PAUSE / 60)
+                    state["open_until"], state["failures"] = clock() + KEY_PAUSE, 0
+                else:
+                    state["failures"] += 1
+                    if state["failures"] >= BREAKER_FAILURES:
+                        state["open_until"] = clock() + BREAKER_COOLDOWN
+                        state["failures"] = 0
             raise
         with _breaker_lock:
             state["failures"], state["open_until"] = 0, 0.0

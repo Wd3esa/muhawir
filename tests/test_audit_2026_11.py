@@ -433,3 +433,28 @@ def test_the_speech_cache_ages_out_and_is_trimmed(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "CACHE_DIR", tmp_path / "missing" / "deep")
     monkeypatch.setattr(tts.os, "open", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
     tts._keep_audio("d3", tmp_path / "d3.mp3", b"c")  # a full disk is logged, not raised
+
+
+# ---- a refused key pauses its model at once (live, 5 November 2026) ------------------------------------------------
+
+def test_a_refused_key_pauses_its_model_at_once_and_says_so(caplog):
+    import httpx
+    from muhawir.generate import BREAKERS, CircuitOpen, KEY_PAUSE, with_breaker
+    clock = [1000.0]
+    calls = []
+    def expired(system, user, schema):
+        calls.append(1)
+        response = httpx.Response(401, request=httpx.Request("POST", "https://x"))
+        raise httpx.HTTPStatusError("expired", request=response.request, response=response)
+    BREAKERS.pop("dead", None)
+    guarded = with_breaker("dead", expired, others=1, clock=lambda: clock[0])
+    with pytest.raises(httpx.HTTPStatusError):
+        guarded("s", "u", {})
+    assert "key was refused" in caplog.text and "muhawir.env" in caplog.text
+    with pytest.raises(CircuitOpen):  # the second call is not made: the fallback answers at once
+        guarded("s", "u", {})
+    assert len(calls) == 1
+    clock[0] += KEY_PAUSE + 1
+    with pytest.raises(httpx.HTTPStatusError):
+        guarded("s", "u", {})  # tried again after the pause: a replaced key works again
+    BREAKERS.pop("dead", None)
