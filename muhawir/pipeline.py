@@ -243,6 +243,20 @@ def answer_identity(text: str) -> str:
     return " ".join(text.split()).strip(_IDENTITY_EDGES)
 
 
+CLOSE_SHARE = 70  # per cent of a quote's words a verse must hold in the same order to be the verse it means
+
+
+def _in_order(words: list[str], verse_words: list[str]) -> int:
+    """How many of `words` appear in `verse_words` in the same order (longest common subsequence)."""
+    previous = [0] * (len(verse_words) + 1)
+    for w in words:
+        current = [0]
+        for j, v in enumerate(verse_words, 1):
+            current.append(previous[j - 1] + 1 if w == v else max(previous[j], current[j - 1]))
+        previous = current
+    return previous[-1]
+
+
 _HARAKAT_TATWEEL = re.compile(r"[\u064B-\u0652\u0670\u0640]")
 MAX_NOTED_VERSES = 10
 
@@ -1544,13 +1558,55 @@ class Muhawir:
         quoted = request.get("quoted_text") or ""
         if not quoted or not self._said_by_user(quoted, user_text):
             return None
-        for part in _quote_parts(quoted)[:16]:  # the whole quote, then shorter runs of it from either end
-            if len(normalize(part).split()) >= 3:
-                verse = self._verse(part)
-                if verse is not None:
-                    return verse
-        fix = self._misquoted(f"«{quoted}»")  # one word in another form («إن الله مع الصابرون»)
-        return fix[0] if fix else None
+        return self._verse(quoted) or self._closest_verse(quoted)
+
+    def _closest_verse(self, quoted: str) -> Passage | None:
+        """The verse a quotation means when it is not word for word: a word missing, added or misspelt
+        («أحسبتم أنما خلقناكم عبثا» for «أفحسبتم…»). The verse whose words match most of the quote's words in the same
+        order (at least CLOSE_SHARE of them, and at least 3), when no other verse matches as many."""
+        words = verse_skeleton(quoted).split()
+        if len(words) < 3:
+            return None
+        need = max(3, -(-len(words) * CLOSE_SHARE // 100))
+        wanted = set(words)
+        scored = []
+        for passage, skeleton in self._mushaf():
+            verse_words = skeleton.split()
+            if len(wanted.intersection(verse_words)) + 1 < need:  # cannot reach the share: skipped cheaply
+                continue
+            scored.append((_in_order(words, verse_words), passage))
+        scored.sort(key=lambda x: -x[0])
+        if not scored or scored[0][0] < need or (len(scored) > 1 and scored[1][0] == scored[0][0]):
+            return None
+        return scored[0][1]
+
+    def _quote_differs(self, verse: Passage, quoted: str) -> bool:
+        """True when the user's words are not, as written, a run of the verse's words (any spelling)."""
+        target = verse_skeleton(quoted)
+        return bool(target) and not re.search(r"(?:^|\s)[وف]?" + re.escape(target) + r"(?=\s|$)",
+                                              verse_skeleton(verse.text))
+
+    def _with_named_verse(self, res: Response, verse: Passage, quoted: str, lang: str) -> Response:
+        """Named-verse (live «احسبتم انما خلقناكم عبثا الآية والسورة», 5 November 2026): a verse the user quoted or
+        named is always shown from the mushaf with its surah and number, whatever was asked about it, and a quotation
+        that differs from the mushaf is corrected. An answer that could not be written still shows the verse."""
+        note = ""
+        if quoted and self._quote_differs(verse, quoted):
+            note = TEXT[lang if lang in LANGS else "ar"]["misquoted_verse"].format(
+                where=verse.location, verse=verse.text.replace("۞", "").strip(), quoted=quoted)
+        if res.status != ANSWERED:
+            shown = self._verse_reply(verse, lang)
+        else:
+            shown = res
+            if not any(verse.id in (c.get("passage_ids") or []) and "﴿" in c.get("text", "") for c in res.claims):
+                shown.claims = [{"text": f"﴿{verse.text.replace('۞', '').strip()}﴾ ({verse.location})",
+                                 "passage_ids": [verse.id]}, *res.claims]
+                have = {s.get("passage_id") for s in res.sources}
+                shown.sources = [*(c for c in self._cards([verse.id], lang=lang) if c["passage_id"] not in have),
+                                 *res.sources]
+        if note and note not in shown.note:
+            shown.note = f"{note} {shown.note}".strip()
+        return shown
 
     def _pinned(self, request: dict, user_text: str) -> list[Passage]:
         """Passages the answer must be written from because the user named or quoted them: the verse, or the hadith
@@ -1842,6 +1898,7 @@ class Muhawir:
                                 synthetic=self.corpus.synthetic)
         understand = getattr(self.generator, "understand", None)
         understood, queries, previous, kind, feeling, personal, unsure = "", None, "", "", "", False, False
+        named_verse, named_quote = None, ""
         answer_request = {}
         # «بالعربية» / «In English» tapped under «بأي لغة تريد الجواب؟»: the language is the one tapped, decided here
         # and not by the model, and the question is never sent back to that choice again
@@ -1919,13 +1976,16 @@ class Muhawir:
                     if answer_request.get("form") in (None, "", "explanation") and _ASKS_QURAN_EVIDENCE.search(
                             normalize(question)):  # the user's words, when the model missed it: «هل ذكر ذلك في القرآن؟»
                         answer_request = {**answer_request, "form": "verse_evidence"}
-                    if answer_request.get("form") == "verse_text":
-                        # the verse the user asked for, however they put it: located by the understanding step,
-                        # read from the mushaf by code, shown at once with no writing or checking
-                        verse = self._requested_verse(answer_request, question)
-                        if verse is not None:
-                            _stat("verse_shown")
-                            return self._verse_reply(verse, lang_ok)
+                    # a verse the user quoted or named, in any kind of request: located by the understanding step,
+                    # read from the mushaf by code (never written by the model)
+                    if answer_request.get("quoted_text") or answer_request.get("surah"):
+                        named_verse = self._requested_verse(answer_request, question)
+                        named_quote = answer_request.get("quoted_text", "") if named_verse is not None else ""
+                    if answer_request.get("form") == "verse_text" and named_verse is not None:
+                        # the verse itself was asked for: shown at once, with no writing or checking
+                        _stat("verse_shown")
+                        return self._with_named_verse(self._verse_reply(named_verse, lang_ok), named_verse,
+                                                      named_quote, lang_ok)
                     feeling = u.get("feeling", "")
                     personal = bool(u.get("personal"))
                     if u.get("reexplain"):  # "I did not understand": the same question, explained again more simply
@@ -1968,6 +2028,8 @@ class Muhawir:
                 alias = None
         res = self._ask(understood or question, style, lang, original=question, queries=queries, previous=previous,
                         kind=kind, feeling=feeling, personal=personal, answer_request=answer_request)
+        if named_verse is not None and res.status not in (REFERRED, DECLINED, INVALID):
+            res = self._with_named_verse(res, named_verse, named_quote, lang)
         if alias is not None:
             self._keep(alias, res)
         if classify.mentions_suicide(question) and res.status == ANSWERED:

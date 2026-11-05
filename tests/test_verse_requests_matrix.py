@@ -28,6 +28,12 @@ DATA = {"synthetic": True, "sources": [
     {"id": "q:2:1", "source_id": "quranpedia-hafs", "location": "سورة البقرة، الآية 1", "kind": "quran", "text": "الم"},
     {"id": "q:2:5", "source_id": "quranpedia-hafs", "location": "سورة البقرة، الآية 5", "kind": "quran", "text": BAQARA_5},
     {"id": "q:2:153", "source_id": "quranpedia-hafs", "location": "سورة البقرة، الآية 153", "kind": "quran", "text": BAQARA_153},
+    {"id": "q:23:1", "source_id": "quranpedia-hafs", "location": "سورة المؤمنون، الآية 1", "kind": "quran",
+     "text": "قَدۡ أَفۡلَحَ ٱلۡمُؤۡمِنُونَ"},
+    {"id": "q:23:115", "source_id": "quranpedia-hafs", "location": "سورة المؤمنون، الآية 115", "kind": "quran",
+     "text": "أَفَحَسِبۡتُمۡ أَنَّمَا خَلَقۡنَٰكُمۡ عَبَثٗا وَأَنَّكُمۡ إِلَيۡنَا لَا تُرۡجَعُونَ"},
+    {"id": "q:75:36", "source_id": "quranpedia-hafs", "location": "سورة القيامة، الآية 36", "kind": "quran",
+     "text": "أَيَحۡسَبُ ٱلۡإِنسَٰنُ أَن يُتۡرَكَ سُدًى"},
     {"id": "q:39:1", "source_id": "quranpedia-hafs", "location": "سورة الزمر، الآية 1", "kind": "quran",
      "text": "تَنزِيلُ الْكِتَابِ مِنَ اللَّهِ الْعَزِيزِ الْحَكِيمِ"},
     {"id": "q:39:10", "source_id": "quranpedia-hafs", "location": "سورة الزمر، الآية 10", "kind": "quran", "text": ZUMAR_10},
@@ -78,9 +84,30 @@ def test_every_way_of_asking_for_a_verse_shows_it_from_the_understanding_pointer
 
 
 @pytest.mark.parametrize("question,pointers", NOT_REQUESTS)
-def test_a_question_about_meaning_is_not_answered_with_the_bare_verse(store, question, pointers):
-    res = _ask(store, question, pointers)
-    assert not (res.claims and res.claims[0]["text"].startswith("﴿") and len(res.claims) == 1 and res.status == ANSWERED)
+def test_a_question_about_meaning_is_still_written_as_an_explanation(store, question, pointers):
+    corpus, retriever = store
+    asked_to_write = []
+    call = _understanding(*pointers, question=question)
+    def recording(system, user, schema=None):
+        if "claims" in json.dumps(schema or {}):
+            asked_to_write.append(1)
+        return call(system, user, schema)
+    engine = Muhawir(corpus, ModelGenerator([("m", recording)]), retriever)
+    engine._asked_verse = lambda q: None
+    engine.ask(question)
+    assert asked_to_write  # not cut short to the bare verse: the explanation is written (the verse may lead it)
+
+
+def test_a_misquoted_verse_is_found_shown_with_its_surah_and_corrected(store):
+    # live, 5 November 2026: «احسبتم» for «أفحسبتم», understood as a question about meaning, answered without the verse
+    res = _ask(store, "احسبتم انما خلقناكم عبثا الآية والسورة", ("explanation", "احسبتم انما خلقناكم عبثا", "", 0))
+    assert res.claims[0]["passage_ids"] == ["q:23:115"] and "سورة المؤمنون، الآية 115" in res.claims[0]["text"]
+    assert "وليس «احسبتم انما خلقناكم عبثا»" in res.note
+
+
+def test_a_correct_quote_gets_no_correction_note(store):
+    res = _ask(store, "انما يوفى الصابرون اجرهم اكمل الآية", (V, "انما يوفى الصابرون اجرهم", "", 0))
+    assert res.claims[0]["passage_ids"] == ["q:39:10"] and "وليس" not in res.note
 
 
 def test_a_text_the_user_did_not_type_is_never_shown(store):
