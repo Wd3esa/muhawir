@@ -256,10 +256,11 @@ def _run_tesseract(image, language: str, deadline: float) -> str:
 # limit applies only while the model is silent, not to the whole page: a full handwritten page took longer than one
 # 25-second wait and failed with ReadTimeout (live, November 2026). A model that has not answered within a few seconds
 # does not hold up the next one: the next is started beside it, and the first full transcription is used.
-VISION_STALL = 20.0    # seconds a model may stay silent (before its first words or between two pieces of text)
+VISION_STALL = 40.0    # seconds a model may stay silent (before its first words or between two pieces of text)
 VISION_HEDGE = 8.0     # seconds without an answer before the next model is started beside it
 VISION_TIMEOUT = 80.0  # seconds for the whole reading, on its own clock (the Tesseract attempt may have used OCR_BUDGET)
-VISION_FALLBACK = "gemini-2.5-flash,gemini-flash-latest"  # tried after the configured model (GEMINI_VISION_FALLBACK)
+VISION_FALLBACK = "gemini-flash-latest"  # only when Google's model list cannot be read (GEMINI_VISION_FALLBACK)
+VISION_LISTED = 2      # newest listed flash models tried after the configured one
 STRONG_OCR_LETTERS = 60  # Tesseract with at least this many Arabic letters has read a printed page: no need to wait
 MIN_OCR_LETTERS = 20   # fewer Arabic letters than this from Tesseract: the picture is probably handwriting
 VISION_PROMPT = ("Transcribe all the text in this picture exactly as written, in its own language and line order, "
@@ -299,27 +300,79 @@ def _sse(response, stop, deadline):
             continue
 
 
+_GEMINI = "https://generativelanguage.googleapis.com/v1beta/models"
+_THINKING: dict[str, dict] = {}       # model -> the generationConfig it accepted (remembered: no refused try each time)
+_MISSING: dict[str, float] = {}       # model -> when it answered «not found» (a retired name): skipped for a while
+_LISTED: dict[str, object] = {"at": 0.0, "models": []}
+MISSING_SECONDS = 6 * 3600
+
+
+def _thinking_settings(model: str) -> list[dict]:
+    """The generationConfig to try, least thinking first. A transcription needs none, and a model that thinks first
+    sends nothing for a long time (live ReadTimeout, 5 November 2026). Gemini 3 and later take thinkingLevel (lowest:
+    «minimal»), 2.5 takes thinkingBudget 0; sending the one a model does not know is refused (400), so the next is
+    tried, and the one that worked is remembered for that model."""
+    base = {"temperature": 0}
+    known = _THINKING.get(model)
+    if known is not None:
+        return [known]
+    match = re.search(r"gemini-(\d+)(?:\.(\d+))?", model)
+    newer = not match or int(match.group(1)) >= 3  # «gemini-flash-latest» and other aliases: assume the newest kind
+    level = {**base, "thinkingConfig": {"thinkingLevel": "minimal"}}
+    budget = {**base, "thinkingConfig": {"thinkingBudget": 0}}
+    return [level, budget, base] if newer else [budget, level, base]
+
+
 def _read_gemini(model: str, data_b64: str, stop, deadline) -> str:
-    """The transcription from one Gemini model, streamed. Asked first with no thinking (a transcription needs none);
-    a model that refuses that setting (HTTP 400) is asked plainly."""
-    import httpx
+    """The transcription from one Gemini model, streamed, with the least thinking it accepts."""
     body = {"contents": [{"role": "user", "parts": [{"text": VISION_PROMPT},
                                                     {"inlineData": {"mimeType": "image/jpeg", "data": data_b64}}]}]}
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
+    url = f"{_GEMINI}/{model}:streamGenerateContent?alt=sse"
     headers = {"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"}
-    settings = [{"temperature": 0, "thinkingConfig": {"thinkingBudget": 0}}, {"temperature": 0}]
+    settings = _thinking_settings(model)
     for i, config in enumerate(settings):
         with _client() as client, client.stream("POST", url, headers=headers,
                                                 json={**body, "generationConfig": config}) as response:
             if response.status_code == 400 and i + 1 < len(settings):
                 continue
+            if response.status_code == 404:  # a retired or unknown name: not asked again for a while
+                _MISSING[model] = time.monotonic()
             response.raise_for_status()
+            _THINKING[model] = config
             text = []
             for event in _sse(response, stop, deadline):
                 for candidate in event.get("candidates") or []:
                     text += [p.get("text", "") for p in (candidate.get("content") or {}).get("parts") or []]
             return "".join(text).strip()
     return ""
+
+
+def _listed_flash_models() -> list[str]:
+    """The Gemini «flash» models the key can use now, newest first, from Google's own list (read once every few hours):
+    fallbacks are never names written in the code, which retire (gemini-2.5-flash answered 404, November 2026)."""
+    now = time.monotonic()
+    if _LISTED["models"] and now - float(_LISTED["at"]) < MISSING_SECONDS:
+        return list(_LISTED["models"])
+    found: list[tuple[tuple, str]] = []
+    try:
+        with _client() as client:
+            r = client.get(_GEMINI, params={"pageSize": 200}, headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+            r.raise_for_status()
+            for m in r.json().get("models") or []:
+                name = str(m.get("name", "")).removeprefix("models/")
+                methods = m.get("supportedGenerationMethods") or []
+                if "generateContent" not in methods or "flash" not in name:
+                    continue
+                if re.search(r"tts|image|audio|live|embedding|thinking|exp", name):
+                    continue
+                version = tuple(int(x) for x in re.findall(r"\d+", name.split("-flash")[0])) or (0,)
+                found.append(((("lite" not in name), ("preview" not in name), version), name))
+    except Exception as exc:  # noqa: BLE001 - no list: the configured model and the fixed fallbacks still serve
+        logging.getLogger("muhawir.extract").warning("vision model list unavailable (%s)", type(exc).__name__)
+        return []
+    models = [name for _, name in sorted(found, key=lambda x: x[0], reverse=True)][:VISION_LISTED]
+    _LISTED.update(at=now, models=models)
+    return models
 
 
 def _read_compat(data_b64: str, stop, deadline) -> str:
@@ -342,10 +395,14 @@ def _read_compat(data_b64: str, stop, deadline) -> str:
 
 
 def _vision_readers() -> list[tuple[str, object]]:
-    """(name, read) for each model that can read a picture, in order: the configured Gemini model, its fallbacks,
-    then the OpenAI-compatible endpoint when one is configured."""
+    """(name, read) for each model that can read a picture, in order: the configured model, then the newest flash
+    models Google lists for the key (or GEMINI_VISION_FALLBACK when the owner names them), then the OpenAI-compatible
+    endpoint when one is configured. A name that answered «not found» lately is left out."""
     chosen = os.environ.get("GEMINI_VISION_MODEL") or os.environ["GEMINI_MODEL"]
-    models = list(dict.fromkeys([chosen, *[m.strip() for m in os.environ.get("GEMINI_VISION_FALLBACK", VISION_FALLBACK).split(",") if m.strip()]]))
+    named = [m.strip() for m in os.environ.get("GEMINI_VISION_FALLBACK", "").split(",") if m.strip()]
+    now = time.monotonic()
+    models = [m for m in dict.fromkeys([chosen, *(named or _listed_flash_models() or VISION_FALLBACK.split(","))])
+              if now - _MISSING.get(m, -MISSING_SECONDS) >= MISSING_SECONDS][:VISION_LISTED + 1]
     readers = [(m, (lambda m: lambda b64, stop, deadline: _read_gemini(m, b64, stop, deadline))(m)) for m in models]
     base = os.environ.get("OPENAI_COMPAT_BASE_URL", "")
     if base and os.environ.get("OPENAI_COMPAT_API_KEY") and (os.environ.get("OPENAI_COMPAT_VISION_MODEL") or "openrouter.ai" in base):

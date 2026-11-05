@@ -30,10 +30,17 @@ def _compat_sse(*pieces):
                     for p in pieces) + "data: [DONE]\n\n").encode()
 
 
+LISTED = {"models": [{"name": f"models/{n}", "supportedGenerationMethods": ["generateContent"]} for n in (
+    "gemini-2.0-flash", "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.8-flash-tts", "gemini-3.8-pro")]}
+
+
 def _serve(monkeypatch, handler):
-    """Every vision request goes to `handler(request) -> httpx.Response`; returns the list of requests seen."""
+    """Every vision request goes to `handler(request) -> httpx.Response`; Google's model list is answered with LISTED.
+    Returns the list of reading requests seen."""
     seen = []
     def handle(request):
+        if request.method == "GET":
+            return httpx.Response(200, json=LISTED)
         seen.append(request)
         return handler(request)
     monkeypatch.setattr(extract, "_client", lambda: httpx.Client(transport=httpx.MockTransport(handle)))
@@ -42,6 +49,9 @@ def _serve(monkeypatch, handler):
 
 @pytest.fixture(autouse=True)
 def _gemini(monkeypatch):
+    monkeypatch.setattr(extract, "_THINKING", {})
+    monkeypatch.setattr(extract, "_MISSING", {})
+    monkeypatch.setattr(extract, "_LISTED", {"at": 0.0, "models": []})
     monkeypatch.delenv("MUHAWIR_VISION_OCR", raising=False)
     monkeypatch.delenv("OPENAI_COMPAT_BASE_URL", raising=False)
     monkeypatch.delenv("GEMINI_VISION_MODEL", raising=False)
@@ -91,21 +101,46 @@ def test_a_model_silent_too_long_is_reported_by_name(monkeypatch):
     assert err.value.code == "vision_failed" and "m ReadTimeout" in err.value.note
 
 
-def test_a_flash_model_is_asked_without_thinking_and_retried_plain_on_a_refusal(monkeypatch):
+def test_each_model_generation_is_asked_with_its_own_way_of_not_thinking(monkeypatch):
+    # Gemini 3 and later: thinkingLevel «minimal»; 2.5: thinkingBudget 0; sending the wrong one is refused (400)
     import json
-    thinking = []
+    from muhawir import extract
+    assert extract._thinking_settings("gemini-3.8-flash")[0]["thinkingConfig"] == {"thinkingLevel": "minimal"}
+    assert extract._thinking_settings("gemini-2.5-flash")[0]["thinkingConfig"] == {"thinkingBudget": 0}
+    assert extract._thinking_settings("gemini-flash-latest")[0]["thinkingConfig"] == {"thinkingLevel": "minimal"}
+    sent = []
     def handler(request):
-        thinking.append("thinkingConfig" in json.loads(request.content)["generationConfig"])
-        return httpx.Response(400, json={}) if len(thinking) == 1 else httpx.Response(200, content=_gemini_sse(TEXT))
+        config = json.loads(request.content)["generationConfig"]
+        sent.append(config.get("thinkingConfig"))
+        if config.get("thinkingConfig") == {"thinkingLevel": "minimal"}:
+            return httpx.Response(400, json={})  # an older model does not know it
+        return httpx.Response(200, content=_gemini_sse(TEXT))
     _serve(monkeypatch, handler)
-    assert extract.extract(_photo())["text"].startswith("اللهم") and thinking == [True, False]
+    assert extract.extract(_photo())["text"].startswith("اللهم")
+    assert sent == [{"thinkingLevel": "minimal"}, {"thinkingBudget": 0}]
+    extract.extract(_photo())  # the setting that worked is remembered: no refused try the second time
+    assert sent[2:] == [{"thinkingBudget": 0}]
 
 
-def test_a_busy_model_is_replaced_by_the_next_at_once(monkeypatch):
+def test_fallbacks_come_from_googles_list_never_from_retired_names(monkeypatch):
     seen = _serve(monkeypatch, lambda r: httpx.Response(503, json={}) if "/m:" in str(r.url)
                   else httpx.Response(200, content=_gemini_sse(TEXT)))
     assert extract.extract(_photo())["text"].startswith("اللهم")
-    assert "/m:" in str(seen[0].url) and "gemini-2.5-flash" in str(seen[-1].url)
+    used = [str(r.url) for r in seen]
+    assert "/m:" in used[0] and "gemini-3.8-flash:" in used[-1]  # the newest listed full flash model
+    assert not any(bad in u for u in used for bad in ("gemini-2.5-flash", "tts", "pro"))
+
+
+def test_a_model_that_is_not_found_is_skipped_afterwards(monkeypatch):
+    def handler(request):
+        if "/m:" in str(request.url):
+            return httpx.Response(404, json={})
+        return httpx.Response(200, content=_gemini_sse(TEXT))
+    seen = _serve(monkeypatch, handler)
+    extract.extract(_photo())
+    seen.clear()
+    extract.extract(_photo())
+    assert not any("/m:" in str(r.url) for r in seen)  # retired: not asked again for a while
 
 
 def test_a_slow_model_does_not_hold_up_the_next(monkeypatch):
@@ -144,4 +179,4 @@ def test_when_every_model_fails_each_is_named_with_its_status(monkeypatch):
     with pytest.raises(extract.ExtractError) as err:
         extract.extract(_photo())
     assert err.value.code == "vision_failed"
-    assert "m HTTP 503" in err.value.note and "gemini-2.5-flash HTTP 503" in err.value.note
+    assert "m HTTP 503" in err.value.note and "gemini-3.8-flash HTTP 503" in err.value.note
