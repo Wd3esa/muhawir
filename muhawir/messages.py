@@ -7,8 +7,7 @@ STYLES = ("kids", "youth", "extended", "newcomer")
 
 TEXT = {
     "ar": {
-        "abstain": "لم أجد في المصادر المعتمدة المتاحة لي ما يجيب عن هذا السؤال. "
-                   "يمكنك سؤال مختص في العلم الشرعي.",
+        "abstain": "لم أجد إجابة في المصادر.",  # one line, nothing more (owner, 5 November 2026)
         "no_reason": {"ayah": "لم يُذكر لهذه الآية ({where}) سبب نزول في مصدر أسباب النزول المعتمد لدي: «{source}».",
                       "surah": "لم يُذكر ل{where} سبب نزول في مصدر أسباب النزول المعتمد لدي: «{source}»."},
         "out_of_scope": "لا أستطيع الحكم في المعاملات المالية المعاصرة، يمكنك مراجعة جهة الفتوى في بلدك.",
@@ -63,9 +62,7 @@ TEXT = {
         "empty": "اكتب سؤالك أولًا.",
     },
     "en": {
-        "abstain": "I could not find anything in the approved sources available to me that answers "
-                   "this question. "
-                   "You may ask a qualified scholar.",
+        "abstain": "I found no answer in the sources.",
         "no_reason": {"ayah": "The reasons-of-revelation source I rely on, «{source}», records no reason of revelation for this ayah ({where}).",
                       "surah": "The reasons-of-revelation source I rely on, «{source}», records no reason of revelation for {where}."},
         "out_of_scope": "I can't give rulings on contemporary financial dealings; you can consult the fatwa body in your country.",
@@ -128,8 +125,7 @@ TEXT = {
         "empty": "Please type your question first.",
     },
     "ur": {
-        "abstain": "مجھے دستیاب معتبر مصادر میں اس سوال کا جواب نہیں ملا۔ "
-                   "آپ کسی مستند عالمِ دین سے پوچھ سکتے ہیں۔",
+        "abstain": "مصادر میں جواب نہیں ملا۔",
         "no_reason": {"ayah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں اس آیت ({where}) کا کوئی سببِ نزول مذکور نہیں۔",
                       "surah": "میرے معتبر مصدرِ اسبابِ نزول «{source}» میں {where} کا کوئی سببِ نزول مذکور نہیں۔"},
         "out_of_scope": "میں جدید مالی معاملات پر حکم نہیں دے سکتا، آپ اپنے ملک کے دارالافتاء سے رجوع کر سکتے ہیں۔",
