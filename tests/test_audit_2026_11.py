@@ -458,3 +458,27 @@ def test_a_refused_key_pauses_its_model_at_once_and_says_so(caplog):
     with pytest.raises(httpx.HTTPStatusError):
         guarded("s", "u", {})  # tried again after the pause: a replaced key works again
     BREAKERS.pop("dead", None)
+
+
+# ---- shapes real models send are accepted; verdicts and witnesses stay required (6 November 2026) -----------------
+
+@pytest.mark.real_check
+@pytest.mark.raw_check_reply
+@pytest.mark.parametrize("extra", [
+    {"missing": [""], "on_topic": ["true"]},   # «missing» as an empty string, «on_topic» as text
+    {"missing": ["لا شيء"][:0] or [[]]},        # «on_topic» left out: on topic
+    {},                                          # both left out
+    {"missing": [None], "on_topic": ["yes"]},
+])
+def test_harmless_reply_shapes_still_approve_a_sentence_whose_witness_is_in_the_passage(extra):
+    claim = Claim(text="الوضوء شرط لصحة الصلاة.", passage_ids=["p1"])
+    reply = {"problem": ["none"], "evidence": ["الوضوء شرط لصحة الصلاة"], **extra}
+    assert _checker(reply).check_support([claim], {"p1": PASSAGE}, "ما حكم الوضوء؟") == [True]
+
+
+@pytest.mark.real_check
+@pytest.mark.raw_check_reply
+def test_a_missing_term_given_as_text_still_rejects_the_sentence():
+    claim = Claim(text="الوضوء شرط لصحة الصلاة.", passage_ids=["p1"])
+    reply = {"problem": ["none"], "evidence": ["الوضوء شرط لصحة الصلاة"], "missing": ["التيمم"], "on_topic": [True]}
+    assert _checker(reply).check_support([claim], {"p1": PASSAGE}, "ما حكم الوضوء؟") == [False]
