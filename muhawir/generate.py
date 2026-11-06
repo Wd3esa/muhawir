@@ -603,23 +603,32 @@ def _true(value) -> bool:
     return value is True or (isinstance(value, str) and value.strip().lower() == "true")
 
 
-def _unusable_check_reply(data, count: int) -> str:
-    """Why a support-check reply cannot be used ("" when it can): each required field present, a list with one item per
-    sentence, of the type the schema gives. Checked here because not every provider enforces the schema."""
+def _normal_check_reply(data, count: int) -> tuple[dict | None, str]:
+    """(the reply in its strict shape, "") or (None, why it cannot be used). What makes a reading safe is required:
+    one verdict («problem») and one witness («evidence») per sentence, and the witness is then checked by code against
+    the passage. Shapes that change nothing are accepted as they come from real models: «missing» as "" or one string
+    instead of a list, «on_topic» as "true"/"yes", a missing «missing»/«on_topic» (no term missing, on topic). A reply
+    without the verdicts or the witnesses, or with fewer than the sentences, approves nothing (audit HIGH-001)."""
     if not isinstance(data, dict):
-        return "not an object"
-    kinds = {"problem": str, "evidence": str, "missing": list, "on_topic": (bool, str)}
-    for field, kind in kinds.items():
+        return None, "not an object"
+    out = {}
+    for field in ("problem", "evidence"):
         value = data.get(field)
         if not isinstance(value, list) or len(value) != count:
-            return f"{field} missing or of another length"
-        if not all(isinstance(v, kind) for v in value):
-            return f"{field} of the wrong type"
-    if not all(isinstance(t, str) for terms in data["missing"] for t in terms):
-        return "missing of the wrong type"
-    if not all(isinstance(t, bool) or t.strip().lower() in ("true", "false") for t in data["on_topic"]):
-        return "on_topic of the wrong type"
-    return ""
+            return None, f"{field} missing or of another length"
+        if not all(isinstance(v, str) or v is None for v in value):
+            return None, f"{field} of the wrong type"
+        out[field] = [v or "" for v in value]
+    missing = data.get("missing", [[]] * count)
+    if not isinstance(missing, list) or len(missing) != count:
+        return None, "missing of another length"
+    out["missing"] = [[m] if isinstance(m, str) else [x for x in m if isinstance(x, str)] if isinstance(m, list) else []
+                      for m in missing]
+    on_topic = data.get("on_topic", [True] * count)
+    if not isinstance(on_topic, list) or len(on_topic) != count:
+        return None, "on_topic of another length"
+    out["on_topic"] = [t if isinstance(t, bool) else str(t).strip().lower() in ("true", "yes", "1", "نعم") for t in on_topic]
+    return out, ""
 
 
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
@@ -1313,7 +1322,7 @@ class ModelGenerator:
             # Strict-check (audit HIGH-001, November 2026): every field the schema requires must be there, one per
             # sentence and of the right type, or the reply is not used at all. A reply that only says «none» without
             # the source words it rests on approves nothing.
-            unusable = _unusable_check_reply(data, len(claims))
+            data, unusable = _normal_check_reply(data, len(claims))
             if unusable:
                 log.warning("model %s gave an unusable support check (%s)", name, unusable)
                 continue
