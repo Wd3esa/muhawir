@@ -105,6 +105,16 @@ def test_the_endpoint_returns_text_and_pieces():
     assert r.status_code == 200 and VERSE in body["text"] and body["pieces"] and body["kind"] == "zip"
 
 
+def test_vision_provider_diagnostics_stay_off_the_public_response(monkeypatch, caplog):
+    _reset()
+    def unavailable(_data):
+        raise extract.ExtractError("vision_failed", "gemini-flash-latest ReadTimeout; compat HTTP 401")
+    monkeypatch.setattr(extract, "extract_isolated", unavailable)
+    r = client.post("/api/extract", content=(FIX / "photo.png").read_bytes())
+    assert r.status_code == 502 and r.json()["detail"] == "vision_failed"
+    assert "compat HTTP 401" in caplog.text
+
+
 def test_the_endpoint_maps_errors_to_codes_and_statuses():
     _reset()
     assert client.post("/api/extract", content=b"\x00\x01" * 800).json()["detail"] == "unsupported"

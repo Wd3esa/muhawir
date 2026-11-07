@@ -48,6 +48,29 @@ NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
 MAX_NEIGHBOURS = 4
 MAX_UNDERSTOOD_QUERIES = 14  # bound any phrases combined from a fallback second pass
 MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
+# Search phrases only: the final ritual instructions still require retrieved, checked source passages.
+_HAJJ_SEARCH = ("أنساك الحج التمتع", "الإحرام بالحج يوم التروية", "الوقوف بعرفة",
+                "المبيت بمزدلفة", "رمي جمرة العقبة طواف الإفاضة", "أيام التشريق طواف الوداع")
+_UMRAH_SEARCH = ("الإحرام بالعمرة من الميقات", "طواف العمرة", "السعي بين الصفا والمروة",
+                 "الحلق والتقصير من العمرة")
+
+
+def _pilgrimage_overview(question: str) -> tuple[str, ...]:
+    """A short request for the full procedure, excluding personal cases and individual rulings."""
+    words = normalize(question).split()
+    if len(words) > 9 or not any(w in {"صفه", "خطوات", "طريقه", "مناسك", "كيفيه", "اداء"} for w in words):
+        return ()
+    if any(w in {"حكم", "معنى", "اذا", "لو", "نسيت", "مريض", "صح", "يجوز"} for w in words):
+        return ()
+    joined = " ".join(words)
+    hajj = bool(re.search(r"\bو?(?:الحج|حج)\b", joined))
+    umrah = bool(re.search(r"\bو?(?:العمره|عمره)\b", joined))
+    return tuple(name for name, present in (("umrah", umrah), ("hajj", hajj)) if present)
+
+
+def _pilgrimage_queries(rituals: tuple[str, ...], model_queries: list[str] | None) -> list[str]:
+    anchors = [*(_UMRAH_SEARCH if "umrah" in rituals else ()), *(_HAJJ_SEARCH if "hajj" in rituals else ())]
+    return list(dict.fromkeys([*anchors, *(model_queries or [])]))[:MAX_UNDERSTOOD_QUERIES]
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
 MAX_QUOTED_HADITHS = 2  # hadiths fetched from their own book because a fatwa offered to the model quotes them
 MAX_QUOTE_WORDS = 12  # the opening words of a quoted hadith are looked up (narrations differ further on)
@@ -152,10 +175,13 @@ STYLE_LIMITS = {"kids": (5, 7), "youth": (6, 10), "newcomer": (8, 10), "extended
 KIDS_LONGEST = 18
 
 
-def fit_style(answer: list, style: str, listing: bool) -> list:
+def fit_style(answer: list, style: str, listing: bool, rituals: list[str] | None = None) -> list:
     """Cut an answer to the length its style allows; for children the longest sentences go first."""
     prose, items = STYLE_LIMITS.get(style, STYLE_LIMITS["youth"])
     limit = items if listing else prose
+    if rituals:
+        # A full procedure must not lose its ending merely because it exceeds the usual list length.
+        limit = max(limit, 16 if len(rituals) > 1 else 12)
     if style == "kids" and len(answer) > limit:
         # too many for a child: the longest sentences go first, but only as many as needed, so a sentence that
         # carries a needed condition is not dropped from an answer that already fits (19 October 2026)
@@ -1249,7 +1275,7 @@ class Muhawir:
         answer = retain_inline_qualification(compact_provenance(answer, corpus, lang), corpus)
         by_id = {pid: corpus.passage(pid) for c in answer for pid in c.passage_ids}
         answer = lead_with_requested_text(answer, by_id, extra.get("answer_request"))
-        answer = fit_style(answer, style, listing)
+        answer = fit_style(answer, style, listing, (extra.get("answer_request") or {}).get("rituals"))
         answer = [replace(c, text=_without_label(c.text, c.label)) for c in answer]
         named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
                               for c in kept if c.school])
@@ -1912,6 +1938,10 @@ class Muhawir:
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
+                    # The model sometimes reads «صفة الحج والعمرة» as a request for two definitions.
+                    # Keep the user's short procedure request intact even when its paraphrase drops a rite.
+                    if _pilgrimage_overview(question):
+                        u = {**u, "question": question, "kind": "how"}
                     reply_lang = script_lang(question, lang_ok)
                     if u.get("feeling") == "crisis":
                         # thoughts of suicide or self-harm said in any words or dialect, which the word list above
@@ -2011,6 +2041,16 @@ class Muhawir:
                             res = self._count_reply(*counting, lang_ok)
                             res.understood = understood
                             return res
+        rituals = _pilgrimage_overview(question)
+        if rituals and not personal and not feeling and (answer_request or {}).get("form") in (None, "", "explanation"):
+            kind = "how"
+            understood = ""  # source search and writing see the full original request, including both rites
+            requested = ["خطوات العمرة مرتبة من الإحرام إلى التحلل" if r == "umrah" else
+                         "خطوات الحج مرتبة مع بيان نوع النسك المشروح، من الإحرام إلى الوداع" for r in rituals]
+            answer_request = {**(answer_request or {}), "form": "explanation", "domain": "fiqh",
+                              "rituals": list(rituals),
+                              "requirements": requested}  # a mistaken «definition» requirement must not survive
+            queries = _pilgrimage_queries(rituals, queries)
         # Cache-by-meaning: a question put in other words is understood as the same plain question, and the checked
         # reply kept for that plain question is given at once: no search, writing or checking (the costly steps)
         alias = None

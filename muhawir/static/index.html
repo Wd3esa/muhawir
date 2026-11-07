@@ -2816,8 +2816,8 @@ const uploadText = async (file) => {
   let code = "";
   try { code = (await res.json()).detail || ""; } catch { /* no body */ }
   if (res.status === 429) code = "busy";
-  const [kind, hint] = code.split(":");  // «vision_failed:HTTP 429»: the hint tells the owner what the model service said
-  throw new Error((t["e_" + kind] || t.e_failed) + (hint ? " (" + hint + ")" : ""));
+  const kind = code.split(":", 1)[0];  // provider diagnostics stay in server logs, not in the visitor's question box
+  throw new Error(t["e_" + kind] || t.e_failed);
 };
 (function () {
   const btn = $("attach"), file = $("attachFile"), q = $("q"), box = $("attachPreview");
