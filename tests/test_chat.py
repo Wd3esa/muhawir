@@ -226,7 +226,7 @@ def test_one_contemporary_example_is_allowed_with_its_limits():
 
 def test_worked_examples_show_the_target_style_without_usable_ids():
     from muhawir.generate import SYSTEM_PROMPT
-    assert "مثالان على الجواب الجيد" in SYSTEM_PROMPT and "ليست من مقاطعك" in SYSTEM_PROMPT
+    assert "ثلاثة أمثلة على الجواب الجيد" in SYSTEM_PROMPT and "ليست من مقاطعك" in SYSTEM_PROMPT
     assert "فليس قبله شيء" in SYSTEM_PROMPT or "ليس قبله شيء" in SYSTEM_PROMPT
     assert "لم يثبت في ذلك حديث" in SYSTEM_PROMPT  # the grading is said, not hidden
 
