@@ -113,6 +113,8 @@ def test_pasted_quotation_is_rejected_and_rewritten_in_own_words():
             return json.dumps({"supported": [True] * user.count("الجملة ")})
         if "verdict" in keys:
             return '{"verdict": "yes"}'
+        if "repairs" in keys:  # a writer that has nothing to put in the rejected sentence's place
+            return '{"repairs": []}'
         if '"question"' in keys or "queries" in keys:
             return '{"queries": []}'
         prompts.append(user)

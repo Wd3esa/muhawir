@@ -52,8 +52,9 @@ def test_missing_requested_text_is_not_silently_replaced_by_a_summary(monkeypatc
 
 
 def test_reviewer_reads_the_same_shortened_text_that_will_be_published(monkeypatch):
-    # The seventh item is an independent requested part; a pre-trim judge must not certify it.
-    first = [Claim(f'توضيح مدعوم للمؤمن رقم {i}.', (P.id,)) for i in range(6)] + [QUOTE]
+    # The item past the ceiling is an independent requested part; a pre-trim judge must not certify it.
+    from muhawir.pipeline import STYLE_CEILING
+    first = [Claim(f'توضيح مدعوم للمؤمن رقم {i}.', (P.id,)) for i in range(STYLE_CEILING['youth'][0])] + [QUOTE]
     m, seen = engine([first, [QUOTE, SUMMARY]], [{'verdict': 'partly', 'reason': 'نص الحديث غير موجود في الجواب المعروض'}, {'verdict': 'yes'}], monkeypatch)
     result = m._write('اذكر المعنى والنص', [P], 'youth', 'ar', False, {})
     assert QUOTE.text not in seen['reviews'][0]

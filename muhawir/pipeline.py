@@ -40,6 +40,10 @@ QUOTE_PINS = 4
 VERSE_SEARCH_K = 60   # without the database index (tests), how many hits are searched for a verse's words
 DOMAIN_DEPTH = 4      # a search with a known field looks deeper (one search), to find enough of that field's books
 DOMAIN_RUN = 3        # passages of the question's field before each passage from another field
+PART_SLOTS = 3        # passages each part of a question with several parts is sure to get (before the shared turns)
+PART_EXTRA = 3        # places added to the offered passages for each part after the first (up to PART_EXTRA_MAX)
+PART_EXTRA_MAX = 12
+RESEARCH_PER_PART = 4  # passages searched again for a part the answer did not cover
 WANTED_PER_QUERY = 4  # hadiths (or verses) per search phrase moved to the front when their text is asked for
 HEADING_ALIGNMENT = 0.6  # an entry found by its root must also hold a word this close to the asked word
 
@@ -48,29 +52,6 @@ NEIGHBOUR_OF = 4      # fiqh passages whose neighbours are added
 MAX_NEIGHBOURS = 4
 MAX_UNDERSTOOD_QUERIES = 14  # bound any phrases combined from a fallback second pass
 MAX_TOPIC_WORDS = 3   # a search phrase this short may name a chapter of the fiqh book
-# Search phrases only: the final ritual instructions still require retrieved, checked source passages.
-_HAJJ_SEARCH = ("أنساك الحج التمتع", "الإحرام بالحج يوم التروية", "الوقوف بعرفة",
-                "المبيت بمزدلفة", "رمي جمرة العقبة طواف الإفاضة", "أيام التشريق طواف الوداع")
-_UMRAH_SEARCH = ("الإحرام بالعمرة من الميقات", "طواف العمرة", "السعي بين الصفا والمروة",
-                 "الحلق والتقصير من العمرة")
-
-
-def _pilgrimage_overview(question: str) -> tuple[str, ...]:
-    """A short request for the full procedure, excluding personal cases and individual rulings."""
-    words = normalize(question).split()
-    if len(words) > 9 or not any(w in {"صفه", "خطوات", "طريقه", "مناسك", "كيفيه", "اداء"} for w in words):
-        return ()
-    if any(w in {"حكم", "معنى", "اذا", "لو", "نسيت", "مريض", "صح", "يجوز"} for w in words):
-        return ()
-    joined = " ".join(words)
-    hajj = bool(re.search(r"\bو?(?:الحج|حج)\b", joined))
-    umrah = bool(re.search(r"\bو?(?:العمره|عمره)\b", joined))
-    return tuple(name for name, present in (("umrah", umrah), ("hajj", hajj)) if present)
-
-
-def _pilgrimage_queries(rituals: tuple[str, ...], model_queries: list[str] | None) -> list[str]:
-    anchors = [*(_UMRAH_SEARCH if "umrah" in rituals else ()), *(_HAJJ_SEARCH if "hajj" in rituals else ())]
-    return list(dict.fromkeys([*anchors, *(model_queries or [])]))[:MAX_UNDERSTOOD_QUERIES]
 MIN_PASSAGE_WORDS = 4  # fewer words than this (e.g. a bare surah title) is not a passage to answer from
 MAX_QUOTED_HADITHS = 2  # hadiths fetched from their own book because a fatwa offered to the model quotes them
 MAX_QUOTE_WORDS = 12  # the opening words of a quoted hadith are looked up (narrations differ further on)
@@ -167,21 +148,19 @@ def as_question(text: str) -> str:
     return text
 
 
-# Each style's limits, as its instructions state them (generate.STYLE_GUIDE): sentences in a prose answer, items in
-# a list of steps or kinds (which may need a few more), and for children the longest sentence kept when shorter ones
-# are enough. The model often writes past them (style check of 6 October 2026: 13 sentences for a child, sentences of
-# 24 words), so they are applied here, after the checks, keeping the order the answer was written in.
-STYLE_LIMITS = {"kids": (5, 7), "youth": (6, 10), "newcomer": (8, 10), "extended": (12, 16)}
+# What the writer is asked for is in its style guide (generate.STYLE_GUIDE): short for a child, fuller for a reader who
+# asked for the extended explanation. These are only CEILINGS, for a model that writes far past that: a sentence that
+# passed every check is kept up to the ceiling, so a procedure or an answer with several parts does not lose its
+# ending (#86, #100). (sentences of a prose answer, sentences of a list or an answer with several parts)
+STYLE_CEILING = {"kids": (7, 10), "youth": (12, 20), "newcomer": (12, 20), "extended": (18, 28)}
 KIDS_LONGEST = 18
 
 
-def fit_style(answer: list, style: str, listing: bool, rituals: list[str] | None = None) -> list:
-    """Cut an answer to the length its style allows; for children the longest sentences go first."""
-    prose, items = STYLE_LIMITS.get(style, STYLE_LIMITS["youth"])
-    limit = items if listing else prose
-    if rituals:
-        # A full procedure must not lose its ending merely because it exceeds the usual list length.
-        limit = max(limit, 16 if len(rituals) > 1 else 12)
+def fit_style(answer: list, style: str, listing: bool, parts: int = 1) -> list:
+    """Cut a runaway answer to the ceiling of its style (higher for a list or an answer with several parts); for
+    children the longest sentences go first."""
+    prose, items = STYLE_CEILING.get(style, STYLE_CEILING["youth"])
+    limit = items if listing or parts > 1 else prose
     if style == "kids" and len(answer) > limit:
         # too many for a child: the longest sentences go first, but only as many as needed, so a sentence that
         # carries a needed condition is not dropped from an answer that already fits (19 October 2026)
@@ -1045,6 +1024,55 @@ class Muhawir:
             kept = [c for c, ok in zip(kept, flags) if ok]
         return kept, rejected
 
+    # the reasons for a rejection that a sentence written again from its own passage can cure; a missing or unknown
+    # citation, an example or a shapeless sentence has no passage to be written from
+    REPAIRABLE = ("not supported", "definition not in", "ruling word", "dropped_condition", "is not named", "quotation not found")
+    MAX_REPAIRS = 6
+
+    def _repair(self, question: str, draft: list, kept: list, rejected: list, passages: list[Passage],
+                allowed: set[str], corpus, support_memo: dict) -> tuple[list, list]:
+        """Repair, don't delete: each sentence the checks rejected for going past its passage is written again from
+        that passage alone, checked like any other sentence, and put back where it stood. A sentence that is still
+        rejected stays out. One short call for all of them; nothing is asked when nothing is repairable."""
+        repair = getattr(self.generator, "repair", None)
+        fixable = [r for r in rejected if repair and r.claim.passage_ids and all(pid in allowed for pid in r.claim.passage_ids)
+                   and any(k in r.reason for k in self.REPAIRABLE)][:self.MAX_REPAIRS]
+        if not fixable:
+            return kept, rejected
+        by_id = {p.id: p for p in passages}
+        items = [(r.claim, next((ar for en, ar in _REJECTED_BECAUSE if en in r.reason), "لا تتفق مع المقاطع")) for r in fixable]
+        with _timed("repair"):
+            replies = repair(question, items, by_id) or []
+            written = []  # (the rejected record, its replacement after the same tidying as a draft, or None)
+            for r, c in zip(fixable, replies):
+                tidy = self._tidy([c], allowed) if c is not None else []
+                written.append((r, tidy[0] if tidy else None))
+            sendable = [c for _, c in written if c is not None]
+            again = self._checked(sendable, corpus, allowed, passages, question, support_memo=support_memo) if sendable else None
+        if again is None:  # nothing to check, or the check could not run: the sentences stay out, as before
+            telemetry.loss("repair", asked=len(fixable), written=len(sendable), repaired=0)
+            return kept, rejected
+        bad = [x.claim for x in again[1]]
+        survivors = list(again[0])
+        passed = [(r, c) for r, c in written if c is not None and c not in bad]
+        if len(passed) != len(survivors):  # the pairing cannot be trusted: keep the answer as it was
+            telemetry.loss("repair", asked=len(fixable), written=len(sendable), repaired=0)
+            return kept, rejected
+        fixed = [(r, new) for (r, _), new in zip(passed, survivors)]
+        telemetry.loss("repair", asked=len(fixable), written=len(sendable), repaired=len(fixed))
+        if not fixed:
+            return kept, rejected
+
+        def place(claim) -> int:
+            """Where the sentence stood in the draft (a sentence trimmed by the check still starts as it did)."""
+            if claim in draft:
+                return draft.index(claim)
+            head = normalize(claim.text).split()[:6]
+            return next((i for i, d in enumerate(draft) if normalize(d.text).split()[:6] == head), len(draft))
+        merged = sorted([(place(c), c) for c in kept] + [(place(r.claim), new) for r, new in fixed], key=lambda pair: pair[0])
+        gone = [r for r, _ in fixed]
+        return [c for _, c in merged], [r for r in rejected if r not in gone]
+
     @staticmethod
     def _broken(kept: list, rejected: list, draft: list) -> bool:
         """True when the checks removed the first sentence or half or more of the answer. A smaller loss is left to the
@@ -1149,11 +1177,16 @@ class Muhawir:
         return first or second
 
     def _gather(self, question: str, original: str, queries: list[str] | None,
-                form: str = "", domain: str = "", pinned: list[Passage] | None = None) -> tuple[list[Passage], list[str]]:
+                form: str = "", domain: str = "", pinned: list[Passage] | None = None,
+                parts: list[str] | None = None, quiet: bool = False) -> tuple[list[Passage], list[str]]:
         """The passages offered to the model, and the search phrases used to find them. When the text of a hadith or a
         verse is asked for (form), the best hadiths (or verses) for each phrase come first: «حديث عن الصبر» or «حديث
         بمعنى هذا» must be answered from a hadith, not only from the fiqh and tafsir passages that rank above it."""
         best: dict[str, object] = {}
+        # the parts of a question with several («شروط الزكاة ونصابها»): each is searched on its own and is sure of its
+        # own places, so a part whose evidence ranks third for every shared phrase is not left out
+        parts = [t.strip() for t in (parts or []) if isinstance(t, str) and t.strip()][:6] if len(parts or []) >= 2 else []
+        capacity = MODEL_CANDIDATES + (min(PART_EXTRA * (len(parts) - 1), PART_EXTRA_MAX) if parts else 0)
         # the opening passage of the matching chapter and section of «بداية المجتهد» first:
         # it usually holds the overview, the definition or the list of kinds. Only the question and short
         # topic phrases are matched to chapter names: a quoted verse that happens to contain the word
@@ -1177,7 +1210,7 @@ class Muhawir:
             queries.append(original)  # the rewrite may have changed a word: what the user typed is searched too
         prepare = getattr(self.retriever, "prepare_queries", None)
         if callable(prepare):
-            prepare(queries)
+            prepare(queries + parts)
         df = getattr(self.retriever, "df", None)
         user_words = original or question  # only what the user typed: the model's rewrite of it may have drifted
         verse = lambda p: p.kind == "quran"  # noqa: E731
@@ -1212,15 +1245,20 @@ class Muhawir:
             return first + [h for h in usual if h not in first]
         # Local embeddings are prepared together above; BM25/ANN searches still run
         # in parallel, and pool.map preserves phrase order for the round-robin merge.
-        if len(queries) > 1 and SEARCH_THREADS > 1:
-            with ThreadPoolExecutor(max_workers=min(SEARCH_THREADS, len(queries))) as pool:
-                lists = list(pool.map(found, queries))
+        searched = queries + parts
+        if len(searched) > 1 and SEARCH_THREADS > 1:
+            with ThreadPoolExecutor(max_workers=min(SEARCH_THREADS, len(searched))) as pool:
+                lists = list(pool.map(found, searched))
         else:
-            lists = [found(query) for query in queries]
+            lists = [found(query) for query in searched]
+        for rank in range(PART_SLOTS):  # each part's own best passages first
+            for hits in lists[len(queries):]:
+                if rank < len(hits):
+                    best.setdefault(hits[rank].passage.id, hits[rank])
         # take turns between the phrases, so one long phrase with high scores cannot fill every place
-        for rank in range(MODEL_CANDIDATES):
+        for rank in range(capacity):
             for hits in lists:
-                if rank < len(hits) and len(best) < MODEL_CANDIDATES:
+                if rank < len(hits) and len(best) < capacity:
                     best.setdefault(hits[rank].passage.id, hits[rank])
         # one issue in «بداية المجتهد» often runs over two or three passages in a row (the views in one,
         # the evidence in the next): add the neighbours of the best fiqh matches from the same section
@@ -1240,7 +1278,7 @@ class Muhawir:
         passages = [p for p in offered if bayyinat.is_answer_part(p)
                     and not _confused(p, f"{original} {question}")]
         # Report only the selected answer context, after merging, limiting and filtering all searches.
-        if passages:
+        if passages and not quiet:
             progress("source", list(dict.fromkeys(self.corpus.source_of(p).name for p in passages)))
         return passages, queries
 
@@ -1297,7 +1335,7 @@ class Muhawir:
         by_id = {pid: corpus.passage(pid) for c in answer for pid in c.passage_ids}
         answer = lead_with_requested_text(answer, by_id, extra.get("answer_request"))
         before = len(answer)
-        answer = fit_style(answer, style, listing, (extra.get("answer_request") or {}).get("rituals"))
+        answer = fit_style(answer, style, listing, len((extra.get("answer_request") or {}).get("requirements") or []))
         note("length_cut", before, len(answer))
         answer = [replace(c, text=_without_label(c.text, c.label)) for c in answer]
         named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
@@ -1366,11 +1404,19 @@ class Muhawir:
         telemetry.loss("check", kept=len(kept), rejected=len(rejected),
                        **{"why_" + k: n for k, n in Counter(_reason_key(r.reason) for r in rejected).items()})
         can_review = bool(getattr(self.generator, "check_support", None))
+        if rejected and can_review:
+            kept, rejected = self._repair(question, draft, kept, rejected, passages, allowed, corpus, support_memo)
         rewritten = False
 
-        def rewrite(feedback: str, coverage_repair: bool = False) -> bool:
-            """One full checked rewrite. A simpler children's answer may have fewer sentences."""
-            nonlocal kept, rejected, rewritten
+        def rewrite(feedback: str, coverage_repair: bool = False, more: tuple = ()) -> bool:
+            """One full checked rewrite. A simpler children's answer may have fewer sentences. `more` are passages
+            found by a new search for a part the answer did not cover: they are offered to the writer too."""
+            nonlocal kept, rejected, rewritten, passages, allowed
+            if more:
+                fresh = [replace(p, translation=self._translation(p, lang=lang)) if p.kind == "quran" and lang in TRANSLATED_LANGS else p
+                         for p in more if p.id not in allowed]
+                passages = passages + fresh
+                allowed = allowed | {p.id for p in fresh}
             rewritten = True
             with _timed("rewrite"):
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
@@ -1413,7 +1459,16 @@ class Muhawir:
             if unclear:
                 feedback += "\nالشرح السابق صعب للصغار. ملاحظات فحص الوضوح:\n" + review.feedback
                 feedback += "\nاكتب المعنى بكلمات مألوفة دون تكرار؛ يجوز أن يكون الجواب أقصر مع حفظ القيود والمصادر."
-            adopted = rewrite(feedback, coverage_repair=True)
+            more = ()
+            if partial:  # a part of the question nothing covered: its own search, then the rewrite sees what it found
+                request = extra.get("answer_request") or {}
+                parts = request.get("requirements") or []
+                gaps = [parts[i] for i in review.missing_parts if isinstance(i, int) and 0 <= i < len(parts)]
+                more = self._research(gaps, allowed, request)
+                telemetry.loss("research", gaps=len(gaps), added=len(more))
+                if more:
+                    feedback += "\nأُضيفت مقاطع جديدة للمطلب غير المكتمل: اقرأها وأجب منها."
+            adopted = rewrite(feedback, coverage_repair=True, more=more)
             # The same rewrite budget serves broken support, incomplete coverage and clarity together.
             if adopted or style != "kids":
                 review = review_answer()
@@ -1438,6 +1493,16 @@ class Muhawir:
         gaps = tuple(tasks[i] for i in review.missing_parts if i < len(tasks)) if verdict == "partly" else ()
         return _Written(passages, allowed, corpus, kept, rejected, partial=partial, incomplete_parts=gaps)
 
+    def _research(self, gaps: list[str], allowed: set[str], request: dict) -> tuple[Passage, ...]:
+        """Passages for the parts of the question the answer did not cover, found by searching each part on its own
+        (no model call). Only passages the writer has not been offered."""
+        found: dict[str, Passage] = {}
+        for gap in gaps:
+            ps, _ = self._gather(gap, "", [gap], form=request.get("form", ""), domain=request.get("domain", ""), quiet=True)
+            for p in [p for p in ps if p.id not in allowed and p.id not in found][:RESEARCH_PER_PART]:
+                found[p.id] = p
+        return tuple(found.values())
+
     def _retry(self, question: str, original: str, tried: list[str], style: str, lang: str, extra: dict,
                first: _Written | None) -> _Written | Response | None:
         """Nothing usable came out of the first search (no passage, or none that answered): ask the model once
@@ -1447,7 +1512,8 @@ class Muhawir:
         if not more:
             return first
         request = extra.get("answer_request") or {}
-        passages, _ = self._gather(question, original, more, form=request.get("form", ""), domain=request.get("domain", ""))
+        passages, _ = self._gather(question, original, more, form=request.get("form", ""), domain=request.get("domain", ""),
+                                   parts=request.get("requirements"))
         if all(p.id in (first.allowed if first else ()) for p in passages):
             return first
         second = self._write(question, passages, style, lang, False, extra)
@@ -1971,10 +2037,6 @@ class Muhawir:
                 if u is None:  # understanding failed: do not spend another call on search phrases, answer directly
                     queries = []
                 if u is not None:
-                    # The model sometimes reads «صفة الحج والعمرة» as a request for two definitions.
-                    # Keep the user's short procedure request intact even when its paraphrase drops a rite.
-                    if _pilgrimage_overview(question):
-                        u = {**u, "question": question, "kind": "how"}
                     reply_lang = script_lang(question, lang_ok)
                     if u.get("feeling") == "crisis":
                         # thoughts of suicide or self-harm said in any words or dialect, which the word list above
@@ -2074,16 +2136,6 @@ class Muhawir:
                             res = self._count_reply(*counting, lang_ok)
                             res.understood = understood
                             return res
-        rituals = _pilgrimage_overview(question)
-        if rituals and not personal and not feeling and (answer_request or {}).get("form") in (None, "", "explanation"):
-            kind = "how"
-            understood = ""  # source search and writing see the full original request, including both rites
-            requested = ["خطوات العمرة مرتبة من الإحرام إلى التحلل" if r == "umrah" else
-                         "خطوات الحج مرتبة مع بيان نوع النسك المشروح، من الإحرام إلى الوداع" for r in rituals]
-            answer_request = {**(answer_request or {}), "form": "explanation", "domain": "fiqh",
-                              "rituals": list(rituals),
-                              "requirements": requested}  # a mistaken «definition» requirement must not survive
-            queries = _pilgrimage_queries(rituals, queries)
         # Cache-by-meaning: a question put in other words is understood as the same plain question, and the checked
         # reply kept for that plain question is given at once: no search, writing or checking (the costly steps)
         alias = None
@@ -2169,7 +2221,8 @@ class Muhawir:
                 progress("looking", {"domain": request.get("domain", ""), "query": question[:120]})
                 passages, queries = self._gather(question, original, queries, form=request.get("form", ""),
                                                  domain=request.get("domain", ""),
-                                                 pinned=self._pinned(request, original or question))
+                                                 pinned=self._pinned(request, original or question),
+                                                 parts=request.get("requirements"))
         if contemporary:
             kind = "contemporary"
         extra = {k: v for k, v in (("previous", previous), ("kind", kind), ("feeling", feeling)) if v}
