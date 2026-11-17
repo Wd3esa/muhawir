@@ -190,3 +190,19 @@ points are drafts until the owner reviews them (`"reviewed": false`). `scripts/e
 question; add `--judge` (a short paid call per answered question, with the owner's approval) to score the key points.
 `scripts/eval_gold.py compare before.json after.json` shows what improved and what got worse. Run it before and after every
 change to search, writing or checking; a change that lowers the score does not merge.
+
+## Answer plan, repair and length (issue #100, step 2)
+
+- **Parts.** When the understanding step lists two or more `requirements`, each is searched on its own and is sure of
+  `PART_SLOTS` passages before the shared turns between the search phrases; the offered passages grow by `PART_EXTRA` per
+  extra part (at most `PART_EXTRA_MAX`). A question with one part is unchanged.
+- **Repair.** A sentence the support check rejected for going past its passage (not supported, a definition outside the
+  source's words, a ruling word, a dropped condition, a name or quotation not in the passage) is written again from that
+  passage alone by one short call for all of them (`ModelGenerator.repair`), checked like any sentence and put back where
+  it stood. It runs before the «broken answer» rewrite, which therefore runs less often. Trace events: `loss` stage `repair`.
+- **Uncovered parts.** When the relevance review says «partly» and names missing parts, those parts are searched on their
+  own (no model call) and the passages found are offered to the rewrite. Trace events: `loss` stage `research`.
+- **Length.** `STYLE_CEILING` replaces the old limits: the writer is asked for the length of its style, and a sentence that
+  passed every check is kept up to the ceiling (higher for a list or an answer with several parts). The hajj and umrah
+  search lists and their detector are gone: the understanding step makes a part for each rite and the writer follows
+  `PROCEDURE_RULE` for any «how» question. Measure with `scripts/eval_gold.py` (the hajj question is in the gold set).

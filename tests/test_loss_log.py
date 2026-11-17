@@ -30,7 +30,7 @@ def test_each_step_records_its_counts(monkeypatch):
 
 def test_a_length_cut_is_visible(monkeypatch):
     engine, _ = _model(SIX)
-    monkeypatch.setattr("muhawir.pipeline.STYLE_LIMITS", {"youth": (4, 4), "kids": (4, 4)})
+    monkeypatch.setattr("muhawir.pipeline.STYLE_CEILING", {"youth": (4, 4), "kids": (4, 4)})
     loss, _ = _traced(monkeypatch, engine)
     assert loss["display"]["kept"] == 6 and loss["display"]["shown"] == 4 and loss["display"]["length_cut"] == 2
 

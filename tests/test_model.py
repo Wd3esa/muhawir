@@ -417,6 +417,8 @@ def test_answer_broken_by_the_check_is_rewritten_once_from_the_feedback():
             return json.dumps({"supported": ["لا تحتاج إلى الماء" not in _claim_in(user)]})
         if "verdict" in keys:
             return '{"verdict": "yes"}'
+        if "repairs" in keys:  # a writer that has nothing to put in the rejected sentence's place
+            return '{"repairs": []}'
         if "queries" in keys:
             return '{"queries": []}'
         prompts.append(user)

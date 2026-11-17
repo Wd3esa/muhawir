@@ -1029,19 +1029,21 @@ def test_arabic_typed_on_the_english_keyboard_is_read_as_arabic():
     assert seen[0] == keyboard.to_arabic("hgvfh") == "الربا"
 
 
-def test_each_style_keeps_its_own_length_whatever_the_model_wrote():
-    # style check, 6 October 2026: 13 sentences for a child, sentences of 24 words
-    from muhawir.pipeline import STYLE_LIMITS, fit_style
-    short = [Claim(f"جملة قصيرة رقم {i}.", ("a",)) for i in range(20)]
+def test_each_style_has_a_ceiling_for_a_runaway_answer_and_keeps_every_checked_sentence_below_it():
+    # style check, 6 October 2026: 13 sentences for a child; since #100 only a runaway answer is cut, never a complete one
+    from muhawir.pipeline import STYLE_CEILING, fit_style
+    short = [Claim(f"جملة قصيرة رقم {i}.", ("a",)) for i in range(40)]
     long_one = Claim(" ".join(["كلمة"] * 30) + ".", ("a",))
-    assert len(fit_style(short, "kids", False)) == STYLE_LIMITS["kids"][0]
-    assert len(fit_style(short, "kids", True)) == STYLE_LIMITS["kids"][1]
-    assert len(fit_style(short, "extended", False)) == STYLE_LIMITS["extended"][0]
+    assert len(fit_style(short, "kids", False)) == STYLE_CEILING["kids"][0]
+    assert len(fit_style(short, "kids", True)) == STYLE_CEILING["kids"][1]
+    assert len(fit_style(short, "extended", False)) == STYLE_CEILING["extended"][0]
+    assert fit_style(short[:10], "youth", False) == short[:10]
     # a long sentence is dropped only when the answer is too long for a child, and then before any short one:
     # within the limit it stays, as it may carry the condition the sentence before it depends on (19 October 2026)
     assert fit_style([long_one] + short[:4], "kids", False) == [long_one] + short[:4]
-    kids = fit_style([long_one] + short[:6], "kids", False)
-    assert long_one not in kids and kids == short[:5]
+    ceiling = STYLE_CEILING["kids"][0]
+    kids = fit_style([long_one] + short[:ceiling], "kids", False)
+    assert long_one not in kids and kids == short[:ceiling]
     assert fit_style([long_one, short[0]], "kids", False) == [long_one, short[0]]
 
 
