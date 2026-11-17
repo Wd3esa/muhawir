@@ -67,6 +67,21 @@ def durations(values):
             "p95_s": values[math.ceil(.95 * len(values)) - 1] / 1e9, "max_s": values[-1] / 1e9}
 
 
+def loss_summary(rows):
+    """What each step removed, summed over the answers that recorded it: counts only. «answers_with» says how many
+    answers reached the step; a step that removes nothing shows no key."""
+    stages = {}
+    for row in rows:
+        for event in row["events"]:
+            if event.get("kind") != "loss":
+                continue
+            stage = stages.setdefault(event["stage"], {"answers_with": 0})
+            stage["answers_with"] += 1
+            for key, value in event.get("counts", {}).items():
+                stage[key] = stage.get(key, 0) + value
+    return stages
+
+
 def summarize(rows):
     revisions = {row.get("code_revision") for row in rows}
     if len(revisions) > 1:
@@ -97,6 +112,7 @@ def summarize(rows):
         "http_errors": sum(row["http_status"] >= 400 for row in rows),
         "statuses": dict(Counter(row["status"] for row in rows)),
         "groups": {key: durations(values) for key, values in sorted(groups.items())},
+        "loss": loss_summary(rows),
         "observed_transport_calls": len(calls),
         "transport_errors": sum(event["outcome"] != "ok" for event in calls),
         "calls_by_stage": dict(Counter(event["stage"] for event in calls)),

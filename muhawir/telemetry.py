@@ -147,6 +147,16 @@ def support_reuse(count):
         trace.add({"kind": "reuse", "name": "support_positive", "count": count})
 
 
+def loss(stage, **counts):
+    """What a step of the answer kept and removed, as counts only (never a sentence, a passage or a question).
+    Names are fixed words chosen in the code; values are small non-negative integers."""
+    trace = _current.get()
+    if trace is None:
+        return
+    clean = {k: v for k, v in counts.items() if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 100000}
+    trace.add({"kind": "loss", "stage": stage, "counts": clean})
+
+
 def cache_hit(where):
     trace = _current.get()
     if trace is not None:

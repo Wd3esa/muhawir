@@ -177,3 +177,16 @@ sha256sum muhawir/pipeline.py
 - **الأجوبة المحفوظة:** المنتهية (بعد 30 يومًا) تُحذف فعلًا. والإحالة (حالة شخصية أو ضيق) لا تُكتب على القرص. وملاحظة الخصوصية في الصفحة تذكر الحفظ.
 - **المتجهات والمقاطع:** بعد بناء متجهات أو تنزيلها، شغّل `.venv/bin/python scripts/stamp_vectors.py` مرة واحدة ثم أعد التشغيل. إن تغيّر نص مقطع بعدها فلن تُستعمل المتجهات القديمة (يستمر البحث بالكلمات)، و`/api/ready` يُظهر `vectors_corpus`: `matches` أو `unverified` أو `mismatch`.
 - **ذاكرة الصوت:** الملفات أقدم من 30 يومًا تُحذف، والحجم حتى 500 ميغابايت (`MUHAWIR_TTS_CACHE_DAYS` و`MUHAWIR_TTS_CACHE_MB`).
+
+## Measuring answer quality (issue #100)
+
+**Loss log.** With `MUHAWIR_TRACE=1` each answer's trace also carries `loss` events with counts only: passages offered and
+sources, sentences drafted, kept and rejected (by reason), whether a rewrite ran and was adopted, the relevance verdict and
+missing parts, and how many sentences each display filter and the length cap removed. `scripts/analyze_request_traces.py`
+sums them under `"loss"`. Nothing of the question, a sentence or a passage is recorded.
+
+**Gold set.** `eval_sets/gold_questions.json` holds the questions with the key points the sources should state. The key
+points are drafts until the owner reviews them (`"reviewed": false`). `scripts/eval_gold.py run` asks a running server every
+question; add `--judge` (a short paid call per answered question, with the owner's approval) to score the key points.
+`scripts/eval_gold.py compare before.json after.json` shows what improved and what got worse. Run it before and after every
+change to search, writing or checking; a change that lowers the score does not merge.

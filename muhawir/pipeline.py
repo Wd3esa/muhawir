@@ -16,7 +16,7 @@ import re
 import sqlite3
 import threading
 import time
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from .telemetry import ThreadPoolExecutor
 from . import telemetry
 from dataclasses import asdict, dataclass, field, replace
@@ -524,6 +524,11 @@ _REJECTED_BECAUSE = (
     ("dropped_condition", "حذفتَ قيدًا أو شرطًا من المقطع فصار الحكم أعمّ مما فيه؛ اذكر القيد كما في المقطع"),
     ("distortion", "غيّرتَ معنى المقطع (من قال لمن، أو النفي والإثبات، أو نسبة القول)"),
 )
+
+
+def _reason_key(reason: str) -> str:
+    """A fixed word for why a sentence was rejected (the keys of _REJECTED_BECAUSE), so the loss log can count them."""
+    return next((en.replace(" ", "_") for en, _ in _REJECTED_BECAUSE if reason.startswith(en) or en in reason), "other")
 
 
 def _referral_kind(res: Response, question: str) -> str:
@@ -1239,43 +1244,61 @@ class Muhawir:
             progress("source", list(dict.fromkeys(self.corpus.source_of(p).name for p in passages)))
         return passages, queries
 
-    def _display_claims(self, kept, corpus, style, lang, personal, extra, question):
-        """The same deterministic final text for the reviewer and for publication."""
+    def _display_claims(self, kept, corpus, style, lang, personal, extra, question, ledger=None):
+        """The same deterministic final text for the reviewer and for publication. `ledger`, when given, receives
+        how many sentences each filter removed (counts only), so a loss can be seen and not guessed."""
+        def note(name, before, after):
+            if ledger is not None and before != after:
+                ledger[name] = ledger.get(name, 0) + (before - after)
         kind, feeling = extra.get("kind", ""), extra.get("feeling", "")
         contemporary = kind == "contemporary"
         if contemporary:
             words = classify.product_words(f"{extra.get('_source_question', '')} {question}")
             if words:
+                before = len(kept)
                 kept = [c for c in kept if any((p := corpus.passage(pid)) is not None and
                         classify.speaks_of(p.text, words) for pid in c.passage_ids)]
+                note("product_filter", before, len(kept))
         answer = [c for c in kept if not c.school]
         answer = [replace(c, text=_agreed_upon(c.text, {corpus.passage(pid).source_id for pid in c.passage_ids}))
                   for c in answer]
         answer = [replace(c, text=_saying_notice(_hadith_notice(c.text, ps), ps)) for c in answer
                   for ps in [[corpus.passage(pid) for pid in c.passage_ids]]]
         if contemporary:  # a fatwa is never applied to the company asked about: a sentence naming it is dropped
+            before = len(answer)
             answer = [c for c in answer if not classify.names_company(c.text)]
+            note("names_company", before, len(answer))
         # «(الآية)» marks a verse a book cites without its text: a sentence carrying it would show no verse
+        before = len(answer)
         answer = [c for c in answer if bayyinat.VERSE not in c.text]
+        note("verse_marker", before, len(answer))
         if contemporary or personal or kind == "ruling" or feeling == "sad":  # no invented example near a ruling or grief
+            before = len(answer)
             answer = [c for c in answer if not is_example(c.text)]
+            note("example", before, len(answer))
         if kind not in ("ruling", "contemporary") and style != "extended" and not personal:
             # a question on a meaning, kinds or wisdom gets what the sources agree on, not the disagreement
+            before = len(answer)
             answer = [c for c in answer if not _DISAGREEMENT.search(c.text)]
+            note("disagreement", before, len(answer))
         # who said it, from the source list: «الفتوى توضح أن…» names the mufti, «وهذا ما ورد في الفتوى» goes; a ruling
         # that names no one is credited to the sources it cites, or dropped if it cites only verses or hadith
         answer = [replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang)) for c in answer]
         rules = contemporary or personal or kind == "ruling"
+        before = len(answer)
         answer = [replace(c, text=t) for c in answer
                   for t in [c.text if is_example(c.text) or not (rules or attribution.prefers(c.text))
                             else attribution.credited(c.text, c.passage_ids, corpus, lang)] if t]
+        note("attribution_empty", before, len(answer))
         if answer and _LEADING_LINK.match(answer[0].text):  # «كما تشمل…» cannot open an answer
             answer[0] = replace(answer[0], text=_without_leading_link(answer[0].text))
         listing = bool(extra.get("_listing", False)) or kind == "how"
         answer = retain_inline_qualification(compact_provenance(answer, corpus, lang), corpus)
         by_id = {pid: corpus.passage(pid) for c in answer for pid in c.passage_ids}
         answer = lead_with_requested_text(answer, by_id, extra.get("answer_request"))
+        before = len(answer)
         answer = fit_style(answer, style, listing, (extra.get("answer_request") or {}).get("rituals"))
+        note("length_cut", before, len(answer))
         answer = [replace(c, text=_without_label(c.text, c.label)) for c in answer]
         named = _named_views([replace(c, text=attribution.without_meta(c.text, c.passage_ids, corpus, lang))
                               for c in kept if c.school])
@@ -1304,6 +1327,8 @@ class Muhawir:
         if getattr(self.generator, "last_note", "") == ALL_MODELS_FAILED:
             # the model could not be reached: say so honestly instead of "nothing found in the sources"
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic), ALL_MODELS_FAILED)
+        telemetry.loss("draft", offered=len(passages), sources=len({p.source_id for p in passages}), drafted=len(draft),
+                       parts=len((extra.get("answer_request") or {}).get("requirements") or []))
         progress("checking")
         early: dict = {}
         # Children use the same judge slot for relevance and clarity; no extra successful-path call.
@@ -1338,6 +1363,8 @@ class Muhawir:
             return self._why(Response(UNAVAILABLE, t["unavailable"], synthetic=synthetic),
                              "support check could not run")
         kept, rejected = result
+        telemetry.loss("check", kept=len(kept), rejected=len(rejected),
+                       **{"why_" + k: n for k, n in Counter(_reason_key(r.reason) for r in rejected).items()})
         can_review = bool(getattr(self.generator, "check_support", None))
         rewritten = False
 
@@ -1349,7 +1376,9 @@ class Muhawir:
                 redraft = self.generator.generate(question, passages, style, lang, personal=personal, feedback=feedback,
                                                   **writer_extra)
                 second = self._checked(retain_inline_qualification(compact_provenance(self._tidy(redraft, allowed), corpus, lang), corpus), corpus, allowed, passages, question, support_memo=support_memo) if redraft else None
-            if second is not None and second[0] and (coverage_repair or style == "kids" or len(second[0]) > len(kept)):
+            adopted = second is not None and bool(second[0]) and (coverage_repair or style == "kids" or len(second[0]) > len(kept))
+            telemetry.loss("rewrite", asked=1, adopted=int(adopted), before=len(kept), after=len(second[0]) if second else 0)
+            if adopted:
                 kept, rejected = second
                 return True
             return False
@@ -1373,6 +1402,8 @@ class Muhawir:
             if early.get("pool") is not None:
                 early["pool"].shutdown(wait=False)
         verdict = review.verdict
+        telemetry.loss("review", **{"verdict_" + (verdict if verdict in ("yes", "partly", "no") else "none"): 1},
+                       missing_parts=len(review.missing_parts or ()))
         partial = verdict == "partly"
         unclear = style == "kids" and review.clarity == "rewrite"
         if verdict != "no" and (partial or unclear) and not rewritten and can_review:
@@ -1391,8 +1422,10 @@ class Muhawir:
             unclear = style == "kids" and (review.clarity == "rewrite" or (unclear and review.clarity != "clear"))
         if verdict == "no":  # sourced and checked, but about another matter than the question: not an answer
             return _Written(passages, allowed, corpus, [], rejected, off_topic=True)
+        ledger: dict = {}
         final, _, _ = self._display_claims(kept, corpus, style, lang, personal,
-                         {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}, question)
+                         {**extra, "_listing": bool(getattr(self.generator, "last_as_list", False))}, question, ledger=ledger)
+        telemetry.loss("display", kept=len(kept), shown=len(final), **ledger)
         form = (extra.get("answer_request") or {}).get("form")
         if form in ("hadith_text", "verse_text") and not any(required_quote(c, {p.id: p for p in passages}, form) for c in final):
             return self._why(Response(UNAVAILABLE, t["requested_text_unavailable"], synthetic=synthetic),
