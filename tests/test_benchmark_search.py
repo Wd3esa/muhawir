@@ -66,3 +66,13 @@ def test_the_data_files_are_read_in_the_official_formats(tmp_path):
     assert B.load_passages(tmp_path)[0] == ("1:1-4", "بسم الله")
     assert B.load_questions(tmp_path, "test")["501"] == "سؤال آخر؟"
     assert B.load_qrels(tmp_path, "test") == {"500": {"1:1-4"}, "501": set()}
+
+
+def test_embeddinggemma2_uses_its_prefixes_and_loads_text_only():
+    """The model card's query/document prefixes, and no picture or sound encoders, are used for EmbeddingGemma 2."""
+    import benchmark_search as b
+    name = "google/embeddinggemma-2"
+    q, p = next(v for k, v in b.PREFIXES.items() if name.startswith(k))
+    assert q == "task: search result | query: " and p == "title: none | text: "
+    assert b.TEXT_ONLY[name]["config_kwargs"] == {"vision_config": None, "audio_config": None}
+    assert name in b.DEFAULT_MODELS

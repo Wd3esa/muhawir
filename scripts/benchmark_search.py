@@ -42,11 +42,16 @@ OFFICIAL = "https://gitlab.com/bigirqu/quran-qa-2023"
 MIRROR = "https://github.com/YahyaHammoudeh0/islamic-rag-quran"  # carries the same Task A data under islamic-rag/test_data
 DATA_HOME = Path.home() / "benchmarks" / "quran-qa-2023"
 DEFAULT_MODELS = ("BAAI/bge-m3", "intfloat/multilingual-e5-large",
-                  "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2")
+                  "Omartificial-Intelligence-Space/Arabic-Triplet-Matryoshka-V2", "google/embeddinggemma-2")
 RERANKER = "BAAI/bge-reranker-v2-m3"
 DEPTH, POOL, RRF_K = 10, 50, 60
 # models that expect a prefix on questions and on passages
-PREFIXES = {"intfloat/": ("query: ", "passage: ")}
+PREFIXES = {"intfloat/": ("query: ", "passage: "),
+            "google/embeddinggemma": ("task: search result | query: ", "title: none | text: ")}
+# models loaded without their picture and sound encoders (text is all search needs), in float32 (its card warns that
+# float16 can give NaN on CPU)
+TEXT_ONLY = {"google/embeddinggemma-2": {"config_kwargs": {"vision_config": None, "audio_config": None},
+                                         "model_kwargs": {"torch_dtype": "float32"}}}
 
 
 # ---- data ---------------------------------------------------------------------------------------------------------
@@ -135,7 +140,7 @@ def dense_ranker(model_name: str, passages: list[tuple[str, str]], encoder=None)
     import numpy as np
     if encoder is None:
         from sentence_transformers import SentenceTransformer
-        encoder = SentenceTransformer(model_name, device="cpu")
+        encoder = SentenceTransformer(model_name, device="cpu", **TEXT_ONLY.get(model_name, {}))
     q_prefix, p_prefix = next((v for k, v in PREFIXES.items() if model_name.startswith(k)), ("", ""))
     matrix = np.asarray(encoder.encode([p_prefix + t for _, t in passages], batch_size=16, normalize_embeddings=True))
     ids = [pid for pid, _ in passages]
