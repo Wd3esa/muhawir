@@ -57,7 +57,8 @@ def ask(client: httpx.Client, url: str, model: str, message: str, options: dict 
     start = time.perf_counter()
     try:
         r = client.post(f"{url}/api/chat", json={
-            "model": model, "stream": False, "format": UNDERSTAND_SCHEMA if schema else "json",
+            "model": model, "stream": False, "think": False,  # a reasoning model must answer, not think aloud
+            "format": UNDERSTAND_SCHEMA if schema else "json",
             "options": {"temperature": 0, **(options or {})},
             "messages": [{"role": "system", "content": UNDERSTAND_PROMPT},
                          {"role": "user", "content": f"الرسالة: <<<{message}>>>"}]})

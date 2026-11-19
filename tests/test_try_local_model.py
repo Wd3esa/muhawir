@@ -45,5 +45,6 @@ def test_options_reach_ollama_and_no_schema_asks_for_plain_json():
 
     T.ask(Client(), "u", "m", "q", {"num_ctx": 8192}, schema=False)
     assert sent["options"] == {"temperature": 0, "num_ctx": 8192} and sent["format"] == "json"
+    assert sent["think"] is False
     T.ask(Client(), "u", "m", "q")
     assert sent["format"] == T.UNDERSTAND_SCHEMA
