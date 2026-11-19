@@ -52,7 +52,7 @@ def fits(data, schema) -> str:
 
 
 def ask(client: httpx.Client, url: str, model: str, message: str, options: dict | None = None,
-        schema: bool = True) -> tuple[object, float, str]:
+        schema: bool = True, stats: dict | None = None) -> tuple[object, float, str]:
     """(parsed reply or None, seconds, error text). ``options`` are Ollama's (num_ctx, num_predict, ...)."""
     start = time.perf_counter()
     try:
@@ -63,10 +63,24 @@ def ask(client: httpx.Client, url: str, model: str, message: str, options: dict 
             "messages": [{"role": "system", "content": UNDERSTAND_PROMPT},
                          {"role": "user", "content": f"الرسالة: <<<{message}>>>"}]})
         r.raise_for_status()
-        text = r.json()["message"]["content"]
+        body = r.json()
+        if stats is not None:  # Ollama's own counters: tokens read, tokens written, and nanoseconds spent on each
+            stats.update({k: body.get(k, 0) for k in
+                          ("prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration")})
+        text = body["message"]["content"]
         return json.loads(text), time.perf_counter() - start, ""
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as exc:
         return None, time.perf_counter() - start, f"{type(exc).__name__}: {str(exc)[:80]}"
+
+
+def speed(stats: dict) -> str:
+    """'  read N tok in X s, wrote M tok at Y tok/s': where the time went (reading the prompt or writing the reply)."""
+    if not stats.get("eval_count"):
+        return ""
+    read_s = stats["prompt_eval_duration"] / 1e9
+    write_s = max(stats["eval_duration"] / 1e9, 1e-9)
+    return (f"\n      read {stats['prompt_eval_count']} tok in {read_s:.0f}s, "
+            f"wrote {stats['eval_count']} tok at {stats['eval_count'] / write_s:.1f} tok/s")
 
 
 def main() -> int:
@@ -91,7 +105,8 @@ def main() -> int:
     seconds, good, rows = [], 0, []
     with httpx.Client(timeout=args.timeout) as client:
         for q in questions:
-            data, took, error = ask(client, args.url, args.model, q["question"], options, not args.no_schema)
+            stats: dict = {}
+            data, took, error = ask(client, args.url, args.model, q["question"], options, not args.no_schema, stats)
             problem = error or fits(data, UNDERSTAND_SCHEMA)
             seconds.append(took)
             good += not problem
@@ -100,7 +115,7 @@ def main() -> int:
                   f"kind={(data or {}).get('kind', '?') if isinstance(data, dict) else '?'} "
                   f"form={req.get('form', '?')} parts={len(req.get('requirements', []) or [])} "
                   f"queries={len((data or {}).get('queries', []) or []) if isinstance(data, dict) else 0}"
-                  + (f"  [{problem}]" if problem else ""), flush=True)
+                  + (f"  [{problem}]" if problem else "") + speed(stats), flush=True)
             if not problem:
                 rows.append((q, data))
     print(f"\n{args.model}: {good}/{len(questions)} replies fit the schema; "
