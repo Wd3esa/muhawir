@@ -1,0 +1,102 @@
+"""Try a small local model (served by Ollama) on Muhawir's understanding step. FREE: no paid model is called.
+
+For each gold question the model gets the real understanding prompt and schema (muhawir/generate.py) and must return
+the JSON the pipeline needs. Reported per question: seconds, whether the reply is valid JSON that fits the schema,
+and the kind / form / parts / search phrases it chose; then a summary. Nothing is written to the database or the service.
+
+On the server (Ollama running, model pulled):
+    ollama pull lfm3-omni
+    .venv/bin/python scripts/try_local_model.py --model lfm3-omni --per-field 2
+
+A reply that does not fit the schema is what the pipeline would reject: it counts as a failure here too.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import statistics
+import sys
+import time
+from pathlib import Path
+
+import httpx
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from muhawir.generate import UNDERSTAND_PROMPT, UNDERSTAND_SCHEMA  # noqa: E402
+
+
+def pick(questions: list[dict], per_field: int) -> list[dict]:
+    """The first ``per_field`` questions of every field, so each kind of question is tried."""
+    seen: dict[str, int] = {}
+    chosen = []
+    for q in questions:
+        seen[q["field"]] = seen.get(q["field"], 0) + 1
+        if seen[q["field"]] <= per_field:
+            chosen.append(q)
+    return chosen
+
+
+def fits(data, schema) -> str:
+    """'' when ``data`` fits the schema, else the first problem (jsonschema when installed, else a key check)."""
+    try:
+        import jsonschema
+        jsonschema.validate(data, schema)
+        return ""
+    except ImportError:
+        missing = [k for k in schema["required"] if not isinstance(data, dict) or k not in data]
+        return f"missing {missing}" if missing else ""
+    except jsonschema.ValidationError as exc:
+        return exc.message[:80]
+
+
+def ask(client: httpx.Client, url: str, model: str, message: str) -> tuple[object, float, str]:
+    """(parsed reply or None, seconds, error text)."""
+    start = time.perf_counter()
+    try:
+        r = client.post(f"{url}/api/chat", json={
+            "model": model, "stream": False, "format": UNDERSTAND_SCHEMA, "options": {"temperature": 0},
+            "messages": [{"role": "system", "content": UNDERSTAND_PROMPT},
+                         {"role": "user", "content": f"الرسالة: <<<{message}>>>"}]})
+        r.raise_for_status()
+        text = r.json()["message"]["content"]
+        return json.loads(text), time.perf_counter() - start, ""
+    except (httpx.HTTPError, KeyError, json.JSONDecodeError) as exc:
+        return None, time.perf_counter() - start, f"{type(exc).__name__}: {str(exc)[:80]}"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--model", default="lfm3-omni")
+    ap.add_argument("--url", default="http://localhost:11434")
+    ap.add_argument("--per-field", type=int, default=2)
+    ap.add_argument("--timeout", type=float, default=300)
+    args = ap.parse_args()
+    gold = json.loads((ROOT / "eval_sets" / "gold_questions.json").read_text(encoding="utf-8"))["questions"]
+    questions = pick(gold, args.per_field)
+    seconds, good, rows = [], 0, []
+    with httpx.Client(timeout=args.timeout) as client:
+        for q in questions:
+            data, took, error = ask(client, args.url, args.model, q["question"])
+            problem = error or fits(data, UNDERSTAND_SCHEMA)
+            seconds.append(took)
+            good += not problem
+            req = (data or {}).get("answer_request", {}) if isinstance(data, dict) else {}
+            print(f"{'✓' if not problem else '✗'} {q['id']:4} {q['field']:9} {took:5.1f}s  "
+                  f"kind={(data or {}).get('kind', '?') if isinstance(data, dict) else '?'} "
+                  f"form={req.get('form', '?')} parts={len(req.get('requirements', []) or [])} "
+                  f"queries={len((data or {}).get('queries', []) or []) if isinstance(data, dict) else 0}"
+                  + (f"  [{problem}]" if problem else ""), flush=True)
+            if not problem:
+                rows.append((q, data))
+    print(f"\n{args.model}: {good}/{len(questions)} replies fit the schema; "
+          f"median {statistics.median(seconds):.1f}s, slowest {max(seconds):.1f}s")
+    for q, data in rows[:3]:
+        print(f"\n{q['id']} {q['question']}\n  question: {data['question']}\n  queries: {data['queries']}\n"
+              f"  parts: {data['answer_request']['requirements']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
