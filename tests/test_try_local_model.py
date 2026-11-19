@@ -48,3 +48,23 @@ def test_options_reach_ollama_and_no_schema_asks_for_plain_json():
     assert sent["think"] is False
     T.ask(Client(), "u", "m", "q")
     assert sent["format"] == T.UNDERSTAND_SCHEMA
+
+
+def test_speed_line_says_where_the_time_went():
+    stats = {"prompt_eval_count": 5000, "prompt_eval_duration": 50_000_000_000,
+             "eval_count": 400, "eval_duration": 100_000_000_000}
+    line = T.speed(stats)
+    assert "read 5000 tok in 50s" in line and "wrote 400 tok at 4.0 tok/s" in line
+    assert T.speed({}) == ""
+
+
+def test_ask_fills_stats_from_ollama():
+    class Client:
+        def post(self, url, json):
+            r = _Reply('{"a": 1}')
+            r.json = lambda: {"message": {"content": '{"a": 1}'}, "eval_count": 7, "eval_duration": 2}
+            return r
+
+    stats: dict = {}
+    T.ask(Client(), "u", "m", "q", stats=stats)
+    assert stats["eval_count"] == 7 and stats["prompt_eval_count"] == 0
