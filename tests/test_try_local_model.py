@@ -33,3 +33,17 @@ def test_invalid_json_and_schema_misfit_are_failures_and_a_full_reply_is_not():
                                "surah": "", "ayah": 0}}
     data, _, error = T.ask(_Client(json.dumps(full)), "u", "m", "q")
     assert not error and T.fits(data, T.UNDERSTAND_SCHEMA) == ""
+
+
+def test_options_reach_ollama_and_no_schema_asks_for_plain_json():
+    sent = {}
+
+    class Client:
+        def post(self, url, json):
+            sent.update(json)
+            return _Reply('{"a": 1}')
+
+    T.ask(Client(), "u", "m", "q", {"num_ctx": 8192}, schema=False)
+    assert sent["options"] == {"temperature": 0, "num_ctx": 8192} and sent["format"] == "json"
+    T.ask(Client(), "u", "m", "q")
+    assert sent["format"] == T.UNDERSTAND_SCHEMA

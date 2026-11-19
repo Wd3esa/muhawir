@@ -51,12 +51,14 @@ def fits(data, schema) -> str:
         return exc.message[:80]
 
 
-def ask(client: httpx.Client, url: str, model: str, message: str) -> tuple[object, float, str]:
-    """(parsed reply or None, seconds, error text)."""
+def ask(client: httpx.Client, url: str, model: str, message: str, options: dict | None = None,
+        schema: bool = True) -> tuple[object, float, str]:
+    """(parsed reply or None, seconds, error text). ``options`` are Ollama's (num_ctx, num_predict, ...)."""
     start = time.perf_counter()
     try:
         r = client.post(f"{url}/api/chat", json={
-            "model": model, "stream": False, "format": UNDERSTAND_SCHEMA, "options": {"temperature": 0},
+            "model": model, "stream": False, "format": UNDERSTAND_SCHEMA if schema else "json",
+            "options": {"temperature": 0, **(options or {})},
             "messages": [{"role": "system", "content": UNDERSTAND_PROMPT},
                          {"role": "user", "content": f"الرسالة: <<<{message}>>>"}]})
         r.raise_for_status()
@@ -72,13 +74,23 @@ def main() -> int:
     ap.add_argument("--url", default="http://localhost:11434")
     ap.add_argument("--per-field", type=int, default=2)
     ap.add_argument("--timeout", type=float, default=300)
+    ap.add_argument("--num-ctx", type=int, default=8192,
+                    help="context window in tokens; the prompt alone is about 10,000 Arabic characters, and Ollama's "
+                         "default window may cut it")
+    ap.add_argument("--num-predict", type=int, default=1024, help="longest reply in tokens")
+    ap.add_argument("--repeat-penalty", type=float, default=None)
+    ap.add_argument("--no-schema", action="store_true", help="ask for any JSON, not one forced to the schema")
     args = ap.parse_args()
     gold = json.loads((ROOT / "eval_sets" / "gold_questions.json").read_text(encoding="utf-8"))["questions"]
     questions = pick(gold, args.per_field)
+    options = {"num_ctx": args.num_ctx, "num_predict": args.num_predict}
+    if args.repeat_penalty:
+        options["repeat_penalty"] = args.repeat_penalty
+    print(f"options: {options}, schema {'off' if args.no_schema else 'on'}")
     seconds, good, rows = [], 0, []
     with httpx.Client(timeout=args.timeout) as client:
         for q in questions:
-            data, took, error = ask(client, args.url, args.model, q["question"])
+            data, took, error = ask(client, args.url, args.model, q["question"], options, not args.no_schema)
             problem = error or fits(data, UNDERSTAND_SCHEMA)
             seconds.append(took)
             good += not problem
