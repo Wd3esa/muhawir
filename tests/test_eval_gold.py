@@ -66,3 +66,35 @@ def test_summary_and_comparison():
     assert s["fiqh"]["key_point_recall"] == 0.25 and s["fiqh"]["contradictions"] == 1
     text = g.compare({"rows": [a]}, {"rows": [b]})
     assert "100%" in text and "25%" in text and "G1 4→1 of 4" in text
+
+
+def test_english_and_urdu_questions_are_in_the_set_and_asked_in_their_language():
+    items = json.loads(g.GOLD.read_text(encoding="utf-8"))["questions"]
+    by = {lang: [i for i in items if i.get("lang", "ar") == lang] for lang in ("ar", "en", "ur")}
+    assert len(by["en"]) >= 10 and len(by["ur"]) >= 10 and len(items) <= 80
+    assert all(i.get("lang", "ar") in ("ar", "en", "ur") for i in items)
+    # the Urdu questions are written in Urdu letters (one is Urdu typed in Latin letters, on purpose)
+    assert sum(bool(g._URDU_LETTERS.search(i["question"])) for i in by["ur"]) >= 9
+    assert next(i for i in items if i["id"] == "G55")["expect"] == "answer"  # counted by code: digits are expected
+
+
+def test_the_answer_language_is_judged_by_its_letters():
+    assert g.answer_lang_ok("الصلاة خمس مرات في اليوم", "ar")
+    assert not g.answer_lang_ok("نماز دن میں پانچ بار ہے، روزہ", "ar")  # Urdu letters in an Arabic answer
+    assert g.answer_lang_ok("نماز دن میں پانچ بار فرض ہے۔ ٹھیک", "ur")
+    assert not g.answer_lang_ok("الصلاة خمس مرات في اليوم", "ur")  # Arabic spelling, no Urdu letters
+    assert g.answer_lang_ok('Prayer is five times a day. «الصلاة»', "en")  # a quoted word does not make it Arabic
+    assert not g.answer_lang_ok("Prayer is five times a day.", "ar")
+    assert not g.answer_lang_ok("", "en")
+
+
+def test_a_wrong_language_answer_is_counted_per_language():
+    en = {"id": "G9", "field": "fiqh", "lang": "en", "key_points": [], "expect": "answer"}
+    ok = g.score_row(en, _res("answered", "Wudu starts with washing the hands."), 1.0, None)
+    bad = g.score_row(dict(en, id="G10"), _res("answered", "الوضوء يبدأ بغسل الكفين"), 1.0, None)
+    assert ok["lang_ok"] and not bad["lang_ok"]
+    summary = g.summarize([ok, bad, g.score_row({"id": "G1", "field": "fiqh", "key_points": [], "expect": "answer"},
+                                                _res("answered", "الوضوء"), 1.0, None)])
+    assert summary["lang:en"]["n"] == 2 and summary["lang:en"]["wrong_language"] == 1
+    assert "lang:ar" not in summary and summary["ALL"]["n"] == 3
+    assert "lang:en" in g.render(summary)

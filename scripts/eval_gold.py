@@ -47,12 +47,31 @@ def load_gold(path: Path = GOLD) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))["questions"]
 
 
-def ask(url: str, question: str) -> tuple[dict, float]:
-    body = json.dumps({"question": question, "style": "youth", "lang": "ar", "history": []}).encode()
+def ask(url: str, question: str, lang: str = "ar") -> tuple[dict, float]:
+    body = json.dumps({"question": question, "style": "youth", "lang": lang, "history": []}).encode()
     request = urllib.request.Request(f"{url}/api/ask", data=body, headers={"Content-Type": "application/json"})
     started = time.time()
     with urllib.request.urlopen(request, timeout=600) as reply:
         return json.loads(reply.read()), time.time() - started
+
+
+_URDU_LETTERS = re.compile(r"[\u0679\u0688\u0691\u06BA\u06BE\u06C1\u06D2\u06D3]")
+_ARABIC_SCRIPT = re.compile(r"[\u0600-\u06FF]")
+_LATIN_LETTERS = re.compile(r"[A-Za-z]")
+
+
+def answer_lang_ok(text: str, lang: str) -> bool:
+    """The answer is written in the language asked for, judged by its letters (quoted Arabic verses are allowed in
+    any answer): Urdu has its own letters (ٹ ڈ ڑ ں ھ ہ ے), English is mostly Latin, Arabic is Arabic script without them."""
+    arabic, latin = len(_ARABIC_SCRIPT.findall(text)), len(_LATIN_LETTERS.findall(text))
+    letters = arabic + latin
+    if not letters:
+        return False
+    if lang == "en":
+        return latin / letters >= 0.5
+    if lang == "ur":
+        return bool(_URDU_LETTERS.search(text)) and arabic / letters >= 0.6
+    return arabic / letters >= 0.6 and not _URDU_LETTERS.search(text)
 
 
 def answer_text(res: dict) -> str:
@@ -75,9 +94,12 @@ def judge_answer(call, text: str, points: list[str]) -> dict | None:
 def score_row(item: dict, res: dict, seconds: float, judged: dict | None) -> dict:
     status, text = res.get("status", ""), answer_text(res)
     expect = item.get("expect", "answer")
-    row = {"id": item["id"], "field": item["field"], "status": status, "seconds": round(seconds, 1),
+    lang = item.get("lang", "ar")
+    row = {"id": item["id"], "field": item["field"], "lang": lang, "status": status, "seconds": round(seconds, 1),
            "sentences": len(res.get("claims", [])), "sources": len(res.get("sources", [])),
            "status_ok": status in ALLOWED.get(expect, {"answered"}), "text": text}
+    if status == "answered":
+        row["lang_ok"] = answer_lang_ok(text, lang)
     if expect == "no_invented_number":
         row["status_ok"] = status != "answered" or not DIGITS.search(text)  # a number nobody counted is a wrong statement
     points = item.get("key_points") or []
@@ -96,9 +118,10 @@ def summarize(rows: list[dict]) -> dict:
     """Per field and overall: how many answered, share of key points stated (an unanswered question states none),
     contradictions, status as expected, seconds."""
     out = {}
-    fields = sorted({r["field"] for r in rows}) + ["ALL"]
+    langs = sorted({r.get("lang", "ar") for r in rows} - {"ar"})  # Arabic is most of the set: only others get a line
+    fields = sorted({r["field"] for r in rows}) + ["ALL"] + [f"lang:{x}" for x in langs]
     for field in fields:
-        part = [r for r in rows if field == "ALL" or r["field"] == field]
+        part = [r for r in rows if field == "ALL" or r["field"] == field or field == f'lang:{r.get("lang", "ar")}']
         with_points = [r for r in part if r.get("points")]
         judged = [r for r in with_points if r.get("covered") is not None]
         points = sum(r["points"] for r in judged)
@@ -107,6 +130,7 @@ def summarize(rows: list[dict]) -> dict:
             "answered": sum(r["status"] == "answered" for r in part),
             "abstained": sum(r["status"] == "abstained" for r in part),
             "status_ok": sum(r["status_ok"] for r in part),
+            "wrong_language": sum(r.get("lang_ok") is False for r in part),
             "key_point_recall": round(sum(r["covered"] for r in judged) / points, 3) if points else None,
             "judged": len(judged), "unjudged_answers": sum(r.get("covered") is None for r in with_points),
             "contradictions": sum(bool(r.get("contradicts")) for r in judged),
@@ -116,12 +140,12 @@ def summarize(rows: list[dict]) -> dict:
 
 
 def render(summary: dict) -> str:
-    head = f'{"field":10} {"n":>3} {"ans":>4} {"abst":>4} {"ok":>3} {"recall":>7} {"contra":>6} {"sec":>6} {"sent":>5}'
+    head = f'{"field":10} {"n":>3} {"ans":>4} {"abst":>4} {"ok":>3} {"recall":>7} {"contra":>6} {"lang":>5} {"sec":>6} {"sent":>5}'
     lines = [head]
     for field, s in summary.items():
         recall = "-" if s["key_point_recall"] is None else f'{s["key_point_recall"]:.0%}'
         lines.append(f'{field:10} {s["n"]:>3} {s["answered"]:>4} {s["abstained"]:>4} {s["status_ok"]:>3} {recall:>7} '
-                     f'{s["contradictions"]:>6} {s["median_seconds"]:>6} {s["avg_sentences"]:>5}')
+                     f'{s["contradictions"]:>6} {s["wrong_language"]:>5} {s["median_seconds"]:>6} {s["avg_sentences"]:>5}')
     return "\n".join(lines)
 
 
@@ -161,7 +185,8 @@ def _service_settings() -> None:
 
 
 def run(args) -> int:
-    items = [i for i in load_gold() if not args.field or i["field"] == args.field][:args.limit or None]
+    items = [i for i in load_gold() if (not args.field or i["field"] == args.field)
+             and (not args.lang or i.get("lang", "ar") == args.lang)][:args.limit or None]
     call = None
     if args.judge:
         _service_settings()
@@ -174,7 +199,7 @@ def run(args) -> int:
     rows = []
     for item in items:
         try:
-            res, seconds = ask(args.url, item["question"])
+            res, seconds = ask(args.url, item["question"], item.get("lang", "ar"))
         except Exception as exc:  # noqa: BLE001
             print(f'{item["id"]} failed: {type(exc).__name__}', file=sys.stderr)
             res, seconds = {"status": "error"}, 0.0
@@ -196,6 +221,7 @@ def main() -> int:
     r.add_argument("--out", required=True)
     r.add_argument("--judge", action="store_true")
     r.add_argument("--field")
+    r.add_argument("--lang", choices=["ar", "en", "ur"], help="only the questions asked in this language")
     r.add_argument("--limit", type=int)
     c = sub.add_parser("compare")
     c.add_argument("before")

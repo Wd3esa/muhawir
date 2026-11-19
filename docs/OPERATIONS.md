@@ -188,6 +188,10 @@ sums them under `"loss"`. Nothing of the question, a sentence or a passage is re
 **Gold set.** `eval_sets/gold_questions.json` holds the questions with the key points the sources should state. The key
 points are drafts until the owner reviews them (`"reviewed": false`). `scripts/eval_gold.py run` asks a running server every
 question; add `--judge` (a short paid call per answered question, with the owner's approval) to score the key points.
+Questions carry an optional `lang` (`en`, `ur`; Arabic by default): G59-G79 are English and Urdu versions of the same
+questions (one Urdu typed in Latin letters), asked with that language, and the scorer counts answers written in the wrong
+language (`lang` column; `--lang en|ur` runs only those). Their key points are in English and are drafts: an Urdu reader
+should review the Urdu questions.
 `scripts/eval_gold.py compare before.json after.json` shows what improved and what got worse. Run it before and after every
 change to search, writing or checking; a change that lowers the score does not merge.
 
