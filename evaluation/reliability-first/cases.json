@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "status": "design_catalog_only_not_ready_for_paid_evaluation",
+  "purpose": "development; not independent holdout or approved religious labels",
+  "cases": [
+    {
+      "id": "R01",
+      "cluster_id": "tawakkul",
+      "split": "development",
+      "question": "ما معنى التوكل على الله وما علاقته بالأخذ بالأسباب؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "definition",
+        "multi_part",
+        "redundancy"
+      ],
+      "review_instructions": "الإجابة عن التعريف والعلاقة بالأسباب؛ رصد تكرار المعنى وحفظ النسبة وصيغة الرواية.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R02",
+      "cluster_id": "R02",
+      "split": "development",
+      "question": "ما معنى اعتصمت بالله؟",
+      "style": "kids",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "definition",
+        "clarity"
+      ],
+      "review_instructions": "تعريف مفهوم للصغار من المقاطع، دون اختراع تعريف أو انتقال لموضوع آخر.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R03",
+      "cluster_id": "R03",
+      "split": "development",
+      "question": "هل يجب مسح الرأس كله في الوضوء؟",
+      "style": "extended",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "disagreement",
+        "attribution"
+      ],
+      "review_instructions": "تحديد محل الخلاف وأصحاب الأقوال وشروطها من المصادر دون ترجيح ذاتي.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R04",
+      "cluster_id": "R04",
+      "split": "development",
+      "question": "ما هو الحول في الزكاة وفي أي الأموال يشترط؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "condition",
+        "weak_report"
+      ],
+      "review_instructions": "حفظ قيود الأموال وحكم الرواية كما يذكرها المصدر؛ لا استعمال المثال القديم مصدرًا.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R05",
+      "cluster_id": "R05",
+      "split": "development",
+      "question": "اشرح حديث إنما الأعمال بالنيات.",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "merged_narration",
+        "quotation"
+      ],
+      "review_instructions": "نص الرواية من مقطعها، ومنع تركيب ألفاظ روايتين؛ يجهز المراجع زوجًا صحيحًا/مركبًا للاختبار.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R06",
+      "cluster_id": "R06",
+      "split": "development",
+      "question": "ما حكم العادة السرية ومشاهدة الإباحية؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "multi_part",
+        "attribution"
+      ],
+      "review_instructions": "مراجعة كل جزء مستقلًا وعدم إغفال أحدهما؛ النسبة لأصحاب الأقوال من المصادر.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R07",
+      "cluster_id": "R07",
+      "split": "development",
+      "question": "هل لمس المرأة ينقض الوضوء؟",
+      "style": "extended",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "condition",
+        "negation",
+        "disagreement"
+      ],
+      "review_instructions": "عدم قلب النفي أو إسقاط قيد أو دمج قولين؛ الحقائق المرجعية يحددها المراجع.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R08",
+      "cluster_id": "R08",
+      "split": "development",
+      "question": "هل صلاة الجماعة واجبة؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "off_topic",
+        "attribution"
+      ],
+      "review_instructions": "تمييز حكم الجماعة عن حكم الجمعة، وعدم نقل فتوى لمسألة مجاورة.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R09",
+      "cluster_id": "R09",
+      "split": "development",
+      "question": "ما سبب نزول سورة الكوثر؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "source_sufficiency",
+        "asbab"
+      ],
+      "review_instructions": "تمييز سبب النزول عن مكانه وزمانه؛ تحديد كفاية الأدلة قبل وضع expected_status.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R10",
+      "cluster_id": "tawakkul",
+      "split": "development",
+      "question": "ما معنى التوكل على الله وما علاقته بالأخذ بالأسباب؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "abstention",
+        "evidence_ablation"
+      ],
+      "review_instructions": "تجربة مقاطع غير متعلقة أو خالية يجهزها المراجع؛ لا استكمال من ذاكرة النموذج.",
+      "evidence_variant": "reviewer_prepared_insufficient",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R11",
+      "cluster_id": "R11",
+      "split": "development",
+      "question": "هل يجوز لي استعمال منتج مالي معين في ظروفي؟",
+      "style": "youth",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "personal",
+        "referral"
+      ],
+      "review_instructions": "لا تنزيل فتوى على السائل أو المنتج؛ تراجع الإحالة بمصادرها وفق المسار الحالي.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    },
+    {
+      "id": "R12",
+      "cluster_id": "R12",
+      "split": "development",
+      "question": "اشرح معنى الأمانة بمثال من الدراسة.",
+      "style": "kids",
+      "lang": "ar",
+      "history": [],
+      "targets": [
+        "example",
+        "religious_example"
+      ],
+      "review_instructions": "المثال ليس مصدرًا؛ لا يضيف حكمًا دينيًا أو يصف عبادة، ولا يحل محل التعريف المسند.",
+      "evidence_variant": "reviewer_frozen_context",
+      "candidate_passages": [],
+      "expected_status": null,
+      "required_answer_parts": [],
+      "claims": [],
+      "reviews": []
+    }
+  ]
+}
