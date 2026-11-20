@@ -98,3 +98,20 @@ def test_a_wrong_language_answer_is_counted_per_language():
     assert summary["lang:en"]["n"] == 2 and summary["lang:en"]["wrong_language"] == 1
     assert "lang:ar" not in summary and summary["ALL"]["n"] == 3
     assert "lang:en" in g.render(summary)
+
+
+def test_an_unavailable_service_is_asked_again_after_a_wait():
+    calls, waits = [], []
+
+    def asker(url, question, lang):
+        calls.append(lang)
+        return ({"status": "unavailable"} if len(calls) < 3 else {"status": "answered"}), 1.0
+
+    res, _, tries = g.ask_patiently("u", {"question": "q", "lang": "ur"}, retries=2, wait=10, sleep=waits.append, asker=asker)
+    assert res["status"] == "answered" and tries == 3 and waits == [10, 20] and calls == ["ur"] * 3
+
+
+def test_the_unavailable_result_is_kept_when_every_try_fails():
+    res, _, tries = g.ask_patiently("u", {"question": "q"}, retries=1, wait=0, sleep=lambda s: None,
+                                    asker=lambda *a: ({"status": "unavailable"}, 2.0))
+    assert res["status"] == "unavailable" and tries == 2

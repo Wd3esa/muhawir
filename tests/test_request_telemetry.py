@@ -208,3 +208,22 @@ def test_duplicate_late_event_is_rejected(tmp_path):
                  ("muhawir_trace_event " + json.dumps(late) + "\n") * 2)
     with pytest.raises(ValueError, match="duplicate event"):
         read_records(p)
+
+
+def test_skip_bad_leaves_out_cut_lines_and_says_so(tmp_path):
+    row = {"schema_version": 1, "request_id": "one", "endpoint": "ask", "cache": "none",
+           "duration_ns": 10_000_000_000, "http_status": 200, "status": "answered", "events": []}
+    lost = {**row, "request_id": "two"}
+    p = tmp_path / "trace.log"
+    p.write_text("\n".join([
+        "w muhawir_trace " + json.dumps(row),
+        'w muhawir_trace {"schema_version":1,"request_id":"cut","dura',  # cut in two by a journal export
+        'w muhawir_trace_event ' + json.dumps({"request_id": "two", "event": {"kind": "span", "event_id": "e1"}}),
+    ]))
+    with pytest.raises(json.JSONDecodeError):
+        read_records(p)  # the default is still strict
+    skipped: list = []
+    rows = read_records(p, skipped)
+    assert [r["request_id"] for r in rows] == ["one"]
+    assert skipped[0] == 2 and "event of request two" in skipped  # the cut line, and the event whose request was lost
+    assert lost["request_id"] not in [r["request_id"] for r in rows]
