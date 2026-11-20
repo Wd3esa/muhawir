@@ -12,24 +12,44 @@ import statistics
 PREFIX = "muhawir_trace "
 
 
-def read_records(path):
-    return read_lines(Path(path).read_text().splitlines())
+def read_records(path, skipped=None):
+    return read_lines(Path(path).read_text().splitlines(), skipped)
 
 
-def read_lines(lines):
-    """The same strict parser for a private in-memory journal export."""
+def read_lines(lines, skipped=None):
+    """The same strict parser for a private in-memory journal export.
+
+    With ``skipped`` (a list) a trace line that is not valid JSON, such as one a journal export cut in two, is not an
+    error: its line number is appended to ``skipped`` and the line is left out, and an event or completion whose request
+    was lost that way is left out too (and listed). Without it every bad line stops the read, as before."""
     rows, ids, late, drained = [], set(), [], {}
+    lenient = skipped is not None
+
+    def load(text, number):
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            if not lenient:
+                raise
+            skipped.append(number)
+            return None
+
     for number, line in enumerate(lines, 1):
         if "muhawir_trace_event " in line:
-            late.append(json.loads(line.split("muhawir_trace_event ", 1)[1]))
+            item = load(line.split("muhawir_trace_event ", 1)[1], number)
+            if item is not None:
+                late.append(item)
             continue
         if "muhawir_trace_drained " in line:
-            tail = json.loads(line.split("muhawir_trace_drained ", 1)[1])
-            drained[tail["request_id"]] = tail
+            tail = load(line.split("muhawir_trace_drained ", 1)[1], number)
+            if tail is not None:
+                drained[tail["request_id"]] = tail
             continue
         if PREFIX not in line:
             continue
-        row = json.loads(line.split(PREFIX, 1)[1])
+        row = load(line.split(PREFIX, 1)[1], number)
+        if row is None:
+            continue
         if row.get("schema_version") != 1:
             raise ValueError(f"line {number}: unsupported trace schema")
         if row["request_id"] in ids:
@@ -43,10 +63,16 @@ def read_lines(lines):
     by_id = {row["request_id"]: row for row in rows}
     for item in late:
         if item["request_id"] not in by_id:
+            if lenient:
+                skipped.append(f'event of request {item["request_id"]}')
+                continue
             raise ValueError("late event without its request; export the complete log window")
         by_id[item["request_id"]]["events"].append(item["event"])
     if set(drained) - set(by_id):
-        raise ValueError("background completion without its request; export the complete log window")
+        if not lenient:
+            raise ValueError("background completion without its request; export the complete log window")
+        skipped.extend(f"completion of request {i}" for i in sorted(set(drained) - set(by_id)))
+        drained = {k: v for k, v in drained.items() if k in by_id}
     for row in rows:
         event_ids = [event["event_id"] for event in row["events"] if "event_id" in event]
         if len(event_ids) != len(set(event_ids)):
@@ -137,8 +163,15 @@ def summarize(rows):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", type=Path)
+    parser.add_argument("--skip-bad", action="store_true",
+                        help="skip trace lines that are not valid JSON (for example cut by a journal export) and "
+                             "report how many; the default stops at the first one")
     args = parser.parse_args()
-    print(json.dumps(summarize(read_records(args.log)), ensure_ascii=False, indent=2, allow_nan=False))
+    skipped: list | None = [] if args.skip_bad else None
+    report = summarize(read_records(args.log, skipped))
+    if skipped is not None:
+        report["skipped_lines"] = {"count": len(skipped), "items": skipped[:20]}
+    print(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False))
 
 
 if __name__ == "__main__":

@@ -74,6 +74,19 @@ def answer_lang_ok(text: str, lang: str) -> bool:
     return arabic / letters >= 0.6 and not _URDU_LETTERS.search(text)
 
 
+def ask_patiently(url: str, item: dict, retries: int = 2, wait: float = 60, sleep=time.sleep, asker=None):
+    """Ask one question; if the service says it is unavailable (a provider rate limit, HTTP 429, is the usual cause) wait
+    and ask again, up to ``retries`` times, so a free key's limit does not turn into a hole in the results.
+    Returns (result, seconds, tries); the seconds are of the last try."""
+    asker = asker or ask
+    for attempt in range(retries + 1):
+        res, seconds = asker(url, item["question"], item.get("lang", "ar"))
+        if res.get("status") != "unavailable" or attempt == retries:
+            return res, seconds, attempt + 1
+        sleep(wait * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
 def answer_text(res: dict) -> str:
     return " ".join(c.get("text", "") for c in res.get("claims", []))
 
@@ -199,7 +212,9 @@ def run(args) -> int:
     rows = []
     for item in items:
         try:
-            res, seconds = ask(args.url, item["question"], item.get("lang", "ar"))
+            res, seconds, tries = ask_patiently(args.url, item, args.retries, args.wait)
+            if tries > 1:
+                print(f'{item["id"]} needed {tries} tries', file=sys.stderr)
         except Exception as exc:  # noqa: BLE001
             print(f'{item["id"]} failed: {type(exc).__name__}', file=sys.stderr)
             res, seconds = {"status": "error"}, 0.0
@@ -207,6 +222,7 @@ def run(args) -> int:
             if call and res.get("status") == "answered" and item.get("key_points") else None
         rows.append(score_row(item, res, seconds, judged))
         print(f'{item["id"]} {res.get("status")} {seconds:.0f}s', flush=True)
+        time.sleep(args.pause)
     Path(args.out).expanduser().write_text(json.dumps({"url": args.url, "judged": bool(call), "rows": rows},
                                                        ensure_ascii=False, indent=1), encoding="utf-8")
     print("\n" + render(summarize(rows)))
@@ -223,6 +239,9 @@ def main() -> int:
     r.add_argument("--field")
     r.add_argument("--lang", choices=["ar", "en", "ur"], help="only the questions asked in this language")
     r.add_argument("--limit", type=int)
+    r.add_argument("--pause", type=float, default=5, help="seconds between questions, to stay under a free key's limit")
+    r.add_argument("--retries", type=int, default=2, help="asks again this many times when the service is unavailable")
+    r.add_argument("--wait", type=float, default=60, help="seconds before the first retry (doubled on the second)")
     c = sub.add_parser("compare")
     c.add_argument("before")
     c.add_argument("after")
