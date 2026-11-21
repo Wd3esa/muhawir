@@ -68,3 +68,9 @@ def test_ask_fills_stats_from_ollama():
     stats: dict = {}
     T.ask(Client(), "u", "m", "q", stats=stats)
     assert stats["eval_count"] == 7 and stats["prompt_eval_count"] == 0
+
+
+def test_gold_questions_can_be_picked_by_language():
+    gold = [{"id": "a", "field": "f", "question": "q"}, {"id": "b", "field": "f", "lang": "en", "question": "q"}]
+    only = lambda lang: [q["id"] for q in T.pick([q for q in gold if q.get("lang", "ar") == lang], 2)]  # noqa: E731
+    assert only("ar") == ["a"] and only("en") == ["b"] and only("ur") == []
