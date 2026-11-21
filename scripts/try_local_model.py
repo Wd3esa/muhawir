@@ -88,6 +88,8 @@ def main() -> int:
     ap.add_argument("--model", default="lfm3-omni")
     ap.add_argument("--url", default="http://localhost:11434")
     ap.add_argument("--per-field", type=int, default=2)
+    ap.add_argument("--lang", choices=["ar", "en", "ur"], default=None,
+                    help="only the gold questions written in this language (default: Arabic ones, as before)")
     ap.add_argument("--timeout", type=float, default=300)
     ap.add_argument("--num-ctx", type=int, default=8192,
                     help="context window in tokens; the prompt alone is about 10,000 Arabic characters, and Ollama's "
@@ -97,7 +99,7 @@ def main() -> int:
     ap.add_argument("--no-schema", action="store_true", help="ask for any JSON, not one forced to the schema")
     args = ap.parse_args()
     gold = json.loads((ROOT / "eval_sets" / "gold_questions.json").read_text(encoding="utf-8"))["questions"]
-    questions = pick(gold, args.per_field)
+    questions = pick([q for q in gold if q.get("lang", "ar") == (args.lang or "ar")], args.per_field)
     options = {"num_ctx": args.num_ctx, "num_predict": args.num_predict}
     if args.repeat_penalty:
         options["repeat_penalty"] = args.repeat_penalty
