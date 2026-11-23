@@ -93,6 +93,31 @@ def durations(values):
             "p95_s": values[math.ceil(.95 * len(values)) - 1] / 1e9, "max_s": values[-1] / 1e9}
 
 
+def span_profile(rows):
+    """Where the time goes: per named stage (span), how many times it ran, its total seconds and its share of the
+    requests' total time. Spans nest (a stage can contain another), so shares can add up to more than 100%: read each
+    line on its own. Model calls are reported separately so waiting on a provider is visible apart from our own code."""
+    total = sum(row["duration_ns"] for row in rows) or 1
+    spans, model_ns = {}, 0
+    for row in rows:
+        for event in row["events"]:
+            if event.get("kind") == "span" and "name" in event and "duration_ns" in event:
+                entry = spans.setdefault(event["name"], {"runs": 0, "total_ns": 0})
+                entry["runs"] += 1
+                entry["total_ns"] += event["duration_ns"]
+            elif event.get("kind") == "model" and "duration_ns" in event:
+                model_ns += event["duration_ns"]
+    ordered = sorted(spans.items(), key=lambda item: -item[1]["total_ns"])
+    return {
+        "requests": len(rows),
+        "total_request_s": round(total / 1e9, 2),
+        "model_calls_s": round(model_ns / 1e9, 2),
+        "model_share": round(model_ns / total, 3),
+        "spans": {name: {"runs": e["runs"], "total_s": round(e["total_ns"] / 1e9, 2),
+                         "share": round(e["total_ns"] / total, 3)} for name, e in ordered},
+    }
+
+
 def loss_summary(rows):
     """What each step removed, summed over the answers that recorded it: counts only. «answers_with» says how many
     answers reached the step; a step that removes nothing shows no key."""
@@ -139,6 +164,7 @@ def summarize(rows):
         "statuses": dict(Counter(row["status"] for row in rows)),
         "groups": {key: durations(values) for key, values in sorted(groups.items())},
         "loss": loss_summary(rows),
+        "profile": span_profile(rows),
         "observed_transport_calls": len(calls),
         "transport_errors": sum(event["outcome"] != "ok" for event in calls),
         "calls_by_stage": dict(Counter(event["stage"] for event in calls)),
