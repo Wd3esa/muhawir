@@ -227,3 +227,16 @@ def test_skip_bad_leaves_out_cut_lines_and_says_so(tmp_path):
     assert [r["request_id"] for r in rows] == ["one"]
     assert skipped[0] == 2 and "event of request two" in skipped  # the cut line, and the event whose request was lost
     assert lost["request_id"] not in [r["request_id"] for r in rows]
+
+
+def test_span_profile_splits_model_waiting_from_our_own_stages(tmp_path):
+    from scripts.analyze_request_traces import span_profile
+    row = {"schema_version": 1, "request_id": "r1", "endpoint": "ask", "cache": "none", "duration_ns": 10_000_000_000,
+           "http_status": 200, "status": "answered", "events": [
+               {"kind": "span", "name": "search", "offset_ns": 0, "duration_ns": 1_000_000_000, "event_id": "a"},
+               {"kind": "span", "name": "draft", "offset_ns": 1, "duration_ns": 6_000_000_000, "event_id": "b"},
+               {"kind": "model", "stage": "draft", "duration_ns": 5_000_000_000, "event_id": "c"}]}
+    prof = span_profile([row])
+    assert prof["total_request_s"] == 10 and prof["model_calls_s"] == 5 and prof["model_share"] == 0.5
+    assert list(prof["spans"]) == ["draft", "search"]  # largest first
+    assert prof["spans"]["draft"] == {"runs": 1, "total_s": 6.0, "share": 0.6}
