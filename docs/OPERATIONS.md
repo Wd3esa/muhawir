@@ -218,6 +218,10 @@ server itself: no key, no quota, no outside service. It is called through Ollama
 (`think: false`), a context window of `OLLAMA_NUM_CTX` tokens (16384 by default, so the long prompts are not cut) and
 the reply constrained to each step's JSON schema (`OLLAMA_SCHEMA=0` asks for plain JSON instead).
 
+- Bounded replies: every list in a step's reply format gets a maximum (`OLLAMA_MAX_ITEMS`, 20) so a small model
+  cannot repeat items until the reply limit (`OLLAMA_NUM_PREDICT`, 2048 tokens) cuts its JSON.
+- Logs: the service now writes one plain line per log record (muhawir/logsetup.py). Before, the MCP library set Rich
+  logging, which wrapped long lines at 80 columns: timing lines lost their token counts and trace lines were split.
 - Order: it is the last model in line, after any hosted model; with no hosted key set it is the only one.
 - Time: a CPU model writes a few tokens a second, so an answer takes minutes. When `OLLAMA_MODEL` is set and
   `MUHAWIR_ANSWER_DEADLINE` is not, the answer deadline becomes 900 s (instead of 120 s). `OLLAMA_TIMEOUT` (900 s)
