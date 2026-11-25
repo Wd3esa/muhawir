@@ -193,7 +193,8 @@ def main() -> int:
     ap.add_argument("--timeout", type=float, default=600)
     ap.add_argument("--out", type=Path)
     args = ap.parse_args()
-    passages = sample(args.db, max(args.per_type * 6, 12), args.seed)
+    # a wide pool, so the rarer cases (a ruling word, a school's name) find sentences too
+    passages = sample(args.db, max(args.per_type * 150, 300), args.seed)
     cases = build_cases(passages, args.per_type)
     gen = ModelGenerator([("local", ollama_call(args.model, args.url, args.num_ctx, args.timeout))])
     rows = []
