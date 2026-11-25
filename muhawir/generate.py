@@ -670,6 +670,24 @@ def _normal_check_reply(data, count: int) -> tuple[dict | None, str]:
     return out, ""
 
 
+def sized_check_schema(count: int, terms: int = 5) -> dict:
+    """CHECK_SCHEMA with exactly ``count`` items in each per-sentence list and at most ``terms`` missing terms each.
+    Only for a model that turns the schema into a grammar (Ollama): without the sizes a small local model wrote lists far
+    longer than the sentences it read (live, November 2026: 526 s for one sentence, then a reply of the wrong length)."""
+    schema = json.loads(json.dumps(CHECK_SCHEMA))
+    for field in ("on_topic", "missing", "evidence", "problem"):
+        schema["properties"][field].update(minItems=count, maxItems=count)
+    schema["properties"]["missing"]["items"]["maxItems"] = terms
+    return schema
+
+
+def _term_in_passages(term: str, claim: Claim, passages: dict[str, Passage]) -> bool:
+    """Whether a term the checker called missing does occur in one of the claim's cited passages (after
+    normalization), as whole words."""
+    t = normalize(term)
+    return bool(t) and any(f" {t} " in f" {normalize(passages[pid].text)} " for pid in claim.passage_ids if pid in passages)
+
+
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
     """A quoted witness must occur consecutively in one cited passage.
 
@@ -1393,8 +1411,10 @@ class ModelGenerator:
         if question:
             user = f"السؤال الذي يجيب عنه المساعد: <<<{question}>>>\n\n" + user
         for name, call in self.calls:
+            # the local model gets exact list sizes (its grammar enforces them); hosted models keep the plain schema
+            schema = sized_check_schema(len(claims)) if name == "local" else CHECK_SCHEMA
             try:
-                data = load_json(with_retry(call, CHECK_PROMPT, user, CHECK_SCHEMA))
+                data = load_json(with_retry(call, CHECK_PROMPT, user, schema))
             except Exception as exc:
                 log.warning("model %s failed (support check): %s", name, describe(exc))
                 continue
@@ -1411,7 +1431,10 @@ class ModelGenerator:
                 if question and verdicts[i] and not _true(t):
                     verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
             for i, terms in enumerate(data["missing"]):  # a key term the passages never mention
-                terms = [x.strip() for x in terms if x.strip()]
+                # the checker's claim is verified like its evidence: a term the cited passage does contain is not
+                # missing (live, November 2026: a small model called «ثم» missing and so rejected a word-for-word
+                # sentence of its own passage)
+                terms = [x.strip() for x in terms if x.strip() and not _term_in_passages(x, claims[i], passages)]
                 if terms and verdicts[i]:
                     verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
             for i, (c, ev) in enumerate(zip(claims, data["evidence"])):  # the witness must be in the cited passage
