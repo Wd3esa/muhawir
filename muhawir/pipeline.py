@@ -92,6 +92,20 @@ def progress(stage: str, data=None) -> None:
             log.debug("progress listener failed", exc_info=True)
 
 
+READING_PREVIEW = 3  # passages shown while the answer is written (Reading-preview)
+PREVIEW_CHARS = 320
+
+
+def preview_text(text: str, limit: int = PREVIEW_CHARS) -> str:
+    """The start of a passage, cut at a word boundary, with «…» when it was cut."""
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    space = cut.rfind(" ")
+    return (cut[:space] if space > limit // 2 else cut).rstrip("،,؛;:.") + "…"
+
+
 TIMING = os.environ.get("MUHAWIR_TIMING", "") == "1"  # one log line per new answer: the seconds of each step
 _steps: "contextvars.ContextVar" = contextvars.ContextVar("muhawir_steps", default=None)
 
@@ -2231,6 +2245,11 @@ class Muhawir:
         if answer_request:
             extra["answer_request"] = answer_request
         if passages:
+            # Reading-preview (November 2026): while a slow model writes, the reader sees the first passages being read,
+            # word for word with their references. Source text only, never the model's unchecked draft
+            progress("reading", [{"source": self.corpus.source_of(p).name, "location": p.location, "kind": p.kind,
+                                  "grade": p.grade or "", "text": preview_text(p.text)}
+                                 for p in passages[:READING_PREVIEW]])
             progress("writing")
         written = self._write(question, passages, style, lang, personal, extra) if passages else None
         if isinstance(written, Response):  # the model could not be reached, or the check could not run
