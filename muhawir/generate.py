@@ -1580,8 +1580,23 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
     return call
 
 
+def bounded_schema(schema, max_items: int):
+    """A copy of a JSON schema where every list without a maximum gets `max_items`. Ollama turns the schema into a
+    grammar the model must follow, so a bounded list ends; an unbounded one lets a small model repeat items until the
+    reply limit cuts it (live, 25 November 2026: one understanding step wrote for 737 s and its JSON came out cut)."""
+    if isinstance(schema, list):
+        return [bounded_schema(x, max_items) for x in schema]
+    if not isinstance(schema, dict):
+        return schema
+    out = {k: bounded_schema(v, max_items) for k, v in schema.items()}
+    if (out.get("type") == "array" or "items" in out) and "maxItems" not in out:
+        out["maxItems"] = max_items
+    return out
+
+
 def ollama_call(model: str, base_url: str = "http://localhost:11434", num_ctx: int = 16384,
-                timeout: float = 900.0, num_predict: int = 2048, schema_on: bool = True) -> ModelCall:
+                timeout: float = 900.0, num_predict: int = 2048, schema_on: bool = True,
+                max_items: int = 20) -> ModelCall:
     """A model running on this server through Ollama's own API (not its chat-completions copy), because only the
     own API lets Muhawir: turn a reasoning model's thinking off (`think: false`, Qwen3 thinks aloud otherwise and spends
     minutes before the JSON), set the context window for the request (`num_ctx`; Ollama's default window can cut the
@@ -1597,7 +1612,7 @@ def ollama_call(model: str, base_url: str = "http://localhost:11434", num_ctx: i
         started = time.time()
         r = httpx.post(url, json={
             "model": model, "stream": False, "think": False,
-            "format": schema if (schema_on and isinstance(schema, dict) and schema) else "json",
+            "format": bounded_schema(schema, max_items) if (schema_on and isinstance(schema, dict) and schema) else "json",
             "options": {"temperature": 0, "num_ctx": num_ctx, "num_predict": num_predict},
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
             timeout=budget.call_timeout(timeout))  # the answer's time left, at most (HIGH-007)
@@ -1653,7 +1668,8 @@ def get_generator() -> Generator:
         calls.append(("local", ollama_call(
             os.environ["OLLAMA_MODEL"], os.environ.get("OLLAMA_URL") or "http://localhost:11434",
             int(os.environ.get("OLLAMA_NUM_CTX") or 16384), float(os.environ.get("OLLAMA_TIMEOUT") or 900),
-            int(os.environ.get("OLLAMA_NUM_PREDICT") or 2048), os.environ.get("OLLAMA_SCHEMA", "1") != "0")))
+            int(os.environ.get("OLLAMA_NUM_PREDICT") or 2048), os.environ.get("OLLAMA_SCHEMA", "1") != "0",
+            int(os.environ.get("OLLAMA_MAX_ITEMS") or 20))))
         if not os.environ.get("MUHAWIR_ANSWER_DEADLINE"):
             budget.ANSWER_SECONDS = max(budget.ANSWER_SECONDS, LOCAL_ANSWER_DEADLINE)
     if not calls:

@@ -38,7 +38,7 @@ def test_request_turns_thinking_off_sets_the_window_and_the_schema(monkeypatch):
     assert call("system", "user", schema) == '{"ok": true}'
     body = sent["body"]
     assert sent["url"] == "http://localhost:11434/api/chat"  # Ollama's own API, not its chat-completions copy
-    assert body["think"] is False and body["stream"] is False and body["format"] == schema
+    assert body["think"] is False and body["stream"] is False and body["format"]["required"] == ["ok"]
     assert body["options"]["num_ctx"] == 16384 and body["options"]["temperature"] == 0
     assert [m["role"] for m in body["messages"]] == ["system", "user"]
 
@@ -81,3 +81,23 @@ def test_no_model_at_all_is_still_an_error(monkeypatch):
     _clear(monkeypatch)
     with pytest.raises(RuntimeError, match="OLLAMA_MODEL"):
         generate.get_generator()
+
+
+def test_every_unbounded_list_gets_a_maximum_and_a_set_one_is_kept():
+    schema = {"type": "object", "properties": {
+        "queries": {"type": "array", "items": {"type": "string"}},
+        "request": {"type": "object", "properties": {"parts": {"type": "array", "maxItems": 6, "items": {}}}},
+        "answer": {"type": "array", "items": {"type": "object", "properties": {"ids": {"type": "array"}}}}}}
+    out = generate.bounded_schema(schema, 20)
+    assert out["properties"]["queries"]["maxItems"] == 20
+    assert out["properties"]["request"]["properties"]["parts"]["maxItems"] == 6
+    assert out["properties"]["answer"]["maxItems"] == 20
+    assert out["properties"]["answer"]["items"]["properties"]["ids"]["maxItems"] == 20
+    assert "maxItems" not in schema["properties"]["queries"]  # the shared schema is not changed
+
+
+def test_the_real_understanding_schema_is_bounded_in_the_request(monkeypatch):
+    sent = {}
+    monkeypatch.setattr("httpx.post", lambda url, json, timeout: sent.update(json) or _Reply({"message": {"content": "{}"}}))
+    generate.ollama_call("m", max_items=10)("s", "u", generate.UNDERSTAND_SCHEMA)
+    assert sent["format"]["properties"]["queries"]["maxItems"] == 10

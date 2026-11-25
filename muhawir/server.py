@@ -26,11 +26,14 @@ from .corpus import load_corpus
 from .generate import USAGE, get_generator
 from .pipeline import MAX_QUESTION_CHARS, STATS, AnswerStore, Muhawir, _progress
 from .store import SqliteCorpus, SqliteRetriever
+from .logsetup import plain_logging
 from . import extract, mcp_server, quote_check, tts, telemetry
 from .corpus import MAX_PASSAGE_ID
 from .normalize import normalize
 
 log = logging.getLogger(__name__)
+
+plain_logging()  # one unwrapped line per record, set before the MCP library can set wrapped ones (logsetup.py)
 
 ROOT = Path(__file__).resolve().parent
 PIPELINE_REVISION = hashlib.sha256((ROOT / "pipeline.py").read_bytes()).hexdigest()[:12]
