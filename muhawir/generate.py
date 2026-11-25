@@ -1580,6 +1580,43 @@ def openai_compatible_call(base_url: str, model: str, api_key: str = "",
     return call
 
 
+def ollama_call(model: str, base_url: str = "http://localhost:11434", num_ctx: int = 16384,
+                timeout: float = 900.0, num_predict: int = 2048, schema_on: bool = True) -> ModelCall:
+    """A model running on this server through Ollama's own API (not its chat-completions copy), because only the
+    own API lets Muhawir: turn a reasoning model's thinking off (`think: false`, Qwen3 thinks aloud otherwise and spends
+    minutes before the JSON), set the context window for the request (`num_ctx`; Ollama's default window can cut the
+    long prompts, and a cut prompt loses its rules), and constrain the reply to the step's JSON schema (`format`).
+    No key, no quota, no outside service: the model's speed is the server's (minutes per answer on a small CPU)."""
+    import httpx
+
+    url = base_url.rstrip("/") + "/api/chat"
+
+    @telemetry.model_call("ollama", model)
+    def call(system: str, user: str, schema: dict) -> str:
+        """Send one request to the local Ollama server and return the reply text."""
+        started = time.time()
+        r = httpx.post(url, json={
+            "model": model, "stream": False, "think": False,
+            "format": schema if (schema_on and isinstance(schema, dict) and schema) else "json",
+            "options": {"temperature": 0, "num_ctx": num_ctx, "num_predict": num_predict},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
+            timeout=budget.call_timeout(timeout))  # the answer's time left, at most (HIGH-007)
+        telemetry.response_metadata(r, {})
+        r.raise_for_status()
+        data = r.json()
+        usage = {"prompt_tokens": data.get("prompt_eval_count") or 0, "completion_tokens": data.get("eval_count") or 0}
+        telemetry.response_metadata(r, usage)
+        _count(usage)
+        if TIMING:
+            log.warning("timing %s %.1fs in=%s out=%s step=%s", model, time.time() - started, usage["prompt_tokens"],
+                        usage["completion_tokens"], " ".join(system.split())[:40])
+        return (data.get("message") or {}).get("content") or ""
+    return call
+
+
+LOCAL_ANSWER_DEADLINE = 900.0  # seconds: a CPU model needs minutes, the default 120 s would cut every local answer
+
+
 def get_generator() -> Generator:
     """Choose the generator from the environment: LLM_PROVIDER is 'extractive' (default) or 'model' with the providers configured."""
     provider = os.environ.get("LLM_PROVIDER", "extractive").strip().lower()
@@ -1610,7 +1647,16 @@ def get_generator() -> Generator:
         # (28 October 2026: two 60-second timeouts on the check left a visitor waiting three minutes)
         calls.append(("gemini", gemini_call(os.environ["GEMINI_API_KEY"], os.environ["GEMINI_MODEL"],
                                             float(os.environ.get("GEMINI_TIMEOUT") or 20))))
+    if os.environ.get("OLLAMA_MODEL"):
+        # Local-model: the last in line (or the only model, when no hosted key is set): it answers when the hosted
+        # models are refused or out of quota, with no key and no outside service (November 2026)
+        calls.append(("local", ollama_call(
+            os.environ["OLLAMA_MODEL"], os.environ.get("OLLAMA_URL") or "http://localhost:11434",
+            int(os.environ.get("OLLAMA_NUM_CTX") or 16384), float(os.environ.get("OLLAMA_TIMEOUT") or 900),
+            int(os.environ.get("OLLAMA_NUM_PREDICT") or 2048), os.environ.get("OLLAMA_SCHEMA", "1") != "0")))
+        if not os.environ.get("MUHAWIR_ANSWER_DEADLINE"):
+            budget.ANSWER_SECONDS = max(budget.ANSWER_SECONDS, LOCAL_ANSWER_DEADLINE)
     if not calls:
         raise RuntimeError("LLM_PROVIDER=model needs ANTHROPIC_API_KEY, or GEMINI_API_KEY with "
-                           "GEMINI_MODEL, or OPENAI_COMPAT_BASE_URL with OPENAI_COMPAT_MODEL")
+                           "GEMINI_MODEL, or OPENAI_COMPAT_BASE_URL with OPENAI_COMPAT_MODEL, or OLLAMA_MODEL")
     return ModelGenerator(calls)

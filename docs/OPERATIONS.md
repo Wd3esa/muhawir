@@ -210,3 +210,19 @@ change to search, writing or checking; a change that lowers the score does not m
   passed every check is kept up to the ceiling (higher for a list or an answer with several parts). The hajj and umrah
   search lists and their detector are gone: the understanding step makes a part for each rite and the writer follows
   `PROCEDURE_RULE` for any «how» question. Measure with `scripts/eval_gold.py` (the hajj question is in the gold set).
+
+## Local model through Ollama (November 2026)
+
+`OLLAMA_MODEL` (for example `qwen3:8b` or `qwen3:4b`, already pulled with `ollama pull`) adds a model that runs on the
+server itself: no key, no quota, no outside service. It is called through Ollama's own API with thinking off
+(`think: false`), a context window of `OLLAMA_NUM_CTX` tokens (16384 by default, so the long prompts are not cut) and
+the reply constrained to each step's JSON schema (`OLLAMA_SCHEMA=0` asks for plain JSON instead).
+
+- Order: it is the last model in line, after any hosted model; with no hosted key set it is the only one.
+- Time: a CPU model writes a few tokens a second, so an answer takes minutes. When `OLLAMA_MODEL` is set and
+  `MUHAWIR_ANSWER_DEADLINE` is not, the answer deadline becomes 900 s (instead of 120 s). `OLLAMA_TIMEOUT` (900 s)
+  limits one call.
+- Hosted models out of quota (HTTP 429) are waited for and retried before the local model is reached, so for
+  local-only answers leave the hosted keys out of `muhawir.env` (comment their lines with `#`).
+- Quality: the support check is then done by the local model too. Run the gold set (`scripts/eval_gold.py`) before
+  relying on it, and compare with an earlier run.
