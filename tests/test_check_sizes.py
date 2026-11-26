@@ -1,4 +1,4 @@
-"""The support check for a local model: exact list sizes, and «missing» terms verified against the passage."""
+"""The support check for a local model: exact list sizes; «missing» terms always reject (the safe failure)."""
 import json
 
 import pytest
@@ -43,9 +43,10 @@ def test_only_the_local_model_gets_the_sized_schema():
     assert seen["local"]["properties"]["problem"]["maxItems"] == 1
 
 
-def test_a_missing_term_that_the_passage_contains_does_not_reject():
+def test_a_missing_term_rejects_even_when_the_passage_has_it_elsewhere():
+    """Safety first: the checker may name the changed detail as «missing»; it is not second-guessed by code."""
     gen = ModelGenerator([("local", lambda system, user, schema=None: _reply(["ثم"]))])
-    assert gen.check_support([CLAIM], {"p1": P}, "") == [True]
+    assert gen.check_support([CLAIM], {"p1": P}, "") == [False]
 
 
 def test_a_missing_term_the_passage_lacks_still_rejects():
