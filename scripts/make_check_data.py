@@ -34,6 +34,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from checker_stress import DISTORTIONS, first_sentence  # noqa: E402
 
+from muhawir.corpus import Passage  # noqa: E402
+from muhawir.generate import CHECK_PROMPT_TUNED, check_request  # noqa: E402
+from muhawir.verify import Claim  # noqa: E402
+
+# the verdict a trained checker must give for each kind of pair, in the service's own words (CHECK_PROMPT)
+PROBLEM = {"faithful": "none", "negated": "distortion", "number": "distortion", "ruling_flip": "distortion",
+           "school_swap": "distortion", "added_consensus": "addition", "merged": "addition",
+           "other_passage": "addition", "condition_dropped": "dropped_condition"}
+
 KINDS = ("fiqh", "hadith", "tafsir", "aqeedah", "seerah", "fatwa", "qa")
 
 
@@ -53,10 +62,11 @@ def load(db: Path, n: int, seed: int) -> list[dict]:
     """``n`` mid-length passages of the answer kinds, the same ones for the same seed."""
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     rows = con.execute(
-        "SELECT id, source_id, kind, text FROM passages "
+        "SELECT id, source_id, kind, text, location, grade FROM passages "
         f"WHERE kind IN ({','.join('?' * len(KINDS))}) AND length(text) BETWEEN 120 AND 2000", KINDS).fetchall()
     random.Random(seed).shuffle(rows)
-    return [{"id": r[0], "source": r[1], "kind": r[2], "text": r[3]} for r in rows[:n]]
+    return [{"id": r[0], "source": r[1], "kind": r[2], "text": r[3], "location": r[4] or "", "grade": r[5] or ""}
+            for r in rows[:n]]
 
 
 def split_sources(passages: list[dict], seed: int, test_share: float = 0.15, dev_share: float = 0.1) -> dict[str, str]:
@@ -69,7 +79,8 @@ def split_sources(passages: list[dict], seed: int, test_share: float = 0.15, dev
 
 def pairs_for(p: dict, s: str, others: list[dict], rng: random.Random, negatives: int) -> list[dict]:
     """The true pair for sentence ``s`` of passage ``p`` and up to ``negatives`` wrong ones of different kinds."""
-    base = {"passage_id": p["id"], "source": p["source"], "kind": p["kind"]}
+    base = {"passage_id": p["id"], "source": p["source"], "kind": p["kind"], "location": p.get("location", ""),
+            "grade": p.get("grade", "")}
     out = [{**base, "sentence": s, "passage": p["text"], "label": 1, "type": "faithful"}]
     wrong = []
     for name, make in DISTORTIONS.items():
@@ -79,7 +90,8 @@ def pairs_for(p: dict, s: str, others: list[dict], rng: random.Random, negatives
     other = next((o for o in rng.sample(others, min(len(others), 20)) if o["source"] != p["source"]), None)
     if other:
         wrong.append({**base, "sentence": s, "passage": other["text"], "passage_id": other["id"],
-                      "label": 0, "type": "other_passage"})
+                      "passage_source": other["source"], "kind": other["kind"], "location": other.get("location", ""),
+                      "grade": other.get("grade", ""), "label": 0, "type": "other_passage"})
         other_s = sentences(other["text"], 1)
         if other_s:  # two narrations merged into one sentence, cited against the first only
             wrong.append({**base, "sentence": s.rstrip(".،, ") + "، و" + other_s[0], "passage": p["text"],
@@ -88,16 +100,33 @@ def pairs_for(p: dict, s: str, others: list[dict], rng: random.Random, negatives
     return out + wrong[:negatives]
 
 
+def chat_example(r: dict) -> dict:
+    """A pair as a training conversation: the service's own check message (check_request) under the short instruction,
+    and the reply the trained checker must give. A true sentence's witness is its first words (found in the passage
+    word for word, as the service requires); a wrong one has no witness and names its problem."""
+    p = Passage(id=r["passage_id"], source_id=r.get("passage_source", r["source"]), location=r.get("location", ""), text=r["passage"],
+                kind=r["kind"], grade=r.get("grade", ""))
+    ok = r["label"] == 1
+    reply = {"on_topic": [True], "missing": [[]], "evidence": [" ".join(r["sentence"].split()[:15]) if ok else ""],
+             "problem": [PROBLEM[r["type"]]]}
+    return {"messages": [{"role": "system", "content": CHECK_PROMPT_TUNED},
+                         {"role": "user", "content": check_request([Claim(r["sentence"], (p.id,))], {p.id: p})},
+                         {"role": "assistant", "content": json.dumps(reply, ensure_ascii=False)}],
+            "label": r["label"], "type": r["type"]}
+
+
 def build(passages: list[dict], seed: int, per_passage: int = 2, negatives: int = 3):
     """(pairs by split, sentences to reword by split)."""
     rng = random.Random(seed)
     splits = split_sources(passages, seed)
     data = {"train": [], "dev": [], "test": []}
     todo = {"train": [], "dev": [], "test": []}
+    by_split = {part: [p for p in passages if splits[p["source"]] == part] for part in data}
     for p in passages:
         part = splits[p["source"]]
         for s in sentences(p["text"], per_passage):
-            data[part] += pairs_for(p, s, passages, rng, negatives)
+            # the other book comes from the same split: a test book's text never reaches training
+            data[part] += pairs_for(p, s, by_split[part], rng, negatives)
             todo[part].append({"passage_id": p["id"], "source": p["source"], "kind": p["kind"],
                                "sentence": s, "passage": p["text"]})
     return data, todo
@@ -116,6 +145,8 @@ def main() -> int:
     for part in data:
         with open(args.out / f"{part}.jsonl", "w", encoding="utf-8") as f:
             f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in data[part])
+        with open(args.out / f"sft_{part}.jsonl", "w", encoding="utf-8") as f:  # the same pairs as conversations
+            f.writelines(json.dumps(chat_example(r), ensure_ascii=False) + "\n" for r in data[part])
     with open(args.out / "rewrite_todo.jsonl", "w", encoding="utf-8") as f:
         for part, rows in todo.items():
             f.writelines(json.dumps({**r, "split": part}, ensure_ascii=False) + "\n" for r in rows)
