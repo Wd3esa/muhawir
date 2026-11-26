@@ -681,13 +681,6 @@ def sized_check_schema(count: int, terms: int = 5) -> dict:
     return schema
 
 
-def _term_in_passages(term: str, claim: Claim, passages: dict[str, Passage]) -> bool:
-    """Whether a term the checker called missing does occur in one of the claim's cited passages (after
-    normalization), as whole words."""
-    t = normalize(term)
-    return bool(t) and any(f" {t} " in f" {normalize(passages[pid].text)} " for pid in claim.passage_ids if pid in passages)
-
-
 def _has_evidence(claim: Claim, evidence, passages: dict[str, Passage]) -> bool:
     """A quoted witness must occur consecutively in one cited passage.
 
@@ -1431,10 +1424,11 @@ class ModelGenerator:
                 if question and verdicts[i] and not _true(t):
                     verdicts[i], reasons[i] = False, "the cited passage is about another matter than the question"
             for i, terms in enumerate(data["missing"]):  # a key term the passages never mention
-                # the checker's claim is verified like its evidence: a term the cited passage does contain is not
-                # missing (live, November 2026: a small model called «ثم» missing and so rejected a word-for-word
-                # sentence of its own passage)
-                terms = [x.strip() for x in terms if x.strip() and not _term_in_passages(x, claims[i], passages)]
+                # Kept as the checker gives them, even a term the passage does contain somewhere: a small model often
+                # names the changed detail here (a ruling, a school) while writing «none» as the problem, and dropping
+                # terms found elsewhere in the passage let those changes through (stress test, 26 November 2026:
+                # wrong sentences approved rose from 1 in 17 to 15 in 28). A false rejection is the safe failure.
+                terms = [x.strip() for x in terms if x.strip()]
                 if terms and verdicts[i]:
                     verdicts[i], reasons[i] = False, "key term not in the passage: " + "، ".join(terms)
             for i, (c, ev) in enumerate(zip(claims, data["evidence"])):  # the witness must be in the cited passage
