@@ -868,6 +868,27 @@ def search_queries(data: object) -> list[str]:
     return [q.strip() for q in data.get("queries", []) if isinstance(q, str) and q.strip()][:MAX_QUERIES]
 
 
+def check_request(claims: list[Claim], passages: dict[str, Passage], question: str = "") -> str:
+    """The support check's message: each sentence with the passages it cites. One function for the service and for the
+    training data of a local checker (scripts/make_check_data.py), so the model is trained on exactly what it reads."""
+    blocks = []
+    for n, c in enumerate(claims, 1):
+        cited = "\n".join(_passage_block(passages[pid]) for pid in c.passage_ids if pid in passages)
+        blocks.append(f"الجملة {n}: <<<{displayed_claim(c)}>>>\nالمقاطع:\n{cited}")
+    user = "\n\n".join(blocks)
+    if question:
+        user = f"السؤال الذي يجيب عنه المساعد: <<<{question}>>>\n\n" + user
+    return user
+
+
+# LFM-tuning (November 2026): a small local model trained for the support check learns the rules from examples, so it
+# gets this short instruction instead of CHECK_PROMPT (thousands of tokens a CPU must read before every check)
+CHECK_PROMPT_TUNED = ("راجع كل جملة مع المقاطع المذكورة معها: هل تقول الجملة ما في مقاطعها، لا أكثر ولا غيره؟ "
+                      'أعد JSON فقط: {"on_topic": [...], "missing": [[...]], "evidence": [...], "problem": [...]} '
+                      "بعدد الجمل وبترتيبها.")
+LOCAL_TUNED = os.environ.get("OLLAMA_TUNED", "") == "1"
+
+
 def displayed_claim(claim: Claim) -> str:
     """The visible words of a claim on one line, for the checking prompts."""
     return " / ".join(part for part in (claim.section, claim.label, claim.school, claim.text) if part)
@@ -957,7 +978,7 @@ def with_retry(call: ModelCall, system: str, user: str, schema: dict, sleep=time
             # Attempt counts include retries and failed providers. Only aggregate
             # numbers are exposed by /api/health; never log the question text.
             step = ("understand" if system == UNDERSTAND_PROMPT else
-                    "support" if system == CHECK_PROMPT else
+                    "support" if system in (CHECK_PROMPT, CHECK_PROMPT_TUNED) else
                     "draft" if system == SYSTEM_PROMPT else
                     "relevance" if system in (RELEVANCE_PROMPT, KIDS_REVIEW_PROMPT) else
                     "search_retry" if system == RETRY_PROMPT else "other")
@@ -1396,18 +1417,14 @@ class ModelGenerator:
     def _check_once(self, claims: list[Claim], passages: dict[str, Passage],
                     question: str = "") -> tuple[list[bool], list[str]] | None:
         """(verdicts, why each rejected sentence was rejected) for these sentences, or None if unusable."""
-        blocks = []
-        for n, c in enumerate(claims, 1):
-            cited = "\n".join(_passage_block(passages[pid]) for pid in c.passage_ids if pid in passages)
-            blocks.append(f"الجملة {n}: <<<{displayed_claim(c)}>>>\nالمقاطع:\n{cited}")
-        user = "\n\n".join(blocks)
-        if question:
-            user = f"السؤال الذي يجيب عنه المساعد: <<<{question}>>>\n\n" + user
+        user = check_request(claims, passages, question)
         for name, call in self.calls:
-            # the local model gets exact list sizes (its grammar enforces them); hosted models keep the plain schema
+            # the local model gets exact list sizes (its grammar enforces them); hosted models keep the plain schema.
+            # A local model trained for the check (OLLAMA_TUNED=1) gets the short instruction it was trained with
             schema = sized_check_schema(len(claims)) if name == "local" else CHECK_SCHEMA
+            system = CHECK_PROMPT_TUNED if (name == "local" and LOCAL_TUNED) else CHECK_PROMPT
             try:
-                data = load_json(with_retry(call, CHECK_PROMPT, user, schema))
+                data = load_json(with_retry(call, system, user, schema))
             except Exception as exc:
                 log.warning("model %s failed (support check): %s", name, describe(exc))
                 continue

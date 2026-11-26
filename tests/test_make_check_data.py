@@ -35,3 +35,31 @@ def test_each_true_pair_has_wrong_ones_of_other_kinds_with_label_zero():
     assert merged["sentence"].count("،") >= 1 and merged["passage"] == T
     other = next(r for r in rows if r["type"] == "other_passage")
     assert other["passage_id"] != other.get("source")  # cited against another passage
+
+
+def test_training_conversations_use_the_service_message_and_its_verdict_words():
+    import json
+
+    from muhawir.generate import CHECK_PROMPT_TUNED, _has_evidence
+    from muhawir.corpus import Passage
+    from muhawir.verify import Claim
+    data, _ = M.build(_passages(), seed=1)
+    rows = [r for part in data.values() for r in part]
+    true = next(r for r in rows if r["label"] == 1)
+    ex = M.chat_example(true)
+    system, user, reply = (m["content"] for m in ex["messages"])
+    assert system == CHECK_PROMPT_TUNED and "الجملة 1: <<<" in user and true["passage"] in user
+    out = json.loads(reply)
+    assert out["problem"] == ["none"] and out["missing"] == [[]]
+    p = Passage(id=true["passage_id"], source_id=true["source"], location="", text=true["passage"], kind="fiqh")
+    assert _has_evidence(Claim(true["sentence"], (p.id,)), out["evidence"][0], {p.id: p})  # the service accepts it
+    for r in rows:
+        if r["label"] == 0:
+            got = json.loads(M.chat_example(r)["messages"][2]["content"])
+            assert got["problem"][0] != "none" and got["evidence"] == [""]
+
+
+def test_no_test_book_text_reaches_training_through_another_pair():
+    data, _ = M.build(_passages(80), seed=3)
+    test_books = {r["source"] for r in data["test"]}
+    assert not any(r.get("passage_source") in test_books for r in data["train"])

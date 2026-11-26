@@ -104,12 +104,13 @@ def first_sentence(text: str, low: int = 8, high: int = 40) -> str | None:
     return None
 
 
-def sample(db: Path, n: int, seed: int) -> list[Passage]:
+def sample(db: Path, n: int, seed: int, source: str | None = None) -> list[Passage]:
     """``n`` passages of the given kinds, picked the same way for the same seed, mid-length, with a usable sentence."""
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     rows = con.execute(
         "SELECT id, source_id, location, kind, grade, text, keywords FROM passages "
-        f"WHERE kind IN ({','.join('?' * len(KINDS))}) AND length(text) BETWEEN 150 AND 1500", KINDS).fetchall()
+        f"WHERE kind IN ({','.join('?' * len(KINDS))}) AND length(text) BETWEEN 150 AND 1500"
+        + (" AND source_id = ?" if source else ""), (*KINDS, *([source] if source else []))).fetchall()
     random.Random(seed).shuffle(rows)
     out = []
     for r in rows:
@@ -192,9 +193,10 @@ def main() -> int:
     ap.add_argument("--num-ctx", type=int, default=8192)
     ap.add_argument("--timeout", type=float, default=600)
     ap.add_argument("--out", type=Path)
+    ap.add_argument("--source", help="only passages of this source id (after adding a new book)")
     args = ap.parse_args()
     # a wide pool, so the rarer cases (a ruling word, a school's name) find sentences too
-    passages = sample(args.db, max(args.per_type * 150, 300), args.seed)
+    passages = sample(args.db, max(args.per_type * 150, 300), args.seed, args.source)
     cases = build_cases(passages, args.per_type)
     gen = ModelGenerator([("local", ollama_call(args.model, args.url, args.num_ctx, args.timeout))])
     rows = []
